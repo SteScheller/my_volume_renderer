@@ -26,7 +26,15 @@
 *.a
 *.lib
 
+# Build directories
+build/*
+
 # Executables
 *.exe
 *.out
 *.app
+mvr
+
+# misc
+imgui.ini
+
