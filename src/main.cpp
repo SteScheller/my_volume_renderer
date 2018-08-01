@@ -25,7 +25,7 @@ float fovY = 90.f;
 float zNear = 0.1f;
 float zFar = 30.f;
 
-glm::vec3 camPos = glm::vec3(1.2f, 0.75f, 1.f);
+glm::vec3 camPos = glm::vec3(1.f, 0.f, 0.f);
 
 #define REQUIRED_OGL_VERSION_MAJOR 3
 #define REQUIRED_OGL_VERSION_MINOR 3
@@ -380,8 +380,10 @@ void cursor_position_cb(GLFWwindow *window, double xpos, double ypos)
     double dx, dy;
 
     float r, r_xz, phi, theta;
-    glm::vec3 normalized;
+    glm::vec3 normalized, normalized_xz;
     float pi = glm::pi<float>();
+    float quarter_pi = glm::quarter_pi<float>();
+    float half_pi = glm::half_pi<float>();
 
     dx = xpos - xpos_old; xpos_old = xpos;
     dy = ypos - ypos_old; ypos_old = ypos;
@@ -392,22 +394,33 @@ void cursor_position_cb(GLFWwindow *window, double xpos, double ypos)
         r = glm::length(camPos);
         r_xz = glm::length(glm::vec3(camPos.x, 0.f, camPos.z));
         normalized = glm::normalize(camPos);
-        theta = glm::acos(glm::dot(normalized, glm::vec3(0.f, 1.f, 0.f)));
-        phi = glm::acos(
-            glm::dot(
-                glm::normalize(glm::vec3(camPos.x, 0.f, camPos.z)),
-                glm::vec3(1.f, 0.f, 0.f)));
-        if (camPos.z < 0.f)
-            phi += pi;
+        normalized_xz = glm::normalize(glm::vec3(camPos.x, 0.f, camPos.z));
+        if (camPos.x >= 0.f)
+        {
+            phi = glm::acos(
+                glm::dot(normalized_xz, glm::vec3(1.f, 0.f, 0.f)));
+            if (camPos.z < 0.f)
+                phi = 2.f * pi - phi;
+        }
+        else
+        {
+            phi = glm::acos(
+                glm::dot(normalized_xz, glm::vec3(-1.f, 0.f, 0.f)));
+            if (camPos.z > 0.f)
+                phi = pi - phi;
+            else
+                phi += pi;
+        }
+        theta = half_pi - glm::acos(
+            glm::dot(normalized, glm::vec3(0.f, 1.f, 0.f)));
 
         // update the position
         phi += glm::radians(dx) * gui_cam_pan_speed;
-        phi = std::fmod(phi, 2.f * pi);
         theta += glm::radians(dy) * gui_cam_pan_speed;
-        if (theta <= 0.01f * pi)
-            theta = 0.01f * pi;
-        else if (theta >= 0.99f * pi)
-            theta = 0.99f * pi;
+        if (theta <= -0.999f * half_pi)
+            theta = -0.999f * half_pi;
+        else if (theta >= 0.999f * half_pi)
+            theta = 0.999f * half_pi;
 
         gui_phi = glm::degrees(phi);
         gui_theta = glm::degrees(theta);
@@ -416,7 +429,7 @@ void cursor_position_cb(GLFWwindow *window, double xpos, double ypos)
         // transform new position back into cartesian coordinates
         camPos = glm::vec3(
             r_xz * glm::cos(phi),
-            r * glm::cos(theta),
+            r * glm::sin(theta),
             r_xz * glm::sin(phi));
     }
 }
@@ -428,8 +441,7 @@ void scroll_cb(
 
 {
     // y scrolling changes the distance of the camera from the origin
-    camPos += static_cast<float>(yoffset) * gui_cam_zoom_speed * camPos;
-    camPos = glm::vec3(1.f);
+//    camPos += static_cast<float>(yoffset) * gui_cam_zoom_speed * camPos;
 }
 
 void framebuffer_size_cb(
