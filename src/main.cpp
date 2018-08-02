@@ -13,7 +13,8 @@
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
 
-#include "shader.h"
+#include "shader.hpp"
+#include "util.hpp"
 
 //-----------------------------------------------------------------------------
 // settings
@@ -25,7 +26,7 @@ float fovY = 90.f;
 float zNear = 0.1f;
 float zFar = 30.f;
 
-glm::vec3 camPos = glm::vec3(1.f, 0.f, 0.f);
+glm::vec3 camPos = glm::vec3(1.2f, 0.75f, 1.f);
 
 #define REQUIRED_OGL_VERSION_MAJOR 3
 #define REQUIRED_OGL_VERSION_MINOR 3
@@ -35,8 +36,8 @@ glm::vec3 camPos = glm::vec3(1.f, 0.f, 0.f);
 //-----------------------------------------------------------------------------
 bool gui_frame = true;
 bool gui_wireframe = false;
-float gui_cam_zoom_speed = 0.1f;
-float gui_cam_pan_speed = 0.1f;
+float gui_cam_zoom_speed = 0.2f;
+float gui_cam_pan_speed = 0.2f;
 
 float gui_r = 0.f, gui_phi = 0.f, gui_theta = 0.f;
 
@@ -379,58 +380,22 @@ void cursor_position_cb(GLFWwindow *window, double xpos, double ypos)
     static double ypos_old = 0.0;
     double dx, dy;
 
-    float r, r_xz, phi, theta;
-    glm::vec3 normalized, normalized_xz;
-    float pi = glm::pi<float>();
-    float quarter_pi = glm::quarter_pi<float>();
-    float half_pi = glm::half_pi<float>();
-
     dx = xpos - xpos_old; xpos_old = xpos;
     dy = ypos - ypos_old; ypos_old = ypos;
 
     if (GLFW_PRESS == glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_MIDDLE))
     {
-        // transform camera position into polar coordinates
-        r = glm::length(camPos);
-        r_xz = glm::length(glm::vec3(camPos.x, 0.f, camPos.z));
-        normalized = glm::normalize(camPos);
-        normalized_xz = glm::normalize(glm::vec3(camPos.x, 0.f, camPos.z));
-        if (camPos.x >= 0.f)
-        {
-            phi = glm::acos(
-                glm::dot(normalized_xz, glm::vec3(1.f, 0.f, 0.f)));
-            if (camPos.z < 0.f)
-                phi = 2.f * pi - phi;
-        }
-        else
-        {
-            phi = glm::acos(
-                glm::dot(normalized_xz, glm::vec3(-1.f, 0.f, 0.f)));
-            if (camPos.z > 0.f)
-                phi = pi - phi;
-            else
-                phi += pi;
-        }
-        theta = half_pi - glm::acos(
-            glm::dot(normalized, glm::vec3(0.f, 1.f, 0.f)));
+		glm::vec3 polar = util::cartesianToPolar<glm::vec3>(camPos);
+        float half_pi = glm::half_pi<float>();
 
-        // update the position
-        phi += glm::radians(dx) * gui_cam_pan_speed;
-        theta += glm::radians(dy) * gui_cam_pan_speed;
-        if (theta <= -0.999f * half_pi)
-            theta = -0.999f * half_pi;
-        else if (theta >= 0.999f * half_pi)
-            theta = 0.999f * half_pi;
+        polar.y += glm::radians(dx) * gui_cam_pan_speed;
+        polar.z += glm::radians(dy) * gui_cam_pan_speed;
+        if (polar.z <= -0.999f * half_pi)
+            polar.z = -0.999f * half_pi;
+        else if (polar.z >= 0.999f * half_pi)
+            polar.z = 0.999f * half_pi;
 
-        gui_phi = glm::degrees(phi);
-        gui_theta = glm::degrees(theta);
-        gui_r = r;
-
-        // transform new position back into cartesian coordinates
-        camPos = glm::vec3(
-            r_xz * glm::cos(phi),
-            r * glm::sin(theta),
-            r_xz * glm::sin(phi));
+		camPos = util::polarToCartesian<glm::vec3>(polar);
     }
 }
 
