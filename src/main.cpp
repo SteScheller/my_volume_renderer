@@ -36,19 +36,19 @@ glm::vec3 camPos = glm::vec3(1.2f, 0.75f, 1.f);
 //-----------------------------------------------------------------------------
 bool gui_frame = true;
 bool gui_wireframe = false;
-float gui_cam_zoom_speed = 0.2f;
-float gui_cam_pan_speed = 0.2f;
-
-float gui_r = 0.f, gui_phi = 0.f, gui_theta = 0.f;
+float gui_cam_zoom_speed = 0.1f;
+float gui_cam_rot_speed = 0.2f;
 
 //-----------------------------------------------------------------------------
 // function prototypes
 //-----------------------------------------------------------------------------
-void process_input(GLFWwindow *window);
+void cursor_position_cb(GLFWwindow *window, double xpos, double ypos);
+void mouse_button_cb(GLFWwindow* window, int button, int action, int mods);
+void scroll_cb(GLFWwindow* window, double xoffset, double yoffset);
+void key_cb(GLFWwindow* window, int key, int scancode , int action, int mods);
+void char_cb(GLFWwindow* window, unsigned int c);
 void framebuffer_size_cb(GLFWwindow* window, int width, int height);
 void error_cb(int error, const char* description);
-void scroll_cb(GLFWwindow* window, double xoffset, double yoffset);
-void cursor_position_cb(GLFWwindow *window, double xpos, double ypos);
 GLFWwindow* createWindow(
     unsigned int win_w, unsigned int win_h, const char* title);
 void initializeGl3w();
@@ -65,8 +65,8 @@ int main(int, char**)
     initializeImGui(window);
 
     glEnable(GL_DEPTH_TEST);
-    //glEnable(GL_CULL_FACE);
-    //glCullFace(GL_BACK);
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_BACK);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glClearColor(0.f, 0.f, 0.f, 1.f);
@@ -107,8 +107,8 @@ int main(int, char**)
         4, 7, 3,
         3, 7, 6,
         6, 2, 3,
-        4, 5, 1,
-        1, 0, 4
+        4, 0, 1,
+        1, 5, 4
     };
     unsigned int frameIndices[] = {
         0, 1,
@@ -213,7 +213,6 @@ int main(int, char**)
     while (!glfwWindowShouldClose(window))
     {
         glfwPollEvents();
-        process_input(window);
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -262,12 +261,19 @@ int main(int, char**)
             ImGui::InputFloat(
                 "camera zoom speed", &gui_cam_zoom_speed, 0.01f, 0.1f, "%.3f");
             ImGui::InputFloat(
-                "camera pan speed", &gui_cam_pan_speed, 0.01f, 0.1f, "%.3f");
+                "camera rotation speed",
+                &gui_cam_rot_speed,
+                0.01f,
+                0.1f,
+                "%.3f");
 
-            ImGui::Text("phi: %.3f", gui_phi);
-            ImGui::Text("theta: %.3f", gui_theta);
-            ImGui::Text("radius: %.3f", gui_r);
-            ImGui::Text("Camera position: x=%.3f, y=%.3f, z=%.3f", camPos.x, camPos.y, camPos.z);
+            glm::vec3 polar = util::cartesianToPolar<glm::vec3>(camPos);
+            ImGui::Text("phi: %.3f", polar.y);
+            ImGui::Text("theta: %.3f", polar.z);
+            ImGui::Text("radius: %.3f", polar.x);
+            ImGui::Text(
+                "Camera position: x=%.3f, y=%.3f, z=%.3f",
+                camPos.x, camPos.y, camPos.z);
 
 
             ImGui::Checkbox("draw frame", &gui_frame); ImGui::SameLine();
@@ -278,6 +284,8 @@ int main(int, char**)
                 1000.0f / ImGui::GetIO().Framerate,
                 ImGui::GetIO().Framerate);
         }
+        //bool show_demo_window = true;
+        //ImGui::ShowDemoWindow(&show_demo_window);
         glViewport(0, 0, win_w, win_h);
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
@@ -324,11 +332,15 @@ GLFWwindow* createWindow(
     GLFWwindow* window = glfwCreateWindow(
         win_w, win_h, title, nullptr, nullptr);
     glfwMakeContextCurrent(window);
-    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+    glfwSwapInterval(1);
+
+    // install callbacks
+    glfwSetMouseButtonCallback(window, mouse_button_cb);
     glfwSetScrollCallback(window, scroll_cb);
+    glfwSetKeyCallback(window, key_cb);
+    glfwSetCharCallback(window, char_cb);
     glfwSetCursorPosCallback(window, cursor_position_cb);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_cb);
-    glfwSwapInterval(1);
 
     return window;
 }
@@ -359,7 +371,7 @@ void initializeImGui(GLFWwindow* window)
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 
-    ImGui_ImplGlfw_InitForOpenGL(window, true);
+    ImGui_ImplGlfw_InitForOpenGL(window, false);
     ImGui_ImplOpenGL3_Init();
 
     ImGui::StyleColorsDark();
@@ -368,12 +380,6 @@ void initializeImGui(GLFWwindow* window)
 //-----------------------------------------------------------------------------
 // GLFW callbacks and input processing
 //-----------------------------------------------------------------------------
-void process_input(GLFWwindow *window)
-{
-    if(glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
-        glfwSetWindowShouldClose(window, true);
-}
-
 void cursor_position_cb(GLFWwindow *window, double xpos, double ypos)
 {
     static double xpos_old = 0.0;
@@ -388,8 +394,8 @@ void cursor_position_cb(GLFWwindow *window, double xpos, double ypos)
 		glm::vec3 polar = util::cartesianToPolar<glm::vec3>(camPos);
         float half_pi = glm::half_pi<float>();
 
-        polar.y += glm::radians(dx) * gui_cam_pan_speed;
-        polar.z += glm::radians(dy) * gui_cam_pan_speed;
+        polar.y += glm::radians(dx) * gui_cam_rot_speed;
+        polar.z += glm::radians(dy) * gui_cam_rot_speed;
         if (polar.z <= -0.999f * half_pi)
             polar.z = -0.999f * half_pi;
         else if (polar.z >= 0.999f * half_pi)
@@ -399,14 +405,35 @@ void cursor_position_cb(GLFWwindow *window, double xpos, double ypos)
     }
 }
 
-void scroll_cb(
-        __attribute__((unused)) GLFWwindow *window,
-        __attribute__((unused)) double xoffset,
-        double yoffset)
+void mouse_button_cb(GLFWwindow* window, int button, int action, int mods)
+{
+    // chain ImGui callback
+    ImGui_ImplGlfw_MouseButtonCallback(window, button, action, mods);
+}
+
+void scroll_cb(GLFWwindow *window, double xoffset, double yoffset)
 
 {
     // y scrolling changes the distance of the camera from the origin
-//    camPos += static_cast<float>(yoffset) * gui_cam_zoom_speed * camPos;
+    camPos += static_cast<float>(yoffset) * gui_cam_zoom_speed * camPos;
+
+    // chain ImGui callback
+    ImGui_ImplGlfw_ScrollCallback(window, xoffset, yoffset);
+}
+
+void key_cb(GLFWwindow* window, int key, int scancode , int action, int mods)
+{
+    if((key == GLFW_KEY_ESCAPE) && (action == GLFW_PRESS))
+        glfwSetWindowShouldClose(window, true);
+
+    // chain ImGui callback
+    ImGui_ImplGlfw_KeyCallback(window, key, scancode, action, mods);
+}
+
+void char_cb(GLFWwindow* window, unsigned int c)
+{
+    // chain ImGui callback
+    ImGui_ImplGlfw_CharCallback(window, c);
 }
 
 void framebuffer_size_cb(
