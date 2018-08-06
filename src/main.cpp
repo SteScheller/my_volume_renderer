@@ -15,6 +15,8 @@
 
 #include "shader.hpp"
 #include "util.hpp"
+#include "configraw.hpp"
+#include "texture.hpp"
 
 //-----------------------------------------------------------------------------
 // settings
@@ -208,6 +210,17 @@ int main(int, char**)
         0.1f,
         50.0f);
 
+    // TODO: Actually read and parse the config file
+    char volumeData[480*720*120];
+    cr::loadraw<unsigned char>(
+        "/mnt/data/steffen/jet/jet_00042",
+        volumeData,
+        static_cast<size_t>(480*720*120),
+        false);
+    modelMX = glm::scale(glm::mat4(1.f), glm::vec3(2.f/3.f, 1.f, 1.f/6.f));
+    GLuint volumeTex = util::create3dTexFromScalar(
+        volumeData, GL_R8UI, 480, 720, 120);
+
     // render loop
     // -----------
     while (!glfwWindowShouldClose(window))
@@ -244,9 +257,15 @@ int main(int, char**)
 
         // draw the volume
         shaderVolume.use();
+
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_3D, volumeTex);
+        shaderVolume.setInt("volumeTex", 0);
+
         shaderVolume.setMat4("modelMX", modelMX);
         shaderVolume.setMat4("viewMX", viewMX);
         shaderVolume.setMat4("projMX", projMX);
+        shaderVolume.setMat4("vmMX", viewMX * modelMX);
         shaderVolume.setMat4("pvMX", projMX * viewMX);
         shaderVolume.setMat4("pvmMX", projMX * viewMX * modelMX);
         glBindVertexArray(volumeVAO);
@@ -301,6 +320,11 @@ int main(int, char**)
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
+
+    glDeleteTextures(1, &volumeTex);
+
+    glDeleteProgram(shaderVolume.ID);
+    glDeleteProgram(shaderFrame.ID);
 
     glDeleteVertexArrays(1, &frameVAO);
     glDeleteBuffers(2, VBO);    // also used for volume
