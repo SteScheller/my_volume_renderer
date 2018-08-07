@@ -36,7 +36,7 @@ unsigned int win_w = 1280;
 unsigned int win_h = 720;
 
 float fovY = 90.f;
-float zNear = 0.1f;
+float zNear = 0.000001f;
 float zFar = 30.f;
 
 glm::vec3 camPos = glm::vec3(1.2f, 0.75f, 1.f);
@@ -84,11 +84,19 @@ GLFWwindow* createWindow(
     unsigned int win_w, unsigned int win_h, const char* title);
 void initializeGl3w();
 void initializeImGui(GLFWwindow* window);
+static void ShowHelpMarker(const char* desc);
+
+//-----------------------------------------------------------------------------
+// internals
+//-----------------------------------------------------------------------------
+static bool _flag_reload_shaders = false;
 
 //-----------------------------------------------------------------------------
 // main program
 //-----------------------------------------------------------------------------
-int main(int, char**)
+int main(
+    __attribute__((unused)) int argc,
+    __attribute__((unused)) char *argv[])
 {
     GLFWwindow* window = createWindow(win_w, win_h, "MVR");
 
@@ -96,8 +104,6 @@ int main(int, char**)
     initializeImGui(window);
 
     glEnable(GL_DEPTH_TEST);
-    glEnable(GL_CULL_FACE);
-    glCullFace(GL_BACK);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glClearColor(0.f, 0.f, 0.f, 1.f);
@@ -244,7 +250,7 @@ int main(int, char**)
         50.0f);
 
     // TODO: Actually read and parse the config file
-    unsigned char volumeData[480*720*120];
+    unsigned char *volumeData = new unsigned char[480*720*120];
     cr::loadraw<unsigned char>(
         "/mnt/data/steffen/jet/jet_00042",
         volumeData,
@@ -259,6 +265,21 @@ int main(int, char**)
     while (!glfwWindowShouldClose(window))
     {
         glfwPollEvents();
+
+        // check if shader programs shall be reloaded
+        if (_flag_reload_shaders)
+        {
+            _flag_reload_shaders = false;
+            std::cout << "reloading shaders..." << std::endl;
+
+            glDeleteProgram(shaderVolume.ID);
+            glDeleteProgram(shaderFrame.ID);
+
+            shaderFrame = Shader(
+                "src/shader/frame.vert", "src/shader/frame.frag");
+            shaderVolume = Shader(
+                "src/shader/volume.vert", "src/shader/volume.frag");
+        }
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -282,6 +303,7 @@ int main(int, char**)
         if(gui_frame)
         {
             shaderFrame.use();
+            shaderFrame.setMat4("vmMX", viewMX * modelMX);
             shaderFrame.setMat4("pvmMX", projMX * viewMX * modelMX);
             glBindVertexArray(frameVAO);
             glDrawElements(GL_LINES, 2*12, GL_UNSIGNED_INT, 0);
@@ -346,8 +368,8 @@ int main(int, char**)
 
             ImGui::Spacing();
 
-            ImGui::SliderFloat(
-                "step size", &gui_step_size, 0.0001f, 1.f, "%.4f");
+            ImGui::InputFloat(
+                "step size", &gui_step_size, 0.0001f, 0.01f, "%.4f");
 
             ImGui::Spacing();
 
@@ -369,12 +391,19 @@ int main(int, char**)
                     0.01f,
                     0.1f,
                     "%.3f");
+                ImGui::SameLine();
+                ShowHelpMarker(
+                    "Scroll up or down while holding CTRL to zoom.");
                 ImGui::InputFloat(
                     "camera rotation speed",
                     &gui_cam_rot_speed,
                     0.01f,
                     0.1f,
                     "%.3f");
+                ImGui::SameLine();
+                ShowHelpMarker(
+                    "Hold the middle mouse button and move the mouse to pan "
+                    "the camera");
                glm::vec3 polar = util::cartesianToPolar<glm::vec3>(camPos);
                 ImGui::Text("phi: %.3f", polar.y);
                 ImGui::Text("theta: %.3f", polar.z);
@@ -407,6 +436,7 @@ int main(int, char**)
                     ImGui::SliderFloat("k_diff", &gui_k_diff, 0.f, 1.f);
                     ImGui::SliderFloat("k_spec", &gui_k_spec, 0.f, 1.f);
                     ImGui::SliderFloat("k_exp", &gui_k_spec, 0.f, 50.f);
+                    ImGui::TreePop();
                 }
             }
 
@@ -430,7 +460,6 @@ int main(int, char**)
     // Cleanup
     glDisable(GL_DEPTH_TEST);
     glDisable(GL_BLEND);
-    glDisable(GL_CULL_FACE);
 
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
@@ -450,6 +479,7 @@ int main(int, char**)
     glfwDestroyWindow(window);
     glfwTerminate();
 
+    delete[] volumeData;
     return 0;
 }
 
@@ -515,7 +545,19 @@ void initializeImGui(GLFWwindow* window)
 
     ImGui::StyleColorsDark();
 }
-
+// from imgui_demo.cpp
+static void ShowHelpMarker(const char* desc)
+{
+    ImGui::TextDisabled("(?)");
+    if (ImGui::IsItemHovered())
+    {
+        ImGui::BeginTooltip();
+        ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+        ImGui::TextUnformatted(desc);
+        ImGui::PopTextWrapPos();
+        ImGui::EndTooltip();
+    }
+}
 //-----------------------------------------------------------------------------
 // GLFW callbacks and input processing
 //-----------------------------------------------------------------------------
@@ -553,8 +595,16 @@ void mouse_button_cb(GLFWwindow* window, int button, int action, int mods)
 void scroll_cb(GLFWwindow *window, double xoffset, double yoffset)
 
 {
-    // y scrolling changes the distance of the camera from the origin
-    camPos += static_cast<float>(yoffset) * gui_cam_zoom_speed * camPos;
+
+    if ((GLFW_PRESS == glfwGetKey(window, GLFW_KEY_LEFT_CONTROL)) ||
+        (GLFW_PRESS == glfwGetKey(window, GLFW_KEY_RIGHT_CONTROL)))
+    {
+        // y scrolling changes the distance of the camera from the origin
+        camPos +=
+            static_cast<float>(-yoffset) *
+            gui_cam_zoom_speed *
+            camPos;
+    }
 
     // chain ImGui callback
     ImGui_ImplGlfw_ScrollCallback(window, xoffset, yoffset);
@@ -564,6 +614,9 @@ void key_cb(GLFWwindow* window, int key, int scancode , int action, int mods)
 {
     if((key == GLFW_KEY_ESCAPE) && (action == GLFW_PRESS))
         glfwSetWindowShouldClose(window, true);
+
+    if((key == GLFW_KEY_R) && (action == GLFW_PRESS))
+        _flag_reload_shaders = true;
 
     // chain ImGui callback
     ImGui_ImplGlfw_KeyCallback(window, key, scancode, action, mods);

@@ -2,6 +2,7 @@
 layout(location = 0) out vec4 frag_color;
 
 in vec3 vTexCoord;      //!< texture coordinates
+in vec3 vWorldCoord;      //!< texture coordinates
 
 uniform sampler3D volumeTex;    //!< 3D texture handle
 
@@ -66,12 +67,12 @@ vec3 blinnPhong(vec3 n, vec3 l, vec3 v)
  *  \param a alpha of the blended element
  *  \return output color as RGBA vector
  */
-vec4 frontToBack(vec4 inRBGA, vec3 c, float a)
+vec4 frontToBack(vec4 inRGBA, vec3 c, float a)
 {
     vec4 outRGBA;
 
     outRGBA.rgb = inRGBA.rgb + (1 - inRGBA.a) * c * a;
-    outRGBA.a = inRBGA.a + (1 - inRGBA.a) * a;
+    outRGBA.a = inRGBA.a + (1 - inRGBA.a) * a;
 
     return outRGBA;
 }
@@ -122,7 +123,7 @@ void main()
                             //!< coordinates
     float x = 0.f;          //!< distance from origin to current position
     float dx = step_size;   //!< distance between sample points along the ray
-    float t_near, t_far;    //!< near and far distances where the shot ray
+    float tNear, tFar;      //!< near and far distances where the shot ray
                             //!< intersects the bounding box of the volume data
 
     vec3 rayOrig = camPos;                          //!< origin of the ray
@@ -190,7 +191,7 @@ void main()
                         textureOffset(
                             volumeTex, p, ivec3(0, -1, 0)).r - isovalue,
                         textureOffset(
-                            volume, p, ivec3(0, 0, -1)).r - isovalue));
+                            volumeTex, p, ivec3(0, 0, -1)).r - isovalue));
 
                     color.rgb = blinnPhong(n, l, e);
                     color.a = 1.f;
