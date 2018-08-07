@@ -18,16 +18,29 @@ namespace cr
         switch(sizeof(T))
         {
             case 8:
-                value = (v[0]<<56) | (v[1]<<48) | (v[2]<<40) | (v[3]<<32) |
-                    (v[4]<<24) | (v[5]<<16) | (v[6]<<8) | v[7];
+                value =
+                    (static_cast<uint64_t>(v[0]) << 56) |
+                    (static_cast<uint64_t>(v[1]) << 48) |
+                    (static_cast<uint64_t>(v[2]) << 40) |
+                    (static_cast<uint64_t>(v[3]) << 32) |
+                    (static_cast<uint64_t>(v[4]) << 24) |
+                    (static_cast<uint64_t>(v[5]) << 16) |
+                    (static_cast<uint64_t>(v[6]) << 8) |
+                    static_cast<uint64_t>(v[7]);
                 break;
 
             case 4:
-                value = (v[0]<<24) | (v[1]<<16) | (v[2]<<8) | v[3];
+                value =
+                    (static_cast<uint32_t>(v[0]) << 24) |
+                    (static_cast<uint32_t>(v[1]) << 16) |
+                    (static_cast<uint32_t>(v[2]) << 8) |
+                    static_cast<uint32_t>(v[3]);
                 break;
 
             case 2:
-                value = (v[0]<<8) | v[1];
+                value =
+                    (static_cast<uint16_t>(v[0]) << 8) |
+                    static_cast<uint16_t>(v[1]);
                 break;
 
             case 1:
@@ -64,7 +77,7 @@ namespace cr
         {
             if (fs.good())
             {
-                fs.read(static_cast<char*>(&value), sizeof(T));
+                fs.read(reinterpret_cast<char*>(&value), sizeof(T));
                 if (swap) value = swapByteOrder(value);
                 buffer[i] = value;
             }

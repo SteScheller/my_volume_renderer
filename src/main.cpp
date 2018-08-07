@@ -18,6 +18,17 @@
 #include "configraw.hpp"
 #include "texture.hpp"
 
+
+//-----------------------------------------------------------------------------
+// type definitions
+//-----------------------------------------------------------------------------
+enum class Mode : int
+{
+    line_of_sight = 0,
+    maximum_intensity_projection,
+    isosurface,
+    transfer_function
+};
 //-----------------------------------------------------------------------------
 // settings
 //-----------------------------------------------------------------------------
@@ -36,11 +47,29 @@ glm::vec3 camPos = glm::vec3(1.2f, 0.75f, 1.f);
 //-----------------------------------------------------------------------------
 // gui parameters
 //-----------------------------------------------------------------------------
-bool gui_frame = true;
-bool gui_wireframe = false;
+int gui_mode = static_cast<int>(Mode::line_of_sight);
+
+float gui_step_size = 0.01f;
+
+float gui_brightness = 1.f;
+
 float gui_cam_zoom_speed = 0.1f;
 float gui_cam_rot_speed = 0.2f;
 
+float gui_isovalue = 0.1f;
+
+float gui_light_dir[3] = {0.3f, 1.f, -0.3f};
+float gui_ambient[3] = {0.2f, 0.2f, 0.2f};
+float gui_diffuse[3] = {1.f, 1.f, 1.f};
+float gui_specular[3] = {1.f, 1.f, 1.f};
+float gui_k_amb = 0.2f;
+float gui_k_diff = 0.3f;
+float gui_k_spec = 0.5f;
+float gui_k_exp = 10.0f;
+
+bool gui_show_demo_window = false;
+bool gui_frame = true;
+bool gui_wireframe = false;
 //-----------------------------------------------------------------------------
 // function prototypes
 //-----------------------------------------------------------------------------
@@ -88,6 +117,10 @@ int main(int, char**)
         0.5f,   0.5f,   0.5f,   1.f,
         -0.5f,  0.5f,   0.5f,   1.f
     };
+    glm::vec4 bbMin = glm::vec4(
+            vertices[0], vertices[1],vertices[2], vertices[3]);
+    glm::vec4 bbMax = glm::vec4(
+            vertices[28], vertices[29],vertices[30], vertices[31]);
     float texCoords[] = {
         0.f, 0.f, 1.f,
         1.f, 0.f, 1.f,
@@ -211,7 +244,7 @@ int main(int, char**)
         50.0f);
 
     // TODO: Actually read and parse the config file
-    char volumeData[480*720*120];
+    unsigned char volumeData[480*720*120];
     cr::loadraw<unsigned char>(
         "/mnt/data/steffen/jet/jet_00042",
         volumeData,
@@ -262,12 +295,27 @@ int main(int, char**)
         glBindTexture(GL_TEXTURE_3D, volumeTex);
         shaderVolume.setInt("volumeTex", 0);
 
-        shaderVolume.setMat4("modelMX", modelMX);
-        shaderVolume.setMat4("viewMX", viewMX);
-        shaderVolume.setMat4("projMX", projMX);
-        shaderVolume.setMat4("vmMX", viewMX * modelMX);
-        shaderVolume.setMat4("pvMX", projMX * viewMX);
         shaderVolume.setMat4("pvmMX", projMX * viewMX * modelMX);
+        shaderVolume.setVec3("camPos", camPos);
+        shaderVolume.setVec3("bbMin", (viewMX * modelMX * bbMin).xyz);
+        shaderVolume.setVec3("bbMax", (viewMX * modelMX * bbMax).xyz);
+        shaderVolume.setInt("mode", gui_mode);
+        shaderVolume.setFloat("step_size", gui_step_size);
+        shaderVolume.setFloat("brightness", gui_brightness);
+        shaderVolume.setFloat("isovalue", gui_isovalue);
+        shaderVolume.setVec3(
+            "lightDir", gui_light_dir[0], gui_light_dir[1], gui_light_dir[2]);
+        shaderVolume.setVec3(
+            "ambient", gui_ambient[0], gui_ambient[1], gui_ambient[2]);
+        shaderVolume.setVec3(
+            "diffuse", gui_diffuse[0], gui_diffuse[1], gui_diffuse[2]);
+        shaderVolume.setVec3(
+            "specular", gui_specular[0], gui_specular[1], gui_specular[2]);
+        shaderVolume.setFloat("k_amb", gui_k_amb);
+        shaderVolume.setFloat("k_diff", gui_k_diff);
+        shaderVolume.setFloat("k_spec", gui_k_spec);
+        shaderVolume.setFloat("k_exp", gui_k_exp);
+
         glBindVertexArray(volumeVAO);
         glDrawElements(GL_TRIANGLES, 3*2*6, GL_UNSIGNED_INT, 0);
         glBindVertexArray(0);
@@ -276,35 +324,102 @@ int main(int, char**)
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
+        ImGui::Begin("Settings");
         {
-            ImGui::InputFloat(
-                "camera zoom speed", &gui_cam_zoom_speed, 0.01f, 0.1f, "%.3f");
-            ImGui::InputFloat(
-                "camera rotation speed",
-                &gui_cam_rot_speed,
-                0.01f,
-                0.1f,
-                "%.3f");
+            ImGui::Text("Mode");
+            ImGui::RadioButton(
+                "line of sight",
+                &gui_mode,
+                static_cast<int>(Mode::line_of_sight));
+            ImGui::RadioButton(
+                "maximum intensity projection",
+                &gui_mode,
+                static_cast<int>(Mode::maximum_intensity_projection));
+            ImGui::RadioButton(
+                "isosurface",
+                &gui_mode,
+                static_cast<int>(Mode::isosurface));
+            ImGui::RadioButton(
+                "transfer function",
+                &gui_mode,
+                static_cast<int>(Mode::transfer_function));
 
-            glm::vec3 polar = util::cartesianToPolar<glm::vec3>(camPos);
-            ImGui::Text("phi: %.3f", polar.y);
-            ImGui::Text("theta: %.3f", polar.z);
-            ImGui::Text("radius: %.3f", polar.x);
-            ImGui::Text(
-                "Camera position: x=%.3f, y=%.3f, z=%.3f",
-                camPos.x, camPos.y, camPos.z);
+            ImGui::Spacing();
 
+            ImGui::SliderFloat(
+                "step size", &gui_step_size, 0.0001f, 1.f, "%.4f");
 
-            ImGui::Checkbox("draw frame", &gui_frame); ImGui::SameLine();
-            ImGui::Checkbox("Wireframe", &gui_wireframe);
+            ImGui::Spacing();
+
+            ImGui::InputFloat("brightness", &gui_brightness, 0.01f, 0.1f);
+
+            if (ImGui::CollapsingHeader("General"))
+            {
+                ImGui::Checkbox("draw frame", &gui_frame); ImGui::SameLine();
+                ImGui::Checkbox("wireframe", &gui_wireframe);
+                ImGui::Checkbox(
+                    "show ImGui demo window", &gui_show_demo_window);
+            }
+
+            if (ImGui::CollapsingHeader("Camera"))
+            {
+                ImGui::InputFloat(
+                    "camera zoom speed",
+                    &gui_cam_zoom_speed,
+                    0.01f,
+                    0.1f,
+                    "%.3f");
+                ImGui::InputFloat(
+                    "camera rotation speed",
+                    &gui_cam_rot_speed,
+                    0.01f,
+                    0.1f,
+                    "%.3f");
+               glm::vec3 polar = util::cartesianToPolar<glm::vec3>(camPos);
+                ImGui::Text("phi: %.3f", polar.y);
+                ImGui::Text("theta: %.3f", polar.z);
+                ImGui::Text("radius: %.3f", polar.x);
+                ImGui::Text(
+                    "Camera position: x=%.3f, y=%.3f, z=%.3f",
+                    camPos.x, camPos.y, camPos.z);
+
+            }
+
+            if (ImGui::CollapsingHeader("Isosurface"))
+            {
+                ImGui::InputFloat(
+                    "isovalue",
+                    &gui_isovalue,
+                    0.01f,
+                    0.1f,
+                    "%.3f");
+                if (ImGui::TreeNode("Lighting"))
+                {
+                    ImGui::SliderFloat3(
+                        "light direction", gui_light_dir, 0.f, 1.f);
+                    ImGui::ColorEdit3("ambient", gui_ambient);
+                    ImGui::ColorEdit3("diffuse", gui_diffuse);
+                    ImGui::ColorEdit3("specular", gui_specular);
+
+                    ImGui::Spacing();
+
+                    ImGui::SliderFloat("k_amb", &gui_k_amb, 0.f, 1.f);
+                    ImGui::SliderFloat("k_diff", &gui_k_diff, 0.f, 1.f);
+                    ImGui::SliderFloat("k_spec", &gui_k_spec, 0.f, 1.f);
+                    ImGui::SliderFloat("k_exp", &gui_k_spec, 0.f, 50.f);
+                }
+            }
+
+            ImGui::Separator();
 
             ImGui::Text(
                 "Application average %.3f ms/frame (%.1f FPS)",
                 1000.0f / ImGui::GetIO().Framerate,
                 ImGui::GetIO().Framerate);
         }
-        //bool show_demo_window = true;
-        //ImGui::ShowDemoWindow(&show_demo_window);
+        ImGui::End();
+        if(gui_show_demo_window) ImGui::ShowDemoWindow(&gui_show_demo_window);
+
         glViewport(0, 0, win_w, win_h);
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
@@ -415,7 +530,7 @@ void cursor_position_cb(GLFWwindow *window, double xpos, double ypos)
 
     if (GLFW_PRESS == glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_MIDDLE))
     {
-		glm::vec3 polar = util::cartesianToPolar<glm::vec3>(camPos);
+        glm::vec3 polar = util::cartesianToPolar<glm::vec3>(camPos);
         float half_pi = glm::half_pi<float>();
 
         polar.y += glm::radians(dx) * gui_cam_rot_speed;
@@ -425,7 +540,7 @@ void cursor_position_cb(GLFWwindow *window, double xpos, double ypos)
         else if (polar.z >= 0.999f * half_pi)
             polar.z = 0.999f * half_pi;
 
-		camPos = util::polarToCartesian<glm::vec3>(polar);
+        camPos = util::polarToCartesian<glm::vec3>(polar);
     }
 }
 

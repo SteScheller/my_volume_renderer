@@ -2,14 +2,12 @@
 layout(location = 0) out vec4 frag_color;
 
 in vec3 vTexCoord;      //!< texture coordinates
-in vec3 vWorldCoord;    //!< position of the fragment in world coordinates
 
 uniform sampler3D volumeTex;    //!< 3D texture handle
 
-uniform mat4 viewMX;            //!< view matrix
-uniform mat4 modelMX;           //!< model matrix
-uniform mat4 invModelViewMX;    //!< inverse model-view matrix
 uniform vec3 camPos;            //!< camera position in world coordinates
+uniform vec3 bbMin;             //!< axes aligned bounding box min. corner
+uniform vec3 bbMax;             //!< axes aligned bounding box max. corner
 
 // rendering method:
 //   0: line-of-sight
@@ -34,9 +32,10 @@ uniform float k_diff;       //!< diffuse factor
 uniform float k_spec;       //!< specular factor
 uniform float k_exp;        //!< specular exponent
 
-#define M_PI  3.14159265
-#define M_2PI  6.2831853
-#define EPS 0.000001
+#define M_PIH   1.570796
+#define M_PI    3.141592
+#define M_2PI   6.283185
+#define EPS     0.000001
 
 /*!
  *  \brief calculates the fragment color with the Blinn-Phong model
@@ -60,7 +59,29 @@ vec3 blinnPhong(vec3 n, vec3 l, vec3 v)
 }
 
 /*!
- *  \brief Intersects a ray with the bounding box and returns the intersection points
+ *  \brief computes the output color with front to back compositing
+ *
+ *  \param input input color as RGBA vector
+ *  \param c color of the blended element
+ *  \param a alpha of the blended element
+ *  \return output color as RGBA vector
+ */
+vec4 frontToBack(vec4 inRBGA, vec3 c, float a)
+{
+    vec4 outRGBA;
+
+    outRGBA.rgb = inRGBA.rgb + (1 - inRGBA.a) * c * a;
+    outRGBA.a = inRBGA.a + (1 - inRGBA.a) * a;
+
+    return outRGBA;
+}
+
+/*!
+ *  \brief Intersects a ray with an AABB and returns the intersection points
+ *
+ *  Intersection test with axes-aligned bounding box according to the slab
+ *  method; It relies on IEEE 754 floating-point properties (see elementwise
+ *  inverse of rayDir vector).
  *
  *  \param rayOrig The origin of the ray
  *  \param rayDir The direction of the ray
@@ -95,6 +116,8 @@ void main()
     vec4 color = vec4(0.f); //!< RGBA color of the fragment
     float value = 0.f;      //!< value sampled from the volume
 
+    bool terminateEarly = false;    //!< early ray termination
+
     vec3 pos = vec3(0.f);   //!< current position on the ray in world
                             //!< coordinates
     float x = 0.f;          //!< distance from origin to current position
@@ -106,23 +129,28 @@ void main()
     vec3 rayDir = normalize(vWorldCoord - rayOrig); //!< direction of the ray
 
     // maximum intensity projection
-    float maxValue = 0.0;
-    
-    // iso-surface 
-    float sampleValueLast = 0.0;	//!< temporary variable for storing the
+    float maxValue = 0.f;
+
+    // iso-surface
+    float valueLast = 0.f;	        //!< temporary variable for storing the
                                     //!< last sample value
-    vec3 posLast = rayOrig;			//!< temporary variable for storing the 
-                                    //!< last sampled position on the ray 
-    
+    vec3 posLast = rayOrig;			//!< temporary variable for storing the
+                                    //!< last sampled position on the ray
+
     // Blinn-Phong shading
-    vec3 p = vec3(0.0);				//!< position on the iso-surface in world
+    vec3 p = vec3(0.f);				//!< position on the iso-surface in world
                                     //!< coordinates
-    vec3 n = vec3(0.0);				//!< surface normal pointing away from the
+    vec3 n = vec3(0.f);				//!< surface normal pointing away from the
                                     //!< surface
     vec3 l = lightDir;				//!< direction of the distant light source
                                     //!< in world coordinates
-    vec3 e = -rayDir;				//!< direction of the (virtual) eye in 
+    vec3 e = -rayDir;				//!< direction of the (virtual) eye in
                                     //!< world coordinates
+
+    // intersect with bounding box and handle special case when we are inside
+    // the box. In this case the ray marching starts directly at the origin.
+    if (!intersectBoundingBox(rayOrig, rayDir, tNear, tFar))
+        tNear = 0.f;
 
     for (x = tNear; x <= tFar; x += dx)
     {
@@ -132,8 +160,8 @@ void main()
         switch (mode)
         {
             // line-of-sight integration
-            case 0: 
-                color.rgb += vec3(value * brightness * dx);
+            case 0:
+                color.rgb += vec3(value * dx);
                 color.a = 1.f;
                 break;
 
@@ -142,50 +170,49 @@ void main()
                 if (value > maxValue)
                 {
                     maxValue = value;
-                    color = vec3(// TODO: continue
-                for (int i = 0; i <= maxSteps; i++)
-                {
-                    pos = pHitObj + i * step * rayDirObj;
-                    curVal = texture(volume, pos).r;
-                    if (curVal > maxVal) maxVal = curVal;
-                    color += texture(volume, pos).r * vec3(1.f);
+                    color.rgb = vec3(value);
+                    color.a = 1.f;
                 }
-                color = scale * maxVal * vec3(1.f);
-                frag_color = vec4(color, 1.0f);
                 break;
 
             // isosurface
-            // TODO: Continue here
             case 2:
-                float phiP1 = 0.f, phiP2 = 0.f;
-                for (int i = 0; i <= maxSteps; i++)
+                if (0.f > ((value - isovalue) * (valueLast - isovalue)))
                 {
-                    pos = pHitObj + i * step * rayDirObj;
-                    phiP1 =  texture(volume, pos).r;
-                    phiP2 =  texture(volume, pos + step * rayDirObj).r;
-                    // check if we exceed the isosurface threshold value
-                    if (0.f > ((phiP1 - isovalue) * (phiP2 - isovalue)))
-                    {
-                        // iso-surface exceeded -> do Blinn-Phong shading to determine the color
-                        // calculate interpolated position
-                        float delta = (isovalue - phiP1) / (phiP2 - phiP1);
-                        vec3 p =  pos + delta * (step * rayDirObj);
+                    p = mix(
+                        posLast,
+                        pos,
+                        (isovalue - valueLast) / (value - valueLast));
 
-                        // calculate normal
-                        vec3 n = vec3(
-                            textureOffset(volume, p, ivec3(-1, 0, 0)).r - isovalue,
-                            textureOffset(volume, p, ivec3(0, -1, 0)).r - isovalue,
-                                        textureOffset(volume, p, ivec3(0, 0, -1)).r - isovalue);
-                        n = normalize(n);
+                    n = normalize(vec3(
+                        textureOffset(
+                            volumeTex, p, ivec3(-1, 0, 0)).r - isovalue,
+                        textureOffset(
+                            volumeTex, p, ivec3(0, -1, 0)).r - isovalue,
+                        textureOffset(
+                            volume, p, ivec3(0, 0, -1)).r - isovalue));
 
-                        // actual shading
-                        color = blinnPhong(n,normalize(-1.f * lightDir), normalize(pCamObj - p));
-                        break;
-                    }
+                    color.rgb = blinnPhong(n, l, e);
+                    color.a = 1.f;
+                    terminateEarly = true;
                 }
+                valueLast = value;
+                posLast = pos;
+                break;
+
+            // transfer function
+            case 3:
+                //TODO
+                color = frontToBack(color, vTexCoord, 1.f);
+                if (color.a > 0.99f)
+                    terminateEarly = true;
                 break;
         }
+
+        if (terminateEarly)
+            break;
     }
-    frag_color = color;
+
+    frag_color = vec4(brightness * color.rgb, color.a);
 }
 
