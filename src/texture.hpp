@@ -3,6 +3,8 @@
 
 #include <GL/gl3w.h>
 
+#include "util.hpp"
+
 namespace util
 {
     /**
@@ -15,7 +17,7 @@ namespace util
      */
     GLuint create3dTexFromScalar(
         const GLvoid *buf,
-        GLint internalFormat,
+        GLenum type,
         GLsizei res_x,
         GLsizei res_y,
         GLsizei res_z)
@@ -27,20 +29,21 @@ namespace util
         glTexImage3D(
             GL_TEXTURE_3D,
             0,
-            internalFormat,
+            GL_RED,
             res_x,
             res_y,
             res_z,
             0,
             GL_RED,
-            GL_FLOAT,
+            type,
             buf);
+        printOpenGLError();
         glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-        float borderColor[] = { 0.f, 0.f, 0.f, 1.f };
+        glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+        glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+        glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_BORDER);
+        float borderColor[] = {0.f, 0.f, 0.f, 1.f};
         glTexParameterfv(GL_TEXTURE_3D, GL_TEXTURE_BORDER_COLOR, borderColor);
 
         return volumeTex;

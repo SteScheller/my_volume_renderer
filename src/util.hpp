@@ -3,9 +3,25 @@
 
 #define GLM_FORCE_SWIZZLE
 #include <glm/glm.hpp>
+#include <glm/gtc/constants.hpp>
+
+
+//-----------------------------------------------------------------------------
+// Macros
+//-----------------------------------------------------------------------------
+#define printOpenGLError() util::printOglError(__FILE__, __LINE__)
 
 namespace util
 {
+
+    //-------------------------------------------------------------------------
+    // Declarations
+    //-------------------------------------------------------------------------
+    bool printOglError(const char *file, int line);
+
+    //-------------------------------------------------------------------------
+    // Templates
+    //-------------------------------------------------------------------------
     /*! \brief Transforms cartesian into polar coordinates.
      *  \return A vector where with components (r, phi, theta)
      *

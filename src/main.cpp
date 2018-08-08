@@ -126,7 +126,8 @@ int main(
     glm::vec4 bbMin = glm::vec4(
             vertices[0], vertices[1],vertices[2], vertices[3]);
     glm::vec4 bbMax = glm::vec4(
-            vertices[28], vertices[29],vertices[30], vertices[31]);
+            vertices[24], vertices[25],vertices[26], vertices[27]);
+
     float texCoords[] = {
         0.f, 0.f, 1.f,
         1.f, 0.f, 1.f,
@@ -250,7 +251,7 @@ int main(
         50.0f);
 
     // TODO: Actually read and parse the config file
-    unsigned char *volumeData = new unsigned char[480*720*120];
+    /*unsigned char *volumeData = new unsigned char[480*720*120];
     cr::loadraw<unsigned char>(
         "/mnt/data/steffen/jet/jet_00042",
         volumeData,
@@ -258,7 +259,16 @@ int main(
         false);
     modelMX = glm::scale(glm::mat4(1.f), glm::vec3(2.f/3.f, 1.f, 1.f/6.f));
     GLuint volumeTex = util::create3dTexFromScalar(
-        volumeData, GL_R8UI, 480, 720, 120);
+        volumeData, GL_BYTE, 480, 720, 120);*/
+    unsigned char *volumeData = new unsigned char[256*256*128];
+    cr::loadraw<unsigned char>(
+        "/mnt/data/testData/engine.raw",
+        volumeData,
+        static_cast<size_t>(256*256*128),
+        false);
+    modelMX = glm::scale(glm::mat4(1.f), glm::vec3(1.f, 2.f, 1.f));
+    GLuint volumeTex = util::create3dTexFromScalar(
+        volumeData, GL_UNSIGNED_BYTE, 256, 256, 128);
 
     // render loop
     // -----------
@@ -303,7 +313,6 @@ int main(
         if(gui_frame)
         {
             shaderFrame.use();
-            shaderFrame.setMat4("vmMX", viewMX * modelMX);
             shaderFrame.setMat4("pvmMX", projMX * viewMX * modelMX);
             glBindVertexArray(frameVAO);
             glDrawElements(GL_LINES, 2*12, GL_UNSIGNED_INT, 0);
@@ -316,11 +325,11 @@ int main(
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_3D, volumeTex);
         shaderVolume.setInt("volumeTex", 0);
-
+        shaderVolume.setMat4("modelMX", modelMX);
         shaderVolume.setMat4("pvmMX", projMX * viewMX * modelMX);
-        shaderVolume.setVec3("camPos", camPos);
-        shaderVolume.setVec3("bbMin", (viewMX * modelMX * bbMin).xyz);
-        shaderVolume.setVec3("bbMax", (viewMX * modelMX * bbMax).xyz);
+        shaderVolume.setVec3("eyePos", camPos);
+        shaderVolume.setVec3("bbMin", (modelMX * bbMin).xyz);
+        shaderVolume.setVec3("bbMax", (modelMX * bbMax).xyz);
         shaderVolume.setInt("mode", gui_mode);
         shaderVolume.setFloat("step_size", gui_step_size);
         shaderVolume.setFloat("brightness", gui_brightness);

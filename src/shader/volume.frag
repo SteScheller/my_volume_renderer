@@ -6,7 +6,7 @@ in vec3 vWorldCoord;      //!< texture coordinates
 
 uniform sampler3D volumeTex;    //!< 3D texture handle
 
-uniform vec3 camPos;            //!< camera position in world coordinates
+uniform vec3 eyePos;            //!< camera / eye position in world coordinates
 uniform vec3 bbMin;             //!< axes aligned bounding box min. corner
 uniform vec3 bbMax;             //!< axes aligned bounding box max. corner
 
@@ -109,6 +109,31 @@ bool intersectBoundingBox(
     return (smallestTMax > largestTMin);
 }
 
+/**
+ *	\brief calculates the gradient with central differences
+ *
+ *	\param volume handle to the 3D texture
+ *	\param pos The position from which the gradient should be determined
+ *	\param h distance for finite differences
+ *	\return The gradient at pos
+ *
+ *	Calculates the gradient at a given position in a 3D volume using central
+ *	differences.
+ */
+vec3 gradientCentral(sampler3D volume, vec3 pos, float h)
+{
+	vec3 grad = vec3(0.0);		// gradient vector
+
+    grad.x = texture(volume, pos + vec3(h, 0.f, 0.f)).r -
+        texture(volume, pos - vec3(h, 0.f, 0.f)).r;
+    grad.y = texture(volume, pos + vec3(0.f, h, 0.f)).r -
+        texture(volume, pos - vec3(0.f, h, 0.f)).r;
+    grad.z = texture(volume, pos + vec3(0.f, 0.f, h)).r -
+        texture(volume, pos - vec3(0.f, 0.f, h)).r;
+    grad /= 2.0 * h;
+
+    return normalize(grad);
+}
 // ----------------------------------------------------------------------------
 //   main
 // ----------------------------------------------------------------------------
@@ -116,6 +141,8 @@ void main()
 {
     vec4 color = vec4(0.f); //!< RGBA color of the fragment
     float value = 0.f;      //!< value sampled from the volume
+
+    vec3 volCoord = vec3(0.f);      //!< coordinates for texture access
 
     bool terminateEarly = false;    //!< early ray termination
 
@@ -126,7 +153,7 @@ void main()
     float tNear, tFar;      //!< near and far distances where the shot ray
                             //!< intersects the bounding box of the volume data
 
-    vec3 rayOrig = camPos;                          //!< origin of the ray
+    vec3 rayOrig = eyePos;                          //!< origin of the ray
     vec3 rayDir = normalize(vWorldCoord - rayOrig); //!< direction of the ray
 
     // maximum intensity projection
@@ -156,7 +183,8 @@ void main()
     for (x = tNear; x <= tFar; x += dx)
     {
         pos = rayOrig + x * rayDir;
-        value = texture(volumeTex, pos - bbMin).r;
+        volCoord = (pos - bbMin) / (bbMax - bbMin);
+        value = texture(volumeTex, volCoord).r;
 
         switch (mode)
         {
@@ -185,13 +213,10 @@ void main()
                         pos,
                         (isovalue - valueLast) / (value - valueLast));
 
-                    n = normalize(vec3(
-                        textureOffset(
-                            volumeTex, p, ivec3(-1, 0, 0)).r - isovalue,
-                        textureOffset(
-                            volumeTex, p, ivec3(0, -1, 0)).r - isovalue,
-                        textureOffset(
-                            volumeTex, p, ivec3(0, 0, -1)).r - isovalue));
+                    n = -gradientCentral(
+                        volumeTex,
+                        (p - bbMin) / (bbMax - bbMin),
+                        dx);
 
                     color.rgb = blinnPhong(n, l, e);
                     color.a = 1.f;
