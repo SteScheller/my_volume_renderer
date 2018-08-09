@@ -81,6 +81,91 @@ namespace util
             coords.x * glm::sin(coords.z),
             coords.x * glm::cos(coords.z) * glm::sin(coords.y));
     }
+
+    /**
+     * /brief create an array of bins from the given data
+     *
+     * /param bins   number of bins
+     * /param min    minimum value
+     * /param max    maximum value
+     * /param values pointer to data values
+     * /param numValues number of values in the array pointed to by values.
+     *
+     * /return An array of bins with 3 components each [first, second) #third
+     * Creates an array of bins from the given data which can be used to create
+     * a histogram.
+     */
+    template<class T>
+    void binData( unsigned int bins, T min, T max,
+                       T** values, unsigned int numValues ) {
+        if (bins == 0 || min > max || values == nullptr || numValues == 0 ) {
+            return;
+        }
+
+        // create bins
+        /*  Bins are created as an array of pairs. Meaning of pairs is as follows:
+        *   first value:    lower bound of the corresponding bin
+        *   second value:   number of elements in the bin */
+        std::pair<float, unsigned int>* binsHistogramm = new std::pair<float, unsigned int>[bins];
+        T val;
+        float binSize = static_cast<float>(max - min) / static_cast<float>(bins);
+        unsigned int idx = 0;
+
+        for (unsigned int i = 0; i < bins; i++)
+        {
+            binsHistogramm[i].first = i * binSize;
+            binsHistogramm[i].second = 0;
+        }
+
+        // walk through values and count them in bins
+        maxBinValue = 0;
+        for (unsigned int i = 0; i < numValues; i++)
+        {
+            val = (*values)[i];
+            // search for corresponding bin
+            for (unsigned int j = 0; j < bins; j++)
+            {
+                if (    (j < (bins - 1)) &&
+                        (binsHistogramm[j].first <= static_cast<float>(val)) &&
+                        (static_cast<float>(val) < (binsHistogramm[j].first + binSize))     )
+                {
+                    binsHistogramm[j].second++;
+                    break;
+                }
+                else if ((binsHistogramm[j].first <= static_cast<float>(val)) &&
+                    (static_cast<float>(val) <= (binsHistogramm[j].first + binSize)))
+                {
+                    binsHistogramm[j].second++;
+                    break;
+                }
+                // save maximum value
+                if (binsHistogramm[j].second > maxBinValue)
+                    maxBinValue = binsHistogramm[j].second;
+            }
+        }
+
+        // create vertices from histogram data
+        std::vector<float> histoVertices;
+        float x = 0.f, y = 0.f;
+        for (unsigned int i = 0; i < bins; i++)
+        {
+            x = (   binsHistogramm[i].first - static_cast<float>(min)
+                    + 0.5f * binSize    )
+                / static_cast<float>(max - min);
+            y = static_cast<float>(binsHistogramm[i].second);
+
+            histoVertices.push_back(x);
+            histoVertices.push_back(y);
+        }
+
+        vaHisto.Create(bins);
+        vaHisto.SetArrayBuffer(0, GL_FLOAT, 2, histoVertices.data(), GL_STATIC_DRAW);
+
+        delete[] binsHistogramm;
+    }
+};
+
+
 }
 
 #endif
