@@ -67,6 +67,9 @@ float gui_k_diff = 0.3f;
 float gui_k_spec = 0.5f;
 float gui_k_exp = 10.0f;
 
+bool gui_show_histogram_window = true;
+bool gui_show_tf_window = true;
+
 bool gui_show_demo_window = false;
 bool gui_frame = true;
 bool gui_wireframe = false;
@@ -85,7 +88,9 @@ GLFWwindow* createWindow(
 void initializeGl3w();
 void initializeImGui(GLFWwindow* window);
 static void ShowHelpMarker(const char* desc);
-
+static void showSettingsWindow();
+static void showHistogramWindow();
+static void showTransferFunctionWindow();
 //-----------------------------------------------------------------------------
 // internals
 //-----------------------------------------------------------------------------
@@ -251,24 +256,36 @@ int main(
         50.0f);
 
     // TODO: Actually read and parse the config file
-    /*unsigned char *volumeData = new unsigned char[480*720*120];
-    cr::loadraw<unsigned char>(
+    /*unsigned char *volumeData = new unsigned char[480 * 720 * 120];
+    cr::loadRaw<unsigned char>(
         "/mnt/data/steffen/jet/jet_00042",
         volumeData,
-        static_cast<size_t>(480*720*120),
+        static_cast<size_t>(480 * 720 * 120),
         false);
     modelMX = glm::scale(glm::mat4(1.f), glm::vec3(2.f/3.f, 1.f, 1.f/6.f));
     GLuint volumeTex = util::create3dTexFromScalar(
-        volumeData, GL_BYTE, 480, 720, 120);*/
-    unsigned char *volumeData = new unsigned char[256*256*128];
-    cr::loadraw<unsigned char>(
+        volumeData, GL_BYTE, 480, 720, 120);
+    util::bin_t histogram_bins = util::binData(
+        255,
+        static_cast<unsigned char> -127,
+        static_cast<unsigned char> 127,
+        volumeData,
+        static_cast<size_t>(480 * 720 * 120));*/
+    unsigned char *volumeData = new unsigned char[256 * 256 * 128];
+    cr::loadRaw<unsigned char>(
         "/mnt/data/testData/engine.raw",
         volumeData,
-        static_cast<size_t>(256*256*128),
+        static_cast<size_t>(256 * 256 * 128),
         false);
     modelMX = glm::scale(glm::mat4(1.f), glm::vec3(1.f, 2.f, 1.f));
     GLuint volumeTex = util::create3dTexFromScalar(
         volumeData, GL_UNSIGNED_BYTE, 256, 256, 128);
+    util::bin_t *histogram_bins = util::binData(
+        255,
+        static_cast<unsigned char>(0),
+        static_cast<unsigned char> (255),
+        volumeData,
+        static_cast<size_t>(256 * 256 * 128));
 
     // render loop
     // -----------
@@ -355,109 +372,13 @@ int main(
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
-        ImGui::Begin("Settings");
-        {
-            ImGui::Text("Mode");
-            ImGui::RadioButton(
-                "line of sight",
-                &gui_mode,
-                static_cast<int>(Mode::line_of_sight));
-            ImGui::RadioButton(
-                "maximum intensity projection",
-                &gui_mode,
-                static_cast<int>(Mode::maximum_intensity_projection));
-            ImGui::RadioButton(
-                "isosurface",
-                &gui_mode,
-                static_cast<int>(Mode::isosurface));
-            ImGui::RadioButton(
-                "transfer function",
-                &gui_mode,
-                static_cast<int>(Mode::transfer_function));
-
-            ImGui::Spacing();
-
-            ImGui::InputFloat(
-                "step size", &gui_step_size, 0.0001f, 0.01f, "%.4f");
-
-            ImGui::Spacing();
-
-            ImGui::InputFloat("brightness", &gui_brightness, 0.01f, 0.1f);
-
-            if (ImGui::CollapsingHeader("General"))
-            {
-                ImGui::Checkbox("draw frame", &gui_frame); ImGui::SameLine();
-                ImGui::Checkbox("wireframe", &gui_wireframe);
-                ImGui::Checkbox(
-                    "show ImGui demo window", &gui_show_demo_window);
-            }
-
-            if (ImGui::CollapsingHeader("Camera"))
-            {
-                ImGui::InputFloat(
-                    "camera zoom speed",
-                    &gui_cam_zoom_speed,
-                    0.01f,
-                    0.1f,
-                    "%.3f");
-                ImGui::SameLine();
-                ShowHelpMarker(
-                    "Scroll up or down while holding CTRL to zoom.");
-                ImGui::InputFloat(
-                    "camera rotation speed",
-                    &gui_cam_rot_speed,
-                    0.01f,
-                    0.1f,
-                    "%.3f");
-                ImGui::SameLine();
-                ShowHelpMarker(
-                    "Hold the middle mouse button and move the mouse to pan "
-                    "the camera");
-               glm::vec3 polar = util::cartesianToPolar<glm::vec3>(camPos);
-                ImGui::Text("phi: %.3f", polar.y);
-                ImGui::Text("theta: %.3f", polar.z);
-                ImGui::Text("radius: %.3f", polar.x);
-                ImGui::Text(
-                    "Camera position: x=%.3f, y=%.3f, z=%.3f",
-                    camPos.x, camPos.y, camPos.z);
-
-            }
-
-            if (ImGui::CollapsingHeader("Isosurface"))
-            {
-                ImGui::InputFloat(
-                    "isovalue",
-                    &gui_isovalue,
-                    0.01f,
-                    0.1f,
-                    "%.3f");
-                if (ImGui::TreeNode("Lighting"))
-                {
-                    ImGui::SliderFloat3(
-                        "light direction", gui_light_dir, 0.f, 1.f);
-                    ImGui::ColorEdit3("ambient", gui_ambient);
-                    ImGui::ColorEdit3("diffuse", gui_diffuse);
-                    ImGui::ColorEdit3("specular", gui_specular);
-
-                    ImGui::Spacing();
-
-                    ImGui::SliderFloat("k_amb", &gui_k_amb, 0.f, 1.f);
-                    ImGui::SliderFloat("k_diff", &gui_k_diff, 0.f, 1.f);
-                    ImGui::SliderFloat("k_spec", &gui_k_spec, 0.f, 1.f);
-                    ImGui::SliderFloat("k_exp", &gui_k_spec, 0.f, 50.f);
-                    ImGui::TreePop();
-                }
-            }
-
-            ImGui::Separator();
-
-            ImGui::Text(
-                "Application average %.3f ms/frame (%.1f FPS)",
-                1000.0f / ImGui::GetIO().Framerate,
-                ImGui::GetIO().Framerate);
-        }
-        ImGui::End();
+        showSettingsWindow();
         if(gui_show_demo_window) ImGui::ShowDemoWindow(&gui_show_demo_window);
+        if(gui_mode == static_cast<int>(Mode::transfer_function))
+        {
+            if(gui_show_tf_window) showTransferFunctionWindow();
+            if(gui_show_histogram_window) showHistogramWindow();
+        }
 
         glViewport(0, 0, win_w, win_h);
         ImGui::Render();
@@ -567,6 +488,157 @@ static void ShowHelpMarker(const char* desc)
         ImGui::EndTooltip();
     }
 }
+
+static void showSettingsWindow()
+{
+    ImGui::Begin("Settings");
+    {
+        ImGui::Text("Mode");
+        ImGui::RadioButton(
+            "line of sight",
+            &gui_mode,
+            static_cast<int>(Mode::line_of_sight));
+        ImGui::RadioButton(
+            "maximum intensity projection",
+            &gui_mode,
+            static_cast<int>(Mode::maximum_intensity_projection));
+        ImGui::RadioButton(
+            "isosurface",
+            &gui_mode,
+            static_cast<int>(Mode::isosurface));
+        ImGui::RadioButton(
+            "transfer function",
+            &gui_mode,
+            static_cast<int>(Mode::transfer_function));
+
+        ImGui::Spacing();
+
+        ImGui::InputFloat(
+            "step size", &gui_step_size, 0.0001f, 0.01f, "%.4f");
+
+        ImGui::Spacing();
+
+        ImGui::InputFloat("brightness", &gui_brightness, 0.01f, 0.1f);
+
+        if (ImGui::CollapsingHeader("General"))
+        {
+            ImGui::Checkbox("draw frame", &gui_frame); ImGui::SameLine();
+            ImGui::Checkbox("wireframe", &gui_wireframe);
+            ImGui::Checkbox(
+                "show ImGui demo window", &gui_show_demo_window);
+        }
+
+        if (ImGui::CollapsingHeader("Camera"))
+        {
+            ImGui::InputFloat(
+                "camera zoom speed",
+                &gui_cam_zoom_speed,
+                0.01f,
+                0.1f,
+                "%.3f");
+            ImGui::SameLine();
+            ShowHelpMarker(
+                "Scroll up or down while holding CTRL to zoom.");
+            ImGui::InputFloat(
+                "camera rotation speed",
+                &gui_cam_rot_speed,
+                0.01f,
+                0.1f,
+                "%.3f");
+            ImGui::SameLine();
+            ShowHelpMarker(
+                "Hold the middle mouse button and move the mouse to pan "
+                "the camera");
+           glm::vec3 polar = util::cartesianToPolar<glm::vec3>(camPos);
+            ImGui::Text("phi: %.3f", polar.y);
+            ImGui::Text("theta: %.3f", polar.z);
+            ImGui::Text("radius: %.3f", polar.x);
+            ImGui::Text(
+                "Camera position: x=%.3f, y=%.3f, z=%.3f",
+                camPos.x, camPos.y, camPos.z);
+
+        }
+
+        if (ImGui::CollapsingHeader("Isosurface"))
+        {
+            ImGui::InputFloat(
+                "isovalue",
+                &gui_isovalue,
+                0.01f,
+                0.1f,
+                "%.3f");
+            if (ImGui::TreeNode("Lighting"))
+            {
+                ImGui::SliderFloat3(
+                    "light direction", gui_light_dir, 0.f, 1.f);
+                ImGui::ColorEdit3("ambient", gui_ambient);
+                ImGui::ColorEdit3("diffuse", gui_diffuse);
+                ImGui::ColorEdit3("specular", gui_specular);
+
+                ImGui::Spacing();
+
+                ImGui::SliderFloat("k_amb", &gui_k_amb, 0.f, 1.f);
+                ImGui::SliderFloat("k_diff", &gui_k_diff, 0.f, 1.f);
+                ImGui::SliderFloat("k_spec", &gui_k_spec, 0.f, 1.f);
+                ImGui::SliderFloat("k_exp", &gui_k_spec, 0.f, 50.f);
+                ImGui::TreePop();
+            }
+        }
+
+        if (ImGui::CollapsingHeader("Transfer Function"))
+        {
+            ImGui::Checkbox("show histogram", &gui_show_histogram_window);
+            ImGui::SameLine();
+            ShowHelpMarker(
+                "Only visible in transfer function mode.");
+            if(ImGui::Button("Regenerate Histogram"))
+            {
+                //TODO: Regenerate Histrogram
+            }
+
+            ImGui::Spacing();
+
+            ImGui::Checkbox(
+                "show transfer function editor", &gui_show_tf_window);
+            ImGui::SameLine();
+            ShowHelpMarker(
+                "Only visible in transfer function mode.");
+        }
+
+        ImGui::Separator();
+
+        ImGui::Text(
+            "Application average %.3f ms/frame (%.1f FPS)",
+            1000.0f / ImGui::GetIO().Framerate,
+            ImGui::GetIO().Framerate);
+    }
+    ImGui::End();
+}
+
+static void showHistogramWindow(bin_t bins[], size_t num_bins)
+{
+    for(size_t i = 0; i < num_bins; i++)
+    {
+
+    }
+
+    ImGui::Begin("Histogram", &gui_show_histogram_window);
+    ImGui::PlotHistogram(
+        "cell value histogram",
+        values,
+        values_count,
+        values_offset = 0,
+        overlay_text);
+    ImGui::End();
+}
+
+static void showTransferFunctionWindow()
+{
+    ImGui::Begin("Transfer Function Editor", &gui_show_tf_window);
+    ImGui::Text("Here comes the transfer function editor");
+    ImGui::End();
+}
+
 //-----------------------------------------------------------------------------
 // GLFW callbacks and input processing
 //-----------------------------------------------------------------------------

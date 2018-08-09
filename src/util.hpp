@@ -1,10 +1,12 @@
 #ifndef __UTIL_HPP
 #define __UTIL_HPP
 
+#include <tuple>
+#include <cstddef>
+
 #define GLM_FORCE_SWIZZLE
 #include <glm/glm.hpp>
 #include <glm/gtc/constants.hpp>
-
 
 //-----------------------------------------------------------------------------
 // Macros
@@ -19,6 +21,10 @@ namespace util
     //-------------------------------------------------------------------------
     bool printOglError(const char *file, int line);
 
+    //-------------------------------------------------------------------------
+    // Type definitions
+    //-------------------------------------------------------------------------
+    typedef std::tuple<float, float, unsigned int> bin_t;
     //-------------------------------------------------------------------------
     // Templates
     //-------------------------------------------------------------------------
@@ -91,81 +97,65 @@ namespace util
      * /param values pointer to data values
      * /param numValues number of values in the array pointed to by values.
      *
-     * /return An array of bins with 3 components each [first, second) #third
-     * Creates an array of bins from the given data which can be used to create
-     * a histogram.
+     * /return An array of tuples which contain the limits and the count of the
+     *         corresponding bin.
+     *
+     * Creates an array of bins/ tuples from the given data which can be used
+     * to create a histogram. Each bin is a tuple with three components where
+     * the first two components contain the limits of the covered interval
+     * [first, second) and the third components contains the count.
+     *
+     * Note: - the interval of the last bin includes the upper limit
+     *       [first, second] with second = max
+     *       - the calling function has to delete the bins to free the used
+     *       memory
      */
     template<class T>
-    void binData( unsigned int bins, T min, T max,
-                       T** values, unsigned int numValues ) {
-        if (bins == 0 || min > max || values == nullptr || numValues == 0 ) {
-            return;
-        }
+    bin_t *binData(
+        size_t num_bins,
+        T min,
+        T max,
+        T* values,
+        size_t num_values)
+    {
+        if (num_bins == 0 || min > max || values == nullptr || num_values == 0)
+            return nullptr;
 
-        // create bins
-        /*  Bins are created as an array of pairs. Meaning of pairs is as follows:
-        *   first value:    lower bound of the corresponding bin
-        *   second value:   number of elements in the bin */
-        std::pair<float, unsigned int>* binsHistogramm = new std::pair<float, unsigned int>[bins];
-        T val;
-        float binSize = static_cast<float>(max - min) / static_cast<float>(bins);
-        unsigned int idx = 0;
+        bin_t *bins = new bin_t[num_bins];
+        float bin_size =
+            static_cast<float>(max - min) / static_cast<float>(num_bins);
 
-        for (unsigned int i = 0; i < bins; i++)
+        // initialize the bins
+        for (size_t i = 0; i < num_bins; i++)
         {
-            binsHistogramm[i].first = i * binSize;
-            binsHistogramm[i].second = 0;
+            std::get<0>(bins[i]) = static_cast<float>(i) * bin_size;
+            std::get<1>(bins[i]) = static_cast<float>(i + 1) * bin_size;
+            std::get<2>(bins[i]) = 0;
         }
 
         // walk through values and count them in bins
-        maxBinValue = 0;
-        for (unsigned int i = 0; i < numValues; i++)
+        size_t idx = 0;
+        T val;
+        for (size_t i = 0; i < num_values; i++)
         {
-            val = (*values)[i];
-            // search for corresponding bin
-            for (unsigned int j = 0; j < bins; j++)
+            val = values[i];
+
+            // place in corresponding bin
+            if ((min <= val) && (val < max))
             {
-                if (    (j < (bins - 1)) &&
-                        (binsHistogramm[j].first <= static_cast<float>(val)) &&
-                        (static_cast<float>(val) < (binsHistogramm[j].first + binSize))     )
-                {
-                    binsHistogramm[j].second++;
-                    break;
-                }
-                else if ((binsHistogramm[j].first <= static_cast<float>(val)) &&
-                    (static_cast<float>(val) <= (binsHistogramm[j].first + binSize)))
-                {
-                    binsHistogramm[j].second++;
-                    break;
-                }
-                // save maximum value
-                if (binsHistogramm[j].second > maxBinValue)
-                    maxBinValue = binsHistogramm[j].second;
+                idx = static_cast<size_t>(
+                    floor(static_cast<float>(val - min) / bin_size));
+                std::get<2>(bins[idx])++;
+            }
+            else if (val == max)
+            {
+                // last bin includes upper limit
+                std::get<2>(bins[num_bins - 1])++;
             }
         }
 
-        // create vertices from histogram data
-        std::vector<float> histoVertices;
-        float x = 0.f, y = 0.f;
-        for (unsigned int i = 0; i < bins; i++)
-        {
-            x = (   binsHistogramm[i].first - static_cast<float>(min)
-                    + 0.5f * binSize    )
-                / static_cast<float>(max - min);
-            y = static_cast<float>(binsHistogramm[i].second);
-
-            histoVertices.push_back(x);
-            histoVertices.push_back(y);
-        }
-
-        vaHisto.Create(bins);
-        vaHisto.SetArrayBuffer(0, GL_FLOAT, 2, histoVertices.data(), GL_STATIC_DRAW);
-
-        delete[] binsHistogramm;
+        return bins;
     }
-};
-
-
 }
 
 #endif

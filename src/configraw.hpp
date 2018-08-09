@@ -59,7 +59,7 @@ namespace cr
      * \param swap True if the byte order of the read values shall be swapped
     */
     template<typename T>
-    void loadraw(
+    void loadRaw(
         std::string path, T *buffer, std::size_t size, bool swap = false)
     {
         std::ifstream fs;
