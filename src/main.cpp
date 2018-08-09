@@ -29,6 +29,7 @@ enum class Mode : int
     isosurface,
     transfer_function
 };
+
 //-----------------------------------------------------------------------------
 // settings
 //-----------------------------------------------------------------------------
@@ -67,7 +68,12 @@ float gui_k_diff = 0.3f;
 float gui_k_spec = 0.5f;
 float gui_k_exp = 10.0f;
 
+
 bool gui_show_histogram_window = true;
+bool gui_hist_semilog = false;
+int gui_num_bins = 255;
+int gui_y_limit = 10000;
+
 bool gui_show_tf_window = true;
 
 bool gui_show_demo_window = false;
@@ -89,7 +95,7 @@ void initializeGl3w();
 void initializeImGui(GLFWwindow* window);
 static void ShowHelpMarker(const char* desc);
 static void showSettingsWindow();
-static void showHistogramWindow();
+static void showHistogramWindow(util::bin_t bins[], size_t num_bins);
 static void showTransferFunctionWindow();
 //-----------------------------------------------------------------------------
 // internals
@@ -377,7 +383,8 @@ int main(
         if(gui_mode == static_cast<int>(Mode::transfer_function))
         {
             if(gui_show_tf_window) showTransferFunctionWindow();
-            if(gui_show_histogram_window) showHistogramWindow();
+            if(gui_show_histogram_window)
+                showHistogramWindow(histogram_bins, 255);
         }
 
         glViewport(0, 0, win_w, win_h);
@@ -591,10 +598,6 @@ static void showSettingsWindow()
             ImGui::SameLine();
             ShowHelpMarker(
                 "Only visible in transfer function mode.");
-            if(ImGui::Button("Regenerate Histogram"))
-            {
-                //TODO: Regenerate Histrogram
-            }
 
             ImGui::Spacing();
 
@@ -615,20 +618,39 @@ static void showSettingsWindow()
     ImGui::End();
 }
 
-static void showHistogramWindow(bin_t bins[], size_t num_bins)
+static void showHistogramWindow(util::bin_t bins[], size_t num_bins)
 {
+    float values[num_bins];
+
     for(size_t i = 0; i < num_bins; i++)
     {
-
+        if (gui_hist_semilog)
+            values[i] = log10(std::get<2>(bins[i]));
+        else
+            values[i] = static_cast<float>(std::get<2>(bins[i]));
     }
 
     ImGui::Begin("Histogram", &gui_show_histogram_window);
+    ImGui::PushItemWidth(-1);
     ImGui::PlotHistogram(
-        "cell value histogram",
+        "",
         values,
-        values_count,
-        values_offset = 0,
-        overlay_text);
+        num_bins,
+        0,
+        nullptr,
+        0.f,
+        gui_hist_semilog ? static_cast<int>(log10(gui_y_limit)) : gui_y_limit,
+        ImVec2(0, 160));
+    ImGui::PopItemWidth();
+    ImGui::InputInt("y limit", &gui_y_limit, 1, 100);
+    ImGui::SameLine();
+    ImGui::Checkbox("semi-logarithmic", &gui_hist_semilog);
+    ImGui::InputInt("# bins", &gui_num_bins);
+    ImGui::SameLine();
+    if(ImGui::Button("Regenerate Histogram"))
+    {
+        //TODO: Regenerate Histrogram
+    }
     ImGui::End();
 }
 
