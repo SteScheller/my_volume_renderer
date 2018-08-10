@@ -1,6 +1,7 @@
 #include <iostream>
 #include <cstdlib>
 #include <cmath>
+#include <cstring>
 
 #include <GL/gl3w.h>
 #include <GLFW/glfw3.h>
@@ -45,10 +46,16 @@ glm::vec3 camPos = glm::vec3(1.2f, 0.75f, 1.f);
 #define REQUIRED_OGL_VERSION_MAJOR 3
 #define REQUIRED_OGL_VERSION_MINOR 3
 
+#define MAX_FILEPATH_LENGTH 200
+
+#define DEFAULT_VOLUME_JSON_FILE "/mnt/data/steffen/jet.json"
+
 //-----------------------------------------------------------------------------
 // gui parameters
 //-----------------------------------------------------------------------------
 int gui_mode = static_cast<int>(Mode::line_of_sight);
+
+char gui_volume_desc_file[200];     // initialized in main routine
 
 float gui_step_size = 0.01f;
 
@@ -122,6 +129,8 @@ int main(
 
     Shader shaderFrame("src/shader/frame.vert", "src/shader/frame.frag");
     Shader shaderVolume("src/shader/volume.vert", "src/shader/volume.frag");
+
+    strcpy(gui_volume_desc_file, DEFAULT_VOLUME_JSON_FILE);
 
     // bounding cube geometry
     // ----------------------
@@ -502,6 +511,17 @@ static void showSettingsWindow()
 {
     ImGui::Begin("Settings");
     {
+        if(ImGui::InputText(
+                "volume",
+                gui_volume_desc_file,
+                MAX_FILEPATH_LENGTH,
+                ImGuiInputTextFlags_CharsNoBlank |
+                    ImGuiInputTextFlags_EnterReturnsTrue))
+        {
+            //TODO: reload volume description
+        }
+        ImGui::SameLine();
+        ShowHelpMarker("Path to the volume description file");
         ImGui::Text("Mode");
         ImGui::RadioButton(
             "line of sight",
