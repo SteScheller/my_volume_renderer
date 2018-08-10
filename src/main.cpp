@@ -14,11 +14,14 @@
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
 
+#include <json.hpp>
+
 #include "shader.hpp"
 #include "util.hpp"
 #include "configraw.hpp"
 #include "texture.hpp"
 
+using json = nlohmann::json;
 
 //-----------------------------------------------------------------------------
 // type definitions

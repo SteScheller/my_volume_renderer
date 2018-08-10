@@ -13,7 +13,7 @@ SOURCES += libs/gl3w/GL/gl3w.c
 
 OBJS = $(addsuffix .o, $(basename $(SOURCES)))
 
-INCLUDE = -I./src -I./include -I./libs/gl3w -I./libs/imgui
+INCLUDE = -I./src -I./include -I./libs/gl3w -I./libs/imgui -I./libs/nlohmann
 
 CC = cc
 CXX = g++
