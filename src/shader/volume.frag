@@ -33,6 +33,8 @@ uniform float k_diff;       //!< diffuse factor
 uniform float k_spec;       //!< specular factor
 uniform float k_exp;        //!< specular exponent
 
+uniform bool invert_colors; //!< switch for inverting the color output
+
 #define M_PIH   1.570796
 #define M_PI    3.141592
 #define M_2PI   6.283185
@@ -238,6 +240,9 @@ void main()
         if (terminateEarly)
             break;
     }
+
+    if (invert_colors)
+        color.rgb = vec3(1.f) - color.rgb;
 
     frag_color = vec4(brightness * color.rgb, color.a);
 }

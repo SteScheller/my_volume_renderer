@@ -128,8 +128,10 @@ namespace util
         // initialize the bins
         for (size_t i = 0; i < num_bins; i++)
         {
-            std::get<0>(bins[i]) = static_cast<float>(i) * bin_size;
-            std::get<1>(bins[i]) = static_cast<float>(i + 1) * bin_size;
+            std::get<0>(bins[i]) =
+                static_cast<float>(i) * bin_size + static_cast<float>(min);
+            std::get<1>(bins[i]) =
+                static_cast<float>(i + 1) * bin_size + static_cast<float>(min);
             std::get<2>(bins[i]) = 0;
         }
 

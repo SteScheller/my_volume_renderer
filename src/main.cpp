@@ -33,8 +33,8 @@ enum class Mode : int
 //-----------------------------------------------------------------------------
 // settings
 //-----------------------------------------------------------------------------
-unsigned int win_w = 1280;
-unsigned int win_h = 720;
+unsigned int win_w = 1600;
+unsigned int win_h = 900;
 
 float fovY = 90.f;
 float zNear = 0.000001f;
@@ -79,6 +79,7 @@ bool gui_show_tf_window = true;
 bool gui_show_demo_window = false;
 bool gui_frame = true;
 bool gui_wireframe = false;
+bool gui_invert_colors = false;
 //-----------------------------------------------------------------------------
 // function prototypes
 //-----------------------------------------------------------------------------
@@ -262,7 +263,7 @@ int main(
         50.0f);
 
     // TODO: Actually read and parse the config file
-    /*unsigned char *volumeData = new unsigned char[480 * 720 * 120];
+    unsigned char *volumeData = new unsigned char[480 * 720 * 120];
     cr::loadRaw<unsigned char>(
         "/mnt/data/steffen/jet/jet_00042",
         volumeData,
@@ -270,14 +271,14 @@ int main(
         false);
     modelMX = glm::scale(glm::mat4(1.f), glm::vec3(2.f/3.f, 1.f, 1.f/6.f));
     GLuint volumeTex = util::create3dTexFromScalar(
-        volumeData, GL_BYTE, 480, 720, 120);
-    util::bin_t histogram_bins = util::binData(
+        volumeData, GL_UNSIGNED_BYTE, 480, 720, 120);
+    util::bin_t *histogram_bins = util::binData(
         255,
-        static_cast<unsigned char> -127,
-        static_cast<unsigned char> 127,
+        static_cast<unsigned char>(0),
+        static_cast<unsigned char>(255),
         volumeData,
-        static_cast<size_t>(480 * 720 * 120));*/
-    unsigned char *volumeData = new unsigned char[256 * 256 * 128];
+        static_cast<size_t>(480 * 720 * 120));
+    /*unsigned char *volumeData = new unsigned char[256 * 256 * 128];
     cr::loadRaw<unsigned char>(
         "/mnt/data/testData/engine.raw",
         volumeData,
@@ -291,7 +292,7 @@ int main(
         static_cast<unsigned char>(0),
         static_cast<unsigned char> (255),
         volumeData,
-        static_cast<size_t>(256 * 256 * 128));
+        static_cast<size_t>(256 * 256 * 128));*/
 
     // render loop
     // -----------
@@ -369,6 +370,7 @@ int main(
         shaderVolume.setFloat("k_diff", gui_k_diff);
         shaderVolume.setFloat("k_spec", gui_k_spec);
         shaderVolume.setFloat("k_exp", gui_k_exp);
+        shaderVolume.setBool("invert_colors", gui_invert_colors);
 
         glBindVertexArray(volumeVAO);
         glDrawElements(GL_TRIANGLES, 3*2*6, GL_UNSIGNED_INT, 0);
@@ -527,45 +529,6 @@ static void showSettingsWindow()
 
         ImGui::InputFloat("brightness", &gui_brightness, 0.01f, 0.1f);
 
-        if (ImGui::CollapsingHeader("General"))
-        {
-            ImGui::Checkbox("draw frame", &gui_frame); ImGui::SameLine();
-            ImGui::Checkbox("wireframe", &gui_wireframe);
-            ImGui::Checkbox(
-                "show ImGui demo window", &gui_show_demo_window);
-        }
-
-        if (ImGui::CollapsingHeader("Camera"))
-        {
-            ImGui::InputFloat(
-                "camera zoom speed",
-                &gui_cam_zoom_speed,
-                0.01f,
-                0.1f,
-                "%.3f");
-            ImGui::SameLine();
-            ShowHelpMarker(
-                "Scroll up or down while holding CTRL to zoom.");
-            ImGui::InputFloat(
-                "camera rotation speed",
-                &gui_cam_rot_speed,
-                0.01f,
-                0.1f,
-                "%.3f");
-            ImGui::SameLine();
-            ShowHelpMarker(
-                "Hold the middle mouse button and move the mouse to pan "
-                "the camera");
-           glm::vec3 polar = util::cartesianToPolar<glm::vec3>(camPos);
-            ImGui::Text("phi: %.3f", polar.y);
-            ImGui::Text("theta: %.3f", polar.z);
-            ImGui::Text("radius: %.3f", polar.x);
-            ImGui::Text(
-                "Camera position: x=%.3f, y=%.3f, z=%.3f",
-                camPos.x, camPos.y, camPos.z);
-
-        }
-
         if (ImGui::CollapsingHeader("Isosurface"))
         {
             ImGui::InputFloat(
@@ -606,6 +569,45 @@ static void showSettingsWindow()
             ImGui::SameLine();
             ShowHelpMarker(
                 "Only visible in transfer function mode.");
+        }
+
+        if (ImGui::CollapsingHeader("Camera"))
+        {
+            ImGui::InputFloat(
+                "camera zoom speed",
+                &gui_cam_zoom_speed,
+                0.01f,
+                0.1f,
+                "%.3f");
+            ImGui::SameLine();
+            ShowHelpMarker(
+                "Scroll up or down while holding CTRL to zoom.");
+            ImGui::InputFloat(
+                "camera rotation speed",
+                &gui_cam_rot_speed,
+                0.01f,
+                0.1f,
+                "%.3f");
+            ImGui::SameLine();
+            ShowHelpMarker(
+                "Hold the middle mouse button and move the mouse to pan "
+                "the camera");
+           glm::vec3 polar = util::cartesianToPolar<glm::vec3>(camPos);
+            ImGui::Text("phi: %.3f", polar.y);
+            ImGui::Text("theta: %.3f", polar.z);
+            ImGui::Text("radius: %.3f", polar.x);
+            ImGui::Text(
+                "Camera position: x=%.3f, y=%.3f, z=%.3f",
+                camPos.x, camPos.y, camPos.z);
+        }
+
+        if (ImGui::CollapsingHeader("General"))
+        {
+            ImGui::Checkbox("draw frame", &gui_frame); ImGui::SameLine();
+            ImGui::Checkbox("wireframe", &gui_wireframe);
+            ImGui::Checkbox(
+                "show ImGui demo window", &gui_show_demo_window);
+            ImGui::Checkbox("invert colors", &gui_invert_colors);
         }
 
         ImGui::Separator();

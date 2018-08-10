@@ -13,7 +13,7 @@ namespace cr
     template<typename T>
     T swapByteOrder(T value)
     {
-        unsigned char *v = static_cast<unsigned char*>(&value);
+        unsigned char *v = reinterpret_cast<unsigned char*>(&value);
 
         switch(sizeof(T))
         {
