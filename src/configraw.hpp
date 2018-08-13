@@ -3,10 +3,87 @@
 
 #include <iostream>
 #include <string>
+#include <array>
 #include <fstream>
+#include <vector>
 
 namespace cr
 {
+    // ------------------------------------------------------------------------
+    // type definitions
+    // ------------------------------------------------------------------------
+    /**
+     * \brief enumeration for encoding type information
+    */
+    enum class Datatype : int
+    {
+        none = 0,
+        unsigned_byte,
+        signed_byte,
+        unsigned_halfword,
+        signed_halfword,
+        unsigned_word,
+        signed_word,
+        unsigned_longword,
+        signed_longword,
+        single_precision_float,
+        double_precision_float
+    };
+
+    // ------------------------------------------------------------------------
+    // function declarations
+    // ------------------------------------------------------------------------
+    unsigned int datatypeSize(cr::Datatype type);
+    Datatype dotconfigValToDatatype(std::string value);
+
+    // ------------------------------------------------------------------------
+    // classes
+    // ------------------------------------------------------------------------
+    class VolumeConfig
+    {
+        private:
+        unsigned int _num_timesteps;    //!< length of the time series
+        unsigned int _offset_timesteps; //!< starting index of time series
+        std::array<unsigned int, 3> _volume_dim; //!< number of cells/ nodes in
+                                                 //!< the spatial dimensions of
+                                                 //!< the volume
+        unsigned int _voxel_count;      //!< total number of voxels
+        Datatype _voxel_type;           //!< type information of voxel values
+        std::array<unsigned int, 3> _voxel_dim; //!< dimensionality of a voxel
+        unsigned int _voxel_sizeof;     //!< size of a voxel in byte
+        std::string _raw_file_dir;      //!< path to raw files
+        std::string _raw_file_exp;      //!< filter regex for raw files
+        std::vector<std::string> _raw_files;    //!< vector of file paths to
+                                                //!< the raw data
+
+        public:
+        VolumeConfig();                         //!< default constructor
+        VolumeConfig(std::string const &path);  //!< construction from file
+        ~VolumeConfig();                        //!< destructor
+
+        /*
+         * \brief returns the path of datafile containing the n-th timestep
+         *
+         * \param n temporal index of the timestep {0, 1, 2 ..}
+         * \return path to the according datafile
+        */
+        std::string getTimestepFile(unsigned int n);
+
+        // getter and setter
+        unsigned int getNumTimesteps(){ return _num_timesteps; }
+        unsigned int getOffsetTimesteps(){ return _offset_timesteps; }
+        std::array<unsigned int, 3> getVolumeDim(){ return _volume_dim; }
+        unsigned int getVoxelCount(){ return _voxel_count; }
+        Datatype getVoxelType(){ return _voxel_type; }
+        std::array<unsigned int, 3> getVoxelDim(){ return _voxel_dim; }
+        unsigned int getVoxelSizeOf(){ return _voxel_sizeof; }
+        std::string getRawFileDir(){ return _raw_file_dir; }
+        std::string getRawFileExp(){ return _raw_file_exp; }
+    };
+
+    // ------------------------------------------------------------------------
+    // function templates
+    // ------------------------------------------------------------------------
     /**
      * \brief swaps the byteorder of the given value
      */
@@ -88,3 +165,4 @@ namespace cr
     }
 }
 #endif
+

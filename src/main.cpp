@@ -14,14 +14,10 @@
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
 
-#include <json.hpp>
-
 #include "shader.hpp"
 #include "util.hpp"
 #include "configraw.hpp"
 #include "texture.hpp"
-
-using json = nlohmann::json;
 
 //-----------------------------------------------------------------------------
 // type definitions
@@ -35,7 +31,7 @@ enum class Mode : int
 };
 
 //-----------------------------------------------------------------------------
-// settings
+// global parameters
 //-----------------------------------------------------------------------------
 unsigned int win_w = 1600;
 unsigned int win_h = 900;
@@ -45,6 +41,8 @@ float zNear = 0.000001f;
 float zFar = 30.f;
 
 glm::vec3 camPos = glm::vec3(1.2f, 0.75f, 1.f);
+
+cr::VolumeConfig vConf;
 
 #define REQUIRED_OGL_VERSION_MAJOR 3
 #define REQUIRED_OGL_VERSION_MINOR 3
@@ -59,6 +57,8 @@ glm::vec3 camPos = glm::vec3(1.2f, 0.75f, 1.f);
 int gui_mode = static_cast<int>(Mode::line_of_sight);
 
 char gui_volume_desc_file[200];     // initialized in main routine
+
+int gui_timestep = 0;
 
 float gui_step_size = 0.01f;
 
@@ -290,6 +290,8 @@ int main(
         static_cast<unsigned char>(255),
         volumeData,
         static_cast<size_t>(480 * 720 * 120));
+    vConf = cr::VolumeConfig("/mnt/data/steffen/jet.json");
+
     /*unsigned char *volumeData = new unsigned char[256 * 256 * 128];
     cr::loadRaw<unsigned char>(
         "/mnt/data/testData/engine.raw",
@@ -435,6 +437,90 @@ int main(
 }
 
 //-----------------------------------------------------------------------------
+// GLFW callbacks and input processing
+//-----------------------------------------------------------------------------
+void cursor_position_cb(GLFWwindow *window, double xpos, double ypos)
+{
+    static double xpos_old = 0.0;
+    static double ypos_old = 0.0;
+    double dx, dy;
+
+    dx = xpos - xpos_old; xpos_old = xpos;
+    dy = ypos - ypos_old; ypos_old = ypos;
+
+    if (GLFW_PRESS == glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_MIDDLE))
+    {
+        glm::vec3 polar = util::cartesianToPolar<glm::vec3>(camPos);
+        float half_pi = glm::half_pi<float>();
+
+        polar.y += glm::radians(dx) * gui_cam_rot_speed;
+        polar.z += glm::radians(dy) * gui_cam_rot_speed;
+        if (polar.z <= -0.999f * half_pi)
+            polar.z = -0.999f * half_pi;
+        else if (polar.z >= 0.999f * half_pi)
+            polar.z = 0.999f * half_pi;
+
+        camPos = util::polarToCartesian<glm::vec3>(polar);
+    }
+}
+
+void mouse_button_cb(GLFWwindow* window, int button, int action, int mods)
+{
+    // chain ImGui callback
+    ImGui_ImplGlfw_MouseButtonCallback(window, button, action, mods);
+}
+
+void scroll_cb(GLFWwindow *window, double xoffset, double yoffset)
+
+{
+
+    if ((GLFW_PRESS == glfwGetKey(window, GLFW_KEY_LEFT_CONTROL)) ||
+        (GLFW_PRESS == glfwGetKey(window, GLFW_KEY_RIGHT_CONTROL)))
+    {
+        // y scrolling changes the distance of the camera from the origin
+        camPos +=
+            static_cast<float>(-yoffset) *
+            gui_cam_zoom_speed *
+            camPos;
+    }
+
+    // chain ImGui callback
+    ImGui_ImplGlfw_ScrollCallback(window, xoffset, yoffset);
+}
+
+void key_cb(GLFWwindow* window, int key, int scancode , int action, int mods)
+{
+    if((key == GLFW_KEY_ESCAPE) && (action == GLFW_PRESS))
+        glfwSetWindowShouldClose(window, true);
+
+    if((key == GLFW_KEY_R) && (action == GLFW_PRESS))
+        _flag_reload_shaders = true;
+
+    // chain ImGui callback
+    ImGui_ImplGlfw_KeyCallback(window, key, scancode, action, mods);
+}
+
+void char_cb(GLFWwindow* window, unsigned int c)
+{
+    // chain ImGui callback
+    ImGui_ImplGlfw_CharCallback(window, c);
+}
+
+void framebuffer_size_cb(
+    __attribute__((unused)) GLFWwindow* window,
+    int width,
+    int height)
+{
+    win_w = width;
+    win_h = height;
+}
+
+void error_cb(int error, const char* description)
+{
+    std::cerr << "Glfw error " << error << ": " << description << std::endl;
+}
+
+//-----------------------------------------------------------------------------
 // subroutines
 //-----------------------------------------------------------------------------
 GLFWwindow* createWindow(
@@ -542,6 +628,17 @@ static void showSettingsWindow()
             "transfer function",
             &gui_mode,
             static_cast<int>(Mode::transfer_function));
+
+        ImGui::Spacing();
+
+        if(ImGui::InputInt("timestep", &gui_timestep, 1, 1))
+        {
+            if (gui_timestep < 0) gui_timestep = 0;
+            else if(gui_timestep >
+                    static_cast<int>(vConf.getNumTimesteps() - 1))
+                gui_timestep = vConf.getNumTimesteps() - 1;
+
+        }
 
         ImGui::Spacing();
 
@@ -684,89 +781,5 @@ static void showTransferFunctionWindow()
     ImGui::Begin("Transfer Function Editor", &gui_show_tf_window);
     ImGui::Text("Here comes the transfer function editor");
     ImGui::End();
-}
-
-//-----------------------------------------------------------------------------
-// GLFW callbacks and input processing
-//-----------------------------------------------------------------------------
-void cursor_position_cb(GLFWwindow *window, double xpos, double ypos)
-{
-    static double xpos_old = 0.0;
-    static double ypos_old = 0.0;
-    double dx, dy;
-
-    dx = xpos - xpos_old; xpos_old = xpos;
-    dy = ypos - ypos_old; ypos_old = ypos;
-
-    if (GLFW_PRESS == glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_MIDDLE))
-    {
-        glm::vec3 polar = util::cartesianToPolar<glm::vec3>(camPos);
-        float half_pi = glm::half_pi<float>();
-
-        polar.y += glm::radians(dx) * gui_cam_rot_speed;
-        polar.z += glm::radians(dy) * gui_cam_rot_speed;
-        if (polar.z <= -0.999f * half_pi)
-            polar.z = -0.999f * half_pi;
-        else if (polar.z >= 0.999f * half_pi)
-            polar.z = 0.999f * half_pi;
-
-        camPos = util::polarToCartesian<glm::vec3>(polar);
-    }
-}
-
-void mouse_button_cb(GLFWwindow* window, int button, int action, int mods)
-{
-    // chain ImGui callback
-    ImGui_ImplGlfw_MouseButtonCallback(window, button, action, mods);
-}
-
-void scroll_cb(GLFWwindow *window, double xoffset, double yoffset)
-
-{
-
-    if ((GLFW_PRESS == glfwGetKey(window, GLFW_KEY_LEFT_CONTROL)) ||
-        (GLFW_PRESS == glfwGetKey(window, GLFW_KEY_RIGHT_CONTROL)))
-    {
-        // y scrolling changes the distance of the camera from the origin
-        camPos +=
-            static_cast<float>(-yoffset) *
-            gui_cam_zoom_speed *
-            camPos;
-    }
-
-    // chain ImGui callback
-    ImGui_ImplGlfw_ScrollCallback(window, xoffset, yoffset);
-}
-
-void key_cb(GLFWwindow* window, int key, int scancode , int action, int mods)
-{
-    if((key == GLFW_KEY_ESCAPE) && (action == GLFW_PRESS))
-        glfwSetWindowShouldClose(window, true);
-
-    if((key == GLFW_KEY_R) && (action == GLFW_PRESS))
-        _flag_reload_shaders = true;
-
-    // chain ImGui callback
-    ImGui_ImplGlfw_KeyCallback(window, key, scancode, action, mods);
-}
-
-void char_cb(GLFWwindow* window, unsigned int c)
-{
-    // chain ImGui callback
-    ImGui_ImplGlfw_CharCallback(window, c);
-}
-
-void framebuffer_size_cb(
-    __attribute__((unused)) GLFWwindow* window,
-    int width,
-    int height)
-{
-    win_w = width;
-    win_h = height;
-}
-
-void error_cb(int error, const char* description)
-{
-    std::cerr << "Glfw error " << error << ": " << description << std::endl;
 }
 

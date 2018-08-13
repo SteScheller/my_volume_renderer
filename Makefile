@@ -5,7 +5,7 @@
 EXE = mvr
 BUILD_DIR = build
 
-SOURCES = src/main.cpp src/util.cpp
+SOURCES = src/main.cpp src/util.cpp src/configraw.cpp
 SOURCES += libs/imgui/imgui_impl_glfw.cpp libs/imgui/imgui_impl_opengl3.cpp
 SOURCES += libs/imgui/imgui.cpp libs/imgui/imgui_demo.cpp 
 SOURCES += libs/imgui/imgui_draw.cpp
@@ -21,7 +21,8 @@ CXXFLAGS = $(INCLUDE) `pkg-config --cflags glfw3`
 CXXFLAGS += -Wall -Wextra
 CFLAGS = $(CXXFLAGS)
 
-LIBS = -lGL `pkg-config --static --libs glfw3`
+LIBS = -lGL `pkg-config --static --libs glfw3` 
+LIBS += -lboost_system -lboost_filesystem -lboost_regex
 
 %.o:%.cpp
 	$(CXX) $(CXXFLAGS) -c -o $(BUILD_DIR)/$(@F) $<
