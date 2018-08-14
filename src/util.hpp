@@ -2,6 +2,7 @@
 #define __UTIL_HPP
 
 #include <tuple>
+#include <vector>
 #include <cstddef>
 
 #define GLM_FORCE_SWIZZLE
@@ -89,18 +90,18 @@ namespace util
     }
 
     /**
-     * /brief create an array of bins from the given data
+     * /brief create an vector of bins from the given data
      *
      * /param bins   number of bins
      * /param min    minimum value
      * /param max    maximum value
      * /param values pointer to data values
-     * /param numValues number of values in the array pointed to by values.
+     * /param numValues number of values in the vector pointed to by values.
      *
-     * /return An array of tuples which contain the limits and the count of the
-     *         corresponding bin.
+     * /return An vector of tuples which contain the limits and the count of
+     *         the corresponding bin.
      *
-     * Creates an array of bins/ tuples from the given data which can be used
+     * Creates an vector of bins/ tuples from the given data which can be used
      * to create a histogram. Each bin is a tuple with three components where
      * the first two components contain the limits of the covered interval
      * [first, second) and the third components contains the count.
@@ -111,7 +112,7 @@ namespace util
      *       memory
      */
     template<class T>
-    bin_t *binData(
+    std::vector<bin_t> *binData(
         size_t num_bins,
         T min,
         T max,
@@ -121,18 +122,18 @@ namespace util
         if (num_bins == 0 || min > max || values == nullptr || num_values == 0)
             return nullptr;
 
-        bin_t *bins = new bin_t[num_bins];
+        std::vector<bin_t> *bins = new std::vector<bin_t>(num_bins);
         float bin_size =
             static_cast<float>(max - min) / static_cast<float>(num_bins);
 
         // initialize the bins
         for (size_t i = 0; i < num_bins; i++)
         {
-            std::get<0>(bins[i]) =
+            std::get<0>((*bins)[i]) =
                 static_cast<float>(i) * bin_size + static_cast<float>(min);
-            std::get<1>(bins[i]) =
+            std::get<1>((*bins)[i]) =
                 static_cast<float>(i + 1) * bin_size + static_cast<float>(min);
-            std::get<2>(bins[i]) = 0;
+            std::get<2>((*bins)[i]) = 0;
         }
 
         // walk through values and count them in bins
@@ -147,12 +148,12 @@ namespace util
             {
                 idx = static_cast<size_t>(
                     floor(static_cast<float>(val - min) / bin_size));
-                std::get<2>(bins[idx])++;
+                std::get<2>((*bins)[idx])++;
             }
             else if (val == max)
             {
                 // last bin includes upper limit
-                std::get<2>(bins[num_bins - 1])++;
+                std::get<2>((*bins)[num_bins - 1])++;
             }
         }
 

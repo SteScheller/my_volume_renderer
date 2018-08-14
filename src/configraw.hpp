@@ -6,6 +6,18 @@
 #include <array>
 #include <fstream>
 #include <vector>
+#include <cstdint>
+
+typedef uint8_t unsigned_byte_t;
+typedef int8_t signed_byte_t;
+typedef uint16_t unsigned_halfword_t;
+typedef int16_t signed_halfword_t;
+typedef uint32_t unsigned_word_t;
+typedef int32_t signed_word_t;
+typedef uint64_t unsigned_longword_t;
+typedef int64_t signed_longword_t;
+typedef float single_precision_float_t;
+typedef double double_precision_float_t;
 
 namespace cr
 {
@@ -31,10 +43,14 @@ namespace cr
     };
 
     // ------------------------------------------------------------------------
-    // function declarations
+    // forward declarations
     // ------------------------------------------------------------------------
     unsigned int datatypeSize(cr::Datatype type);
     Datatype dotconfigValToDatatype(std::string value);
+    class VolumeConfig;
+    void *loadScalarVolumeDataTimestep(
+        VolumeConfig vConf, unsigned int n, bool swap);
+    void deleteVolumeData(VolumeConfig vConf, void *volumeData);
 
     // ------------------------------------------------------------------------
     // classes
@@ -43,18 +59,18 @@ namespace cr
     {
         private:
         unsigned int _num_timesteps;    //!< length of the time series
-        unsigned int _offset_timesteps; //!< starting index of time series
-        std::array<unsigned int, 3> _volume_dim; //!< number of cells/ nodes in
+        std::array<size_t, 3> _volume_dim; //!< number of cells/ nodes in
                                                  //!< the spatial dimensions of
                                                  //!< the volume
-        unsigned int _voxel_count;      //!< total number of voxels
+        size_t _voxel_count;            //!< total number of voxels
         Datatype _voxel_type;           //!< type information of voxel values
-        std::array<unsigned int, 3> _voxel_dim; //!< dimensionality of a voxel
-        unsigned int _voxel_sizeof;     //!< size of a voxel in byte
+        std::array<size_t, 3> _voxel_dim; //!< dimensionality of a voxel
+        size_t _voxel_sizeof;     //!< size of a voxel in byte
         std::string _raw_file_dir;      //!< path to raw files
         std::string _raw_file_exp;      //!< filter regex for raw files
         std::vector<std::string> _raw_files;    //!< vector of file paths to
                                                 //!< the raw data
+        bool _valid;                    //!< health flag
 
         public:
         VolumeConfig();                         //!< default constructor
@@ -69,14 +85,18 @@ namespace cr
         */
         std::string getTimestepFile(unsigned int n);
 
+        /*
+         * \brief indicator if the object represents a valid configuration
+        */
+        bool isValid(){ return _valid; }
+
         // getter and setter
         unsigned int getNumTimesteps(){ return _num_timesteps; }
-        unsigned int getOffsetTimesteps(){ return _offset_timesteps; }
-        std::array<unsigned int, 3> getVolumeDim(){ return _volume_dim; }
-        unsigned int getVoxelCount(){ return _voxel_count; }
+        std::array<size_t, 3> getVolumeDim(){ return _volume_dim; }
+        size_t getVoxelCount(){ return _voxel_count; }
         Datatype getVoxelType(){ return _voxel_type; }
-        std::array<unsigned int, 3> getVoxelDim(){ return _voxel_dim; }
-        unsigned int getVoxelSizeOf(){ return _voxel_sizeof; }
+        std::array<size_t, 3> getVoxelDim(){ return _voxel_dim; }
+        size_t getVoxelSizeOf(){ return _voxel_sizeof; }
         std::string getRawFileDir(){ return _raw_file_dir; }
         std::string getRawFileExp(){ return _raw_file_exp; }
     };

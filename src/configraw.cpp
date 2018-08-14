@@ -3,6 +3,7 @@
 #include <string>
 #include <exception>
 #include <vector>
+#include <algorithm>
 
 #include <boost/filesystem.hpp>
 #include <boost/regex.hpp>
@@ -30,25 +31,43 @@ namespace cr
         switch(type)
         {
             case Datatype::unsigned_byte:
+                ret_value = sizeof(unsigned_byte_t);
+                break;
+
             case Datatype::signed_byte:
-                ret_value = 1;
+                ret_value = sizeof(signed_byte_t);
                 break;
 
             case Datatype::unsigned_halfword:
+                ret_value = sizeof(unsigned_halfword_t);
+                break;
+
             case Datatype::signed_halfword:
-                ret_value = 2;
+                ret_value = sizeof(signed_halfword_t);
                 break;
 
             case Datatype::unsigned_word:
+                ret_value = sizeof(unsigned_word_t);
+                break;
+
             case Datatype::signed_word:
-            case Datatype::single_precision_float:
-                ret_value = 4;
+                ret_value = sizeof(signed_word_t);
                 break;
 
             case Datatype::unsigned_longword:
+                ret_value = sizeof(unsigned_longword_t);
+                break;
+
             case Datatype::signed_longword:
+                ret_value = sizeof(signed_longword_t);
+                break;
+
+            case Datatype::single_precision_float:
+                ret_value = sizeof(single_precision_float_t);
+                break;
+
             case Datatype::double_precision_float:
-                ret_value = 8;
+                ret_value = sizeof(double_precision_float_t);
                 break;
 
             default:
@@ -84,12 +103,12 @@ namespace cr
     VolumeConfig::VolumeConfig()
     {
         _num_timesteps = 0;
-        _offset_timesteps = 0;
         _volume_dim = {0, 0, 0};
         _voxel_count = 0;
         _voxel_type = Datatype::none;
         _voxel_dim = {0, 0, 0};
         _voxel_sizeof = 0;
+        _valid = false;
     }
 
     VolumeConfig::~VolumeConfig()
@@ -112,7 +131,6 @@ namespace cr
             fs >> json_config;
 
             _num_timesteps = json_config["VOLUME_NUM_TIMESTEPS"];
-            _offset_timesteps = json_config["VOLUME_TIMESTEPS_OFFSET"];
             _volume_dim = json_config["VOLUME_DIM"];
             _voxel_count = _volume_dim[0] * _volume_dim[1] * _volume_dim[2];
             _voxel_type = dotconfigValToDatatype(
@@ -134,8 +152,9 @@ namespace cr
                     boost::regex(_raw_file_exp)))
                     _raw_files.push_back(x.path().string());
 
-            // TODO add sorting
+            std::sort(_raw_files.begin(), _raw_files.end());
 
+            _valid = true;
             return;
         }
         catch(json::exception &e)
@@ -159,6 +178,188 @@ namespace cr
 
     std::string VolumeConfig::getTimestepFile(unsigned int n)
     {
-        return std::string("");
+        if (this->_raw_files.size() < 1) return std::string("");
+        else if (n > (this->_raw_files.size() - 1))
+            n = this->_raw_files.size() - 1;
+
+        return this->_raw_files[n];
+    }
+    /**
+     * \brief loads the scalar-valued volume data of a given timestep
+     *
+     * \param vConf configuration object of the volume dataset
+     * \param n number of the requested timestep (starting from 0)
+     * \param swap flag if the byte order of the raw data shall be swapped
+     *
+     * \return pointer to the loaded data
+     *
+     * Note: - the calling function has to delete the returned volume data to
+     *       free the used memory
+     *
+    */
+    void *loadScalarVolumeDataTimestep(
+        VolumeConfig vConf, unsigned int n, bool swap)
+    {
+        void *volumeData = nullptr;
+
+        switch(vConf.getVoxelType())
+        {
+            case Datatype::unsigned_byte:
+                volumeData = reinterpret_cast<void *>(
+                    new unsigned_byte_t[vConf.getVoxelCount()]);
+                loadRaw<unsigned_byte_t>(
+                    vConf.getTimestepFile(n),
+                    reinterpret_cast<unsigned_byte_t*>(volumeData),
+                    vConf.getVoxelCount(),
+                    swap);
+                break;
+
+            case Datatype::signed_byte:
+                volumeData = reinterpret_cast<void *>(
+                    new signed_byte_t[vConf.getVoxelCount()]);
+                loadRaw<signed_byte_t>(
+                    vConf.getTimestepFile(n),
+                    reinterpret_cast<signed_byte_t*>(volumeData),
+                    vConf.getVoxelCount(),
+                    swap);
+                break;
+
+            case Datatype::unsigned_halfword:
+                volumeData = reinterpret_cast<void *>(
+                    new unsigned_halfword_t[vConf.getVoxelCount()]);
+                loadRaw<unsigned_halfword_t>(
+                    vConf.getTimestepFile(n),
+                    reinterpret_cast<unsigned_halfword_t*>(volumeData),
+                    vConf.getVoxelCount(),
+                    swap);
+                break;
+
+            case Datatype::signed_halfword:
+                volumeData = reinterpret_cast<void *>(
+                    new signed_halfword_t[vConf.getVoxelCount()]);
+                loadRaw<signed_halfword_t>(
+                    vConf.getTimestepFile(n),
+                    reinterpret_cast<signed_halfword_t*>(volumeData),
+                    vConf.getVoxelCount(),
+                    swap);
+                break;
+
+            case Datatype::unsigned_word:
+                volumeData = reinterpret_cast<void *>(
+                    new unsigned_word_t[vConf.getVoxelCount()]);
+                loadRaw<unsigned_word_t>(
+                    vConf.getTimestepFile(n),
+                    reinterpret_cast<unsigned_word_t*>(volumeData),
+                    vConf.getVoxelCount(),
+                    swap);
+                break;
+
+            case Datatype::signed_word:
+                volumeData = reinterpret_cast<void *>(
+                    new signed_word_t[vConf.getVoxelCount()]);
+                loadRaw<signed_word_t>(
+                    vConf.getTimestepFile(n),
+                    reinterpret_cast<signed_word_t*>(volumeData),
+                    vConf.getVoxelCount(),
+                    swap);
+                break;
+
+            case Datatype::unsigned_longword:
+                volumeData = reinterpret_cast<void *>(
+                    new unsigned_longword_t[vConf.getVoxelCount()]);
+                loadRaw<unsigned_longword_t>(
+                    vConf.getTimestepFile(n),
+                    reinterpret_cast<unsigned_longword_t*>(volumeData),
+                    vConf.getVoxelCount(),
+                    swap);
+                break;
+
+            case Datatype::signed_longword:
+                volumeData = reinterpret_cast<void *>(
+                    new signed_longword_t[vConf.getVoxelCount()]);
+                loadRaw<signed_longword_t>(
+                    vConf.getTimestepFile(n),
+                    reinterpret_cast<signed_longword_t*>(volumeData),
+                    vConf.getVoxelCount(),
+                    swap);
+                break;
+
+            case Datatype::single_precision_float:
+                volumeData = reinterpret_cast<void *>(
+                    new single_precision_float_t[vConf.getVoxelCount()]);
+                loadRaw<single_precision_float_t>(
+                    vConf.getTimestepFile(n),
+                    reinterpret_cast<single_precision_float_t*>(volumeData),
+                    vConf.getVoxelCount(),
+                    swap);
+                break;
+
+            case Datatype::double_precision_float:
+                volumeData = reinterpret_cast<void *>(
+                    new double_precision_float_t[vConf.getVoxelCount()]);
+                loadRaw<double_precision_float_t>(
+                    vConf.getTimestepFile(n),
+                    reinterpret_cast<double_precision_float_t*>(volumeData),
+                    vConf.getVoxelCount(),
+                    swap);
+                break;
+
+            default:
+                break;
+        }
+
+        return volumeData;
+    }
+
+    void deleteVolumeData(VolumeConfig vConf, void *volumeData)
+    {
+        switch(vConf.getVoxelType())
+        {
+            case Datatype::unsigned_byte:
+                delete[] reinterpret_cast<unsigned_byte_t*>(volumeData);
+                break;
+
+            case Datatype::signed_byte:
+                delete[] reinterpret_cast<signed_byte_t*>(volumeData);
+                break;
+
+            case Datatype::unsigned_halfword:
+                delete[] reinterpret_cast<unsigned_halfword_t*>(volumeData);
+                break;
+
+            case Datatype::signed_halfword:
+                delete[] reinterpret_cast<signed_halfword_t*>(volumeData);
+                break;
+
+            case Datatype::unsigned_word:
+                delete[] reinterpret_cast<unsigned_word_t*>(volumeData);
+                break;
+
+            case Datatype::signed_word:
+                delete[] reinterpret_cast<signed_word_t*>(volumeData);
+                break;
+
+            case Datatype::unsigned_longword:
+                delete[] reinterpret_cast<unsigned_longword_t*>(volumeData);
+                break;
+
+            case Datatype::signed_longword:
+                delete[] reinterpret_cast<signed_longword_t*>(volumeData);
+                break;
+
+            case Datatype::single_precision_float:
+                delete[] reinterpret_cast<single_precision_float_t*>(
+                    volumeData);
+                break;
+
+            case Datatype::double_precision_float:
+                delete[] reinterpret_cast<double_precision_float_t*>(
+                    volumeData);
+                break;
+
+            default:
+                break;
+        }
     }
 }
+

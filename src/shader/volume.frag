@@ -34,6 +34,7 @@ uniform float k_spec;       //!< specular factor
 uniform float k_exp;        //!< specular exponent
 
 uniform bool invert_colors; //!< switch for inverting the color output
+uniform bool invert_alpha;  //!< switch for inverting the alpha output
 
 #define M_PIH   1.570796
 #define M_PI    3.141592
@@ -112,19 +113,19 @@ bool intersectBoundingBox(
 }
 
 /**
- *	\brief calculates the gradient with central differences
+ *  \brief calculates the gradient with central differences
  *
- *	\param volume handle to the 3D texture
- *	\param pos The position from which the gradient should be determined
- *	\param h distance for finite differences
- *	\return The gradient at pos
+ *  \param volume handle to the 3D texture
+ *  \param pos The position from which the gradient should be determined
+ *  \param h distance for finite differences
+ *  \return The gradient at pos
  *
- *	Calculates the gradient at a given position in a 3D volume using central
- *	differences.
+ *  Calculates the gradient at a given position in a 3D volume using central
+ *  differences.
  */
 vec3 gradientCentral(sampler3D volume, vec3 pos, float h)
 {
-	vec3 grad = vec3(0.0);		// gradient vector
+    vec3 grad = vec3(0.0);      // gradient vector
 
     grad.x = texture(volume, pos + vec3(h, 0.f, 0.f)).r -
         texture(volume, pos - vec3(h, 0.f, 0.f)).r;
@@ -162,19 +163,19 @@ void main()
     float maxValue = 0.f;
 
     // iso-surface
-    float valueLast = 0.f;	        //!< temporary variable for storing the
+    float valueLast = 0.f;          //!< temporary variable for storing the
                                     //!< last sample value
-    vec3 posLast = rayOrig;			//!< temporary variable for storing the
+    vec3 posLast = rayOrig;         //!< temporary variable for storing the
                                     //!< last sampled position on the ray
 
     // Blinn-Phong shading
-    vec3 p = vec3(0.f);				//!< position on the iso-surface in world
+    vec3 p = vec3(0.f);             //!< position on the iso-surface in world
                                     //!< coordinates
-    vec3 n = vec3(0.f);				//!< surface normal pointing away from the
+    vec3 n = vec3(0.f);             //!< surface normal pointing away from the
                                     //!< surface
-    vec3 l = lightDir;				//!< direction of the distant light source
+    vec3 l = lightDir;              //!< direction of the distant light source
                                     //!< in world coordinates
-    vec3 e = -rayDir;				//!< direction of the (virtual) eye in
+    vec3 e = -rayDir;               //!< direction of the (virtual) eye in
                                     //!< world coordinates
 
     // intersect with bounding box and handle special case when we are inside
@@ -243,6 +244,9 @@ void main()
 
     if (invert_colors)
         color.rgb = vec3(1.f) - color.rgb;
+
+    if (invert_alpha)
+        color.a = 1.f - color.a;
 
     frag_color = vec4(brightness * color.rgb, color.a);
 }

@@ -2,6 +2,7 @@
 #include <cstdlib>
 #include <cmath>
 #include <cstring>
+#include <vector>
 
 #include <GL/gl3w.h>
 #include <GLFW/glfw3.h>
@@ -42,8 +43,6 @@ float zFar = 30.f;
 
 glm::vec3 camPos = glm::vec3(1.2f, 0.75f, 1.f);
 
-cr::VolumeConfig vConf;
-
 #define REQUIRED_OGL_VERSION_MAJOR 3
 #define REQUIRED_OGL_VERSION_MINOR 3
 
@@ -78,11 +77,12 @@ float gui_k_diff = 0.3f;
 float gui_k_spec = 0.5f;
 float gui_k_exp = 10.0f;
 
-
 bool gui_show_histogram_window = true;
 bool gui_hist_semilog = false;
 int gui_num_bins = 255;
-int gui_y_limit = 10000;
+int gui_y_limit = 100000;
+float gui_x_min = 0.f;
+float gui_x_max = 255.f;
 
 bool gui_show_tf_window = true;
 
@@ -90,6 +90,7 @@ bool gui_show_demo_window = false;
 bool gui_frame = true;
 bool gui_wireframe = false;
 bool gui_invert_colors = false;
+bool gui_invert_alpha = false;
 //-----------------------------------------------------------------------------
 // function prototypes
 //-----------------------------------------------------------------------------
@@ -104,10 +105,31 @@ GLFWwindow* createWindow(
     unsigned int win_w, unsigned int win_h, const char* title);
 void initializeGl3w();
 void initializeImGui(GLFWwindow* window);
-static void ShowHelpMarker(const char* desc);
-static void showSettingsWindow();
-static void showHistogramWindow(util::bin_t bins[], size_t num_bins);
+static void showHelpMarker(const char* desc);
+static void showSettingsWindow(
+    cr::VolumeConfig &vConf,
+    void *&volumeData,
+    GLuint &volumeTex,
+    glm::mat4 &modelMX,
+    std::vector<util::bin_t> *&histogramBins);
+static void showHistogramWindow(
+    std::vector<util::bin_t> *&histogramBins,
+    cr::VolumeConfig vConf,
+    void* volumeData);
 static void showTransferFunctionWindow();
+std::vector<util::bin_t> *loadHistogramBins(
+    cr::VolumeConfig vConf, void* values, size_t numBins, float min, float max);
+GLuint loadScalarVolumeTex(cr::VolumeConfig vConf, void* volumeData);
+static void reloadStuff(
+    cr::VolumeConfig vConf,
+    void *&volumeData,
+    GLuint &volumeTex,
+    unsigned int timestep,
+    glm::mat4 &modelMX,
+    std::vector<util::bin_t> *&histogramBins,
+    size_t num_bins,
+    float x_min,
+    float x_max);
 //-----------------------------------------------------------------------------
 // internals
 //-----------------------------------------------------------------------------
@@ -259,9 +281,7 @@ int main(
 
     // initialize model, view and projection matrices
     // ----------------------------------------------
-    glm::mat4 modelMX = glm::scale(
-        glm::mat4(1.f),
-        glm::vec3(1.f));
+    glm::mat4 modelMX = glm::mat4(1.f);
 
     glm::vec3 right = glm::normalize(
         glm::cross(-camPos, glm::vec3(0.f, 1.f, 0.f)));
@@ -274,39 +294,32 @@ int main(
         0.1f,
         50.0f);
 
-    // TODO: Actually read and parse the config file
-    unsigned char *volumeData = new unsigned char[480 * 720 * 120];
-    cr::loadRaw<unsigned char>(
-        "/mnt/data/steffen/jet/jet_00042",
-        volumeData,
-        static_cast<size_t>(480 * 720 * 120),
-        false);
-    modelMX = glm::scale(glm::mat4(1.f), glm::vec3(2.f/3.f, 1.f, 1.f/6.f));
-    GLuint volumeTex = util::create3dTexFromScalar(
-        volumeData, GL_UNSIGNED_BYTE, 480, 720, 120);
-    util::bin_t *histogram_bins = util::binData(
-        255,
-        static_cast<unsigned char>(0),
-        static_cast<unsigned char>(255),
-        volumeData,
-        static_cast<size_t>(480 * 720 * 120));
-    vConf = cr::VolumeConfig("/mnt/data/steffen/jet.json");
+    // load the data, create a model matrix, bins and a texture
+    std::vector<util::bin_t> *histogramBins = nullptr;
+    void *volumeData = nullptr;
+    GLuint volumeTex = 0;
 
-    /*unsigned char *volumeData = new unsigned char[256 * 256 * 128];
-    cr::loadRaw<unsigned char>(
-        "/mnt/data/testData/engine.raw",
-        volumeData,
-        static_cast<size_t>(256 * 256 * 128),
-        false);
-    modelMX = glm::scale(glm::mat4(1.f), glm::vec3(1.f, 2.f, 1.f));
-    GLuint volumeTex = util::create3dTexFromScalar(
-        volumeData, GL_UNSIGNED_BYTE, 256, 256, 128);
-    util::bin_t *histogram_bins = util::binData(
-        255,
-        static_cast<unsigned char>(0),
-        static_cast<unsigned char> (255),
-        volumeData,
-        static_cast<size_t>(256 * 256 * 128));*/
+    cr::VolumeConfig vConf = cr::VolumeConfig(DEFAULT_VOLUME_JSON_FILE);
+    if(vConf.isValid())
+    {
+        reloadStuff(
+            vConf,
+            volumeData,
+            volumeTex,
+            gui_timestep,
+            modelMX,
+            histogramBins,
+            gui_num_bins,
+            gui_x_min,
+            gui_x_max);
+    }
+    else
+    {
+        modelMX = glm::mat4(1.f);
+        histogramBins = nullptr;
+        volumeData = nullptr;
+        volumeTex = 0;
+    }
 
     // render loop
     // -----------
@@ -385,6 +398,7 @@ int main(
         shaderVolume.setFloat("k_spec", gui_k_spec);
         shaderVolume.setFloat("k_exp", gui_k_exp);
         shaderVolume.setBool("invert_colors", gui_invert_colors);
+        shaderVolume.setBool("invert_alpha", gui_invert_alpha);
 
         glBindVertexArray(volumeVAO);
         glDrawElements(GL_TRIANGLES, 3*2*6, GL_UNSIGNED_INT, 0);
@@ -394,13 +408,21 @@ int main(
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
-        showSettingsWindow();
+        showSettingsWindow(
+            vConf,
+            volumeData,
+            volumeTex,
+            modelMX,
+            histogramBins);
         if(gui_show_demo_window) ImGui::ShowDemoWindow(&gui_show_demo_window);
         if(gui_mode == static_cast<int>(Mode::transfer_function))
         {
             if(gui_show_tf_window) showTransferFunctionWindow();
             if(gui_show_histogram_window)
-                showHistogramWindow(histogram_bins, 255);
+                showHistogramWindow(
+                    histogramBins,
+                    vConf,
+                    volumeData);
         }
 
         glViewport(0, 0, win_w, win_h);
@@ -432,7 +454,8 @@ int main(
     glfwDestroyWindow(window);
     glfwTerminate();
 
-    delete[] volumeData;
+    if (volumeData != nullptr) cr::deleteVolumeData(vConf, volumeData);
+    if (histogramBins != nullptr) delete histogramBins;
     return 0;
 }
 
@@ -583,7 +606,7 @@ void initializeImGui(GLFWwindow* window)
     ImGui::StyleColorsDark();
 }
 // from imgui_demo.cpp
-static void ShowHelpMarker(const char* desc)
+static void showHelpMarker(const char* desc)
 {
     ImGui::TextDisabled("(?)");
     if (ImGui::IsItemHovered())
@@ -596,8 +619,15 @@ static void ShowHelpMarker(const char* desc)
     }
 }
 
-static void showSettingsWindow()
+static void showSettingsWindow(
+    cr::VolumeConfig &vConf,
+    void *&volumeData,
+    GLuint &volumeTex,
+    glm::mat4 &modelMX,
+    std::vector<util::bin_t> *&histogramBins)
 {
+    cr::VolumeConfig tempConf;
+
     ImGui::Begin("Settings");
     {
         if(ImGui::InputText(
@@ -607,10 +637,24 @@ static void showSettingsWindow()
                 ImGuiInputTextFlags_CharsNoBlank |
                     ImGuiInputTextFlags_EnterReturnsTrue))
         {
-            //TODO: reload volume description
+            tempConf = cr::VolumeConfig(gui_volume_desc_file);
+            if(tempConf.isValid())
+            {
+                vConf = tempConf;
+                reloadStuff(
+                    vConf,
+                    volumeData,
+                    volumeTex,
+                    gui_timestep,
+                    modelMX,
+                    histogramBins,
+                    gui_num_bins,
+                    gui_x_min,
+                    gui_x_max);
+            }
         }
         ImGui::SameLine();
-        ShowHelpMarker("Path to the volume description file");
+        showHelpMarker("Path to the volume description file");
         ImGui::Text("Mode");
         ImGui::RadioButton(
             "line of sight",
@@ -631,13 +675,29 @@ static void showSettingsWindow()
 
         ImGui::Spacing();
 
-        if(ImGui::InputInt("timestep", &gui_timestep, 1, 1))
+        if(ImGui::InputInt(
+            "timestep",
+            &gui_timestep,
+            1,
+            1,
+            ImGuiInputTextFlags_CharsNoBlank |
+                ImGuiInputTextFlags_EnterReturnsTrue))
         {
             if (gui_timestep < 0) gui_timestep = 0;
             else if(gui_timestep >
                     static_cast<int>(vConf.getNumTimesteps() - 1))
                 gui_timestep = vConf.getNumTimesteps() - 1;
 
+            reloadStuff(
+                vConf,
+                volumeData,
+                volumeTex,
+                gui_timestep,
+                modelMX,
+                histogramBins,
+                gui_num_bins,
+                gui_x_min,
+                gui_x_max);
         }
 
         ImGui::Spacing();
@@ -679,7 +739,7 @@ static void showSettingsWindow()
         {
             ImGui::Checkbox("show histogram", &gui_show_histogram_window);
             ImGui::SameLine();
-            ShowHelpMarker(
+            showHelpMarker(
                 "Only visible in transfer function mode.");
 
             ImGui::Spacing();
@@ -687,7 +747,7 @@ static void showSettingsWindow()
             ImGui::Checkbox(
                 "show transfer function editor", &gui_show_tf_window);
             ImGui::SameLine();
-            ShowHelpMarker(
+            showHelpMarker(
                 "Only visible in transfer function mode.");
         }
 
@@ -700,7 +760,7 @@ static void showSettingsWindow()
                 0.1f,
                 "%.3f");
             ImGui::SameLine();
-            ShowHelpMarker(
+            showHelpMarker(
                 "Scroll up or down while holding CTRL to zoom.");
             ImGui::InputFloat(
                 "camera rotation speed",
@@ -709,7 +769,7 @@ static void showSettingsWindow()
                 0.1f,
                 "%.3f");
             ImGui::SameLine();
-            ShowHelpMarker(
+            showHelpMarker(
                 "Hold the middle mouse button and move the mouse to pan "
                 "the camera");
            glm::vec3 polar = util::cartesianToPolar<glm::vec3>(camPos);
@@ -728,6 +788,7 @@ static void showSettingsWindow()
             ImGui::Checkbox(
                 "show ImGui demo window", &gui_show_demo_window);
             ImGui::Checkbox("invert colors", &gui_invert_colors);
+            ImGui::Checkbox("invert alpha", &gui_invert_alpha);
         }
 
         ImGui::Separator();
@@ -740,16 +801,19 @@ static void showSettingsWindow()
     ImGui::End();
 }
 
-static void showHistogramWindow(util::bin_t bins[], size_t num_bins)
+static void showHistogramWindow(
+    std::vector<util::bin_t> *&histogramBins,
+    cr::VolumeConfig vConf,
+    void* volumeData)
 {
-    float values[num_bins];
+    float values[(*histogramBins).size()];
 
-    for(size_t i = 0; i < num_bins; i++)
+    for(size_t i = 0; i < (*histogramBins).size(); i++)
     {
         if (gui_hist_semilog)
-            values[i] = log10(std::get<2>(bins[i]));
+            values[i] = log10(std::get<2>((*histogramBins)[i]));
         else
-            values[i] = static_cast<float>(std::get<2>(bins[i]));
+            values[i] = static_cast<float>(std::get<2>((*histogramBins)[i]));
     }
 
     ImGui::Begin("Histogram", &gui_show_histogram_window);
@@ -757,7 +821,7 @@ static void showHistogramWindow(util::bin_t bins[], size_t num_bins)
     ImGui::PlotHistogram(
         "",
         values,
-        num_bins,
+        (*histogramBins).size(),
         0,
         nullptr,
         0.f,
@@ -767,15 +831,27 @@ static void showHistogramWindow(util::bin_t bins[], size_t num_bins)
     ImGui::InputInt("y limit", &gui_y_limit, 1, 100);
     ImGui::SameLine();
     ImGui::Checkbox("semi-logarithmic", &gui_hist_semilog);
+
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+
     ImGui::InputInt("# bins", &gui_num_bins);
-    ImGui::SameLine();
+    ImGui::InputFloat("x min", &gui_x_min, 0.1f, 1.f);
+    ImGui::InputFloat("x max", &gui_x_max, 0.1f, 1.f);
+    if (gui_x_max < gui_x_min) gui_x_max = gui_x_min;
     if(ImGui::Button("Regenerate Histogram"))
     {
-        //TODO: Regenerate Histrogram
+        delete histogramBins;
+        histogramBins = loadHistogramBins(
+            vConf, volumeData, gui_num_bins, gui_x_min, gui_x_max);
     }
     ImGui::End();
 }
 
+/**
+ * \brief Shows and handles the ImGui Window for the transfer function editor
+*/
 static void showTransferFunctionWindow()
 {
     ImGui::Begin("Transfer Function Editor", &gui_show_tf_window);
@@ -783,3 +859,228 @@ static void showTransferFunctionWindow()
     ImGui::End();
 }
 
+/**
+ * \brief Bins the volume data according to its data type
+ *
+ * \param vConf configuration object for the dataset
+ * \param values pointer to the volume data
+ * \param numBins number of histogram bins
+ * \param min lower histogram x axis limit
+ * \param max upper histogram x axis limit
+ *
+ * \returns an vector of bin objects
+ *
+ * Note: vector of bins has to be deleted by the calling function
+*/
+std::vector<util::bin_t > *loadHistogramBins(
+    cr::VolumeConfig vConf, void* values, size_t numBins, float min, float max)
+{
+    std::vector<util::bin_t> *bins = nullptr;
+
+    switch(vConf.getVoxelType())
+    {
+        case cr::Datatype::unsigned_byte:
+            bins = util::binData<unsigned_byte_t>(
+                numBins,
+                static_cast<unsigned_byte_t>(min),
+                static_cast<unsigned_byte_t>(max),
+                reinterpret_cast<unsigned_byte_t*>(values),
+                vConf.getVoxelCount());
+            break;
+
+        case cr::Datatype::signed_byte:
+            bins = util::binData<signed_byte_t>(
+                numBins,
+                static_cast<signed_byte_t>(min),
+                static_cast<signed_byte_t>(max),
+                reinterpret_cast<signed_byte_t*>(values),
+                vConf.getVoxelCount());
+            break;
+
+        case cr::Datatype::unsigned_halfword:
+            bins = util::binData<unsigned_halfword_t>(
+                numBins,
+                static_cast<unsigned_halfword_t>(min),
+                static_cast<unsigned_halfword_t>(max),
+                reinterpret_cast<unsigned_halfword_t*>(values),
+                vConf.getVoxelCount());
+            break;
+
+        case cr::Datatype::signed_halfword:
+            bins = util::binData<signed_halfword_t>(
+                numBins,
+                static_cast<signed_halfword_t>(min),
+                static_cast<signed_halfword_t>(max),
+                reinterpret_cast<signed_halfword_t*>(values),
+                vConf.getVoxelCount());
+            break;
+
+        case cr::Datatype::unsigned_word:
+            bins = util::binData<unsigned_word_t>(
+                numBins,
+                static_cast<unsigned_word_t>(min),
+                static_cast<unsigned_word_t>(max),
+                reinterpret_cast<unsigned_word_t*>(values),
+                vConf.getVoxelCount());
+            break;
+
+        case cr::Datatype::signed_word:
+            bins = util::binData<signed_word_t>(
+                numBins,
+                static_cast<signed_word_t>(min),
+                static_cast<signed_word_t>(max),
+                reinterpret_cast<signed_word_t*>(values),
+                vConf.getVoxelCount());
+            break;
+
+        case cr::Datatype::unsigned_longword:
+            bins = util::binData<unsigned_longword_t>(
+                numBins,
+                static_cast<unsigned_longword_t>(min),
+                static_cast<unsigned_longword_t>(max),
+                reinterpret_cast<unsigned_longword_t*>(values),
+                vConf.getVoxelCount());
+            break;
+
+        case cr::Datatype::signed_longword:
+            bins = util::binData<signed_longword_t>(
+                numBins,
+                static_cast<signed_longword_t>(min),
+                static_cast<signed_longword_t>(max),
+                reinterpret_cast<signed_longword_t*>(values),
+                vConf.getVoxelCount());
+            break;
+
+        case cr::Datatype::single_precision_float:
+            bins = util::binData<single_precision_float_t>(
+                numBins,
+                static_cast<single_precision_float_t>(min),
+                static_cast<single_precision_float_t>(max),
+                reinterpret_cast<single_precision_float_t*>(values),
+                vConf.getVoxelCount());
+            break;
+
+        case cr::Datatype::double_precision_float:
+            bins = util::binData<double_precision_float_t>(
+                numBins,
+                static_cast<double_precision_float_t>(min),
+                static_cast<double_precision_float_t>(max),
+                reinterpret_cast<double_precision_float_t*>(values),
+                vConf.getVoxelCount());
+            break;
+
+        default:
+            break;
+    }
+
+    return bins;
+}
+
+GLuint loadScalarVolumeTex(cr::VolumeConfig vConf, void* volumeData)
+{
+    GLuint tex = 0;
+
+    switch(vConf.getVoxelType())
+    {
+        case cr::Datatype::unsigned_byte:
+            tex = util::create3dTexFromScalar(
+                volumeData,
+                GL_UNSIGNED_BYTE,
+                vConf.getVolumeDim()[0],
+                vConf.getVolumeDim()[1],
+                vConf.getVolumeDim()[2]);
+            break;
+
+        case cr::Datatype::signed_byte:
+            tex = util::create3dTexFromScalar(
+                volumeData,
+                GL_BYTE,
+                vConf.getVolumeDim()[0],
+                vConf.getVolumeDim()[1],
+                vConf.getVolumeDim()[2]);
+            break;
+
+        case cr::Datatype::unsigned_halfword:
+            tex = util::create3dTexFromScalar(
+                volumeData,
+                GL_UNSIGNED_SHORT,
+                vConf.getVolumeDim()[0],
+                vConf.getVolumeDim()[1],
+                vConf.getVolumeDim()[2]);
+            break;
+
+        case cr::Datatype::signed_halfword:
+            tex = util::create3dTexFromScalar(
+                volumeData,
+                GL_SHORT,
+                vConf.getVolumeDim()[0],
+                vConf.getVolumeDim()[1],
+                vConf.getVolumeDim()[2]);
+            break;
+
+        case cr::Datatype::unsigned_word:
+            tex = util::create3dTexFromScalar(
+                volumeData,
+                GL_UNSIGNED_INT,
+                vConf.getVolumeDim()[0],
+                vConf.getVolumeDim()[1],
+                vConf.getVolumeDim()[2]);
+            break;
+
+        case cr::Datatype::signed_word:
+            tex = util::create3dTexFromScalar(
+                volumeData,
+                GL_INT,
+                vConf.getVolumeDim()[0],
+                vConf.getVolumeDim()[1],
+                vConf.getVolumeDim()[2]);
+            break;
+
+        case cr::Datatype::single_precision_float:
+            tex = util::create3dTexFromScalar(
+                volumeData,
+                GL_FLOAT,
+                vConf.getVolumeDim()[0],
+                vConf.getVolumeDim()[1],
+                vConf.getVolumeDim()[2]);
+            break;
+
+        case cr::Datatype::double_precision_float:
+        case cr::Datatype::unsigned_longword:
+        case cr::Datatype::signed_longword:
+        default:
+            break;
+    }
+
+    return tex;
+}
+
+/**
+ * \brief updates the volume data, texture, histogram information...
+*/
+static void reloadStuff(
+    cr::VolumeConfig vConf,
+    void *&volumeData,
+    GLuint &volumeTex,
+    unsigned int timestep,
+    glm::mat4 &modelMX,
+    std::vector<util::bin_t> *&histogramBins,
+    size_t num_bins,
+    float x_min,
+    float x_max)
+{
+    glDeleteTextures(1, &volumeTex);
+    if (volumeData != nullptr) cr::deleteVolumeData(vConf, volumeData);
+    if (histogramBins != nullptr) delete histogramBins;
+
+    volumeData = cr::loadScalarVolumeDataTimestep(vConf, timestep, false);
+    modelMX = glm::scale(
+        glm::mat4(1.f),
+        glm::normalize(glm::vec3(
+            static_cast<float>(vConf.getVolumeDim()[0]),
+            static_cast<float>(vConf.getVolumeDim()[1]),
+            static_cast<float>(vConf.getVolumeDim()[2]))));
+    histogramBins = loadHistogramBins(
+        vConf, volumeData, num_bins, x_min, x_max);
+    volumeTex = loadScalarVolumeTex(vConf, volumeData);
+}
