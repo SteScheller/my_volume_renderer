@@ -22,7 +22,7 @@ CXXFLAGS += -Wall -Wextra
 CFLAGS = $(CXXFLAGS)
 
 LIBS = -lGL `pkg-config --static --libs glfw3` 
-LIBS += -lboost_system -lboost_filesystem -lboost_regex
+LIBS += -lboost_system -lboost_filesystem -lboost_regex -lboost_program_options
 
 %.o:%.cpp
 	$(CXX) $(CXXFLAGS) -c -o $(BUILD_DIR)/$(@F) $<

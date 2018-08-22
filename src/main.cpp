@@ -11,6 +11,9 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
+#include <boost/program_options.hpp>
+namespace po = boost::program_options;
+
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
@@ -103,6 +106,7 @@ void framebuffer_size_cb(GLFWwindow* window, int width, int height);
 void error_cb(int error, const char* description);
 GLFWwindow* createWindow(
     unsigned int win_w, unsigned int win_h, const char* title);
+void applyProgramOptions(int argc, char *argv[]);
 void initializeGl3w();
 void initializeImGui(GLFWwindow* window);
 static void showHelpMarker(const char* desc);
@@ -138,10 +142,10 @@ static bool _flag_reload_shaders = false;
 //-----------------------------------------------------------------------------
 // main program
 //-----------------------------------------------------------------------------
-int main(
-    __attribute__((unused)) int argc,
-    __attribute__((unused)) char *argv[])
+int main(int argc, char *argv[])
 {
+    applyProgramOptions(argc, argv);
+
     GLFWwindow* window = createWindow(win_w, win_h, "MVR");
 
     initializeGl3w();
@@ -546,6 +550,20 @@ void error_cb(int error, const char* description)
 //-----------------------------------------------------------------------------
 // subroutines
 //-----------------------------------------------------------------------------
+void applyProgramOptions(int argc, char *argv[])
+{
+    try
+    {
+
+    }
+    catch
+    {
+        std::cout << "Invalid program options" << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+}
+
 GLFWwindow* createWindow(
     unsigned int win_w, unsigned int win_h, const char* title)
 {
