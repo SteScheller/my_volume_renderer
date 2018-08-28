@@ -169,11 +169,6 @@ namespace cr
                 std::endl;
             std::cout << "General exception: " << e.what() << std::endl;
         }
-        catch(...)
-        {
-            std::cout << "Error loading volume configuration file: " << path <<
-                std::endl;
-        }
     }
 
     std::string VolumeConfig::getTimestepFile(unsigned int n)

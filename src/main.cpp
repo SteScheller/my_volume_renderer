@@ -3,6 +3,8 @@
 #include <cmath>
 #include <cstring>
 #include <vector>
+#include <string>
+#include <exception>
 
 #include <GL/gl3w.h>
 #include <GLFW/glfw3.h>
@@ -58,7 +60,7 @@ glm::vec3 camPos = glm::vec3(1.2f, 0.75f, 1.f);
 //-----------------------------------------------------------------------------
 int gui_mode = static_cast<int>(Mode::line_of_sight);
 
-char gui_volume_desc_file[200];     // initialized in main routine
+char gui_volume_desc_file[MAX_FILEPATH_LENGTH]; // init from program options
 
 int gui_timestep = 0;
 
@@ -158,8 +160,6 @@ int main(int argc, char *argv[])
 
     Shader shaderFrame("src/shader/frame.vert", "src/shader/frame.frag");
     Shader shaderVolume("src/shader/volume.vert", "src/shader/volume.frag");
-
-    strcpy(gui_volume_desc_file, DEFAULT_VOLUME_JSON_FILE);
 
     // bounding cube geometry
     // ----------------------
@@ -303,7 +303,7 @@ int main(int argc, char *argv[])
     void *volumeData = nullptr;
     GLuint volumeTex = 0;
 
-    cr::VolumeConfig vConf = cr::VolumeConfig(DEFAULT_VOLUME_JSON_FILE);
+    cr::VolumeConfig vConf = cr::VolumeConfig(gui_volume_desc_file);
     if(vConf.isValid())
     {
         reloadStuff(
@@ -460,6 +460,7 @@ int main(int argc, char *argv[])
 
     if (volumeData != nullptr) cr::deleteVolumeData(vConf, volumeData);
     if (histogramBins != nullptr) delete histogramBins;
+
     return 0;
 }
 
@@ -520,7 +521,7 @@ void key_cb(GLFWwindow* window, int key, int scancode , int action, int mods)
     if((key == GLFW_KEY_ESCAPE) && (action == GLFW_PRESS))
         glfwSetWindowShouldClose(window, true);
 
-    if((key == GLFW_KEY_R) && (action == GLFW_PRESS))
+    if((key == GLFW_KEY_F5) && (action == GLFW_PRESS))
         _flag_reload_shaders = true;
 
     // chain ImGui callback
@@ -552,13 +553,44 @@ void error_cb(int error, const char* description)
 //-----------------------------------------------------------------------------
 void applyProgramOptions(int argc, char *argv[])
 {
+    // Declare the supporded options
+    po::options_description desc("Allowed options");
+    desc.add_options()
+        ("help,h", "produce help message")
+        ("volume", po::value<std::string>(), "volume description file")
+    ;
+
     try
     {
+        po::variables_map vm;
+        po::store(po::parse_command_line(argc, argv, desc), vm);
+        po::notify(vm);
 
+        if (vm.count("help"))
+        {
+            std::cout << desc << std::endl;
+            exit(EXIT_SUCCESS);
+        }
+
+        std::string desc_file = "";
+        if (vm.count("volume"))
+            desc_file = vm["volume"].as<std::string>();
+        else
+            desc_file = DEFAULT_VOLUME_JSON_FILE;
+
+        cr::VolumeConfig tempConf = cr::VolumeConfig(desc_file);
+        if(tempConf.isValid())
+            strncpy(
+                gui_volume_desc_file, desc_file.c_str(), MAX_FILEPATH_LENGTH);
+        else
+        {
+            std::cout << "Invalid volume description!" << std::endl;
+            exit(EXIT_FAILURE);
+        }
     }
-    catch
+    catch(std::exception &e)
     {
-        std::cout << "Invalid program options" << std::endl;
+        std::cout << "Invalid program options!" << std::endl;
         exit(EXIT_FAILURE);
     }
 
