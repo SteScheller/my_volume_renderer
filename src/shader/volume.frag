@@ -17,6 +17,8 @@ uniform vec3 bbMax;             //!< axes aligned bounding box max. corner
 //   3: volume with transfer function
 uniform int mode;
 
+uniform int gradMethod;     //!< switch to select gradient calculation method
+
 uniform float step_size;    //!< distance between sample points along the ray
 uniform float brightness;   //!< color coefficient
 
@@ -137,6 +139,119 @@ vec3 gradientCentral(sampler3D volume, vec3 pos, float h)
 
     return normalize(grad);
 }
+
+/**
+ *  \brief calculates the gradient with central differences
+ *
+ *  \param volume handle to the 3d texture
+ *  \param pos the position from which the gradient should be determined
+ *  \param h distance for finite differences
+ *  \return the gradient at pos
+ *
+ *  calculates the gradient at a given position in a 3d volume using sobel
+ *  operators.
+ */
+ vec3 gradientSobel(sampler3D volume, vec3 pos, float h)
+{
+    vec3 grad;
+    mat3 smoothing = mat3(
+            vec3(1.f, 2.f, 1.f), vec3(2.f, 4.f, 2.f), vec3(1.f, 2.f, 1.f));
+
+    /* surrounding value name scheme:
+     * v_m(inus)    v_z(ero)    v_p(lus)
+     *     |            |           |
+     *   pos-h         pos        pos+h
+     *
+     * Multiple suffixes used to indicate offset in the different directions!
+     */
+    float v_mmm = texture(volume, pos + vec3(-h,    -h,     -h)).r;
+    float v_mmz = texture(volume, pos + vec3(-h,    -h,     0.f)).r;
+    float v_mmp = texture(volume, pos + vec3(-h,    -h,     h)).r;
+    float v_mzm = texture(volume, pos + vec3(-h,    0.f,    -h)).r;
+    float v_mzz = texture(volume, pos + vec3(-h,    0.f,    0.f)).r;
+    float v_mzp = texture(volume, pos + vec3(-h,    0.f,    h)).r;
+    float v_mpm = texture(volume, pos + vec3(-h,    h,      -h)).r;
+    float v_mpz = texture(volume, pos + vec3(-h,    h,      0.f)).r;
+    float v_mpp = texture(volume, pos + vec3(-h,    h,      h)).r;
+
+    float v_zmm = texture(volume, pos + vec3(0.f,   -h,     -h)).r;
+    float v_zmz = texture(volume, pos + vec3(0.f,   -h,     0.f)).r;
+    float v_zmp = texture(volume, pos + vec3(0.f,   -h,     h)).r;
+    float v_zzm = texture(volume, pos + vec3(0.f,   0.f,    -h)).r;
+    float v_zzp = texture(volume, pos + vec3(0.f,   0.f,    h)).r;
+    float v_zpm = texture(volume, pos + vec3(0.f,   h,      -h)).r;
+    float v_zpz = texture(volume, pos + vec3(0.f,   h,      0.f)).r;
+    float v_zpp = texture(volume, pos + vec3(0.f,   h,      h)).r;
+
+    float v_pmm = texture(volume, pos + vec3(h,     -h,     -h)).r;
+    float v_pmz = texture(volume, pos + vec3(h,     -h,     0.f)).r;
+    float v_pmp = texture(volume, pos + vec3(h,     -h,     h)).r;
+    float v_pzm = texture(volume, pos + vec3(h,     0.f,    -h)).r;
+    float v_pzz = texture(volume, pos + vec3(h,     0.f,    0.f)).r;
+    float v_pzp = texture(volume, pos + vec3(h,     0.f,    h)).r;
+    float v_ppm = texture(volume, pos + vec3(h,     h,      -h)).r;
+    float v_ppz = texture(volume, pos + vec3(h,     h,      0.f)).r;
+    float v_ppp = texture(volume, pos + vec3(h,     h,      h)).r;
+
+
+    grad.x =
+        (dot(smoothing[0], vec3(v_pmm, v_pmz, v_pmp)) +
+         dot(smoothing[1], vec3(v_pzm, v_pzz, v_pzp)) +
+         dot(smoothing[2], vec3(v_ppm, v_ppz, v_ppp))) -
+        (dot(smoothing[0], vec3(v_mmm, v_mmz, v_mmp)) +
+         dot(smoothing[1], vec3(v_mzm, v_mzz, v_mzp)) +
+         dot(smoothing[2], vec3(v_mpm, v_mpz, v_mpp)));
+
+    grad.y =
+        (dot(smoothing[0], vec3(v_mpm, v_mpz, v_mpp)) +
+         dot(smoothing[1], vec3(v_zpm, v_zpz, v_zpp)) +
+         dot(smoothing[2], vec3(v_ppm, v_ppz, v_ppp))) -
+        (dot(smoothing[0], vec3(v_mmm, v_mmz, v_mmp)) +
+         dot(smoothing[1], vec3(v_zmm, v_zmz, v_zmp)) +
+         dot(smoothing[2], vec3(v_pmm, v_pmz, v_pmp)));
+
+    grad.z =
+        (dot(smoothing[0], vec3(v_mmp, v_mzp, v_mpp)) +
+         dot(smoothing[1], vec3(v_zmp, v_zzp, v_zpp)) +
+         dot(smoothing[2], vec3(v_pmp, v_pzp, v_ppp))) -
+        (dot(smoothing[0], vec3(v_mmm, v_mzm, v_mpm)) +
+         dot(smoothing[1], vec3(v_zmm, v_zzm, v_zpm)) +
+         dot(smoothing[2], vec3(v_pmm, v_pzm, v_ppm)));
+
+    return normalize(grad);
+}
+
+/**
+ *  \brief wrapper that calculated the gradient with different methods
+ *
+ *  \param volume handle to the 3d texture
+ *  \param pos the position from which the gradient should be determined
+ *  \param h distance for finite differences
+ *  \param h distance for finite differences
+ *  \return the gradient at pos
+ *
+ *  calculates the gradient at a given position using one of the following
+ *  methods:
+ *      1 = sobel operators
+ *      0 = central differences
+ */
+vec3 gradient(sampler3D volume, vec3 pos, float h, int method)
+{
+    vec3 grad = vec3(0.0);      // gradient vector
+
+    switch(method)
+    {
+        case 1:
+            grad = gradientSobel(volume, pos, h);
+            break;
+
+        default:
+            grad = gradientCentral(volume, pos, h);
+            break;
+    }
+
+    return grad;
+}
 // ----------------------------------------------------------------------------
 //   main
 // ----------------------------------------------------------------------------
@@ -216,10 +331,11 @@ void main()
                         pos,
                         (isovalue - valueLast) / (value - valueLast));
 
-                    n = -gradientCentral(
+                    n = -gradient(
                         volumeTex,
                         (p - bbMin) / (bbMax - bbMin),
-                        dx);
+                        dx,
+                        gradMethod);
 
                     color.rgb = blinnPhong(n, l, e);
                     color.a = 1.f;

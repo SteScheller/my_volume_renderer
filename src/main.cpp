@@ -35,6 +35,11 @@ enum class Mode : int
     isosurface,
     transfer_function
 };
+enum class Gradient : int
+{
+    central_differences = 0,
+    sobel_operators
+};
 
 //-----------------------------------------------------------------------------
 // global parameters
@@ -64,7 +69,9 @@ char gui_volume_desc_file[MAX_FILEPATH_LENGTH]; // init from program options
 
 int gui_timestep = 0;
 
-float gui_step_size = 0.01f;
+float gui_step_size = 0.25f;
+
+int gui_grad_method = static_cast<int>(Gradient::sobel_operators);
 
 float gui_brightness = 1.f;
 
@@ -298,6 +305,9 @@ int main(int argc, char *argv[])
         0.1f,
         50.0f);
 
+    // Diagonal of a voxel
+    float voxel_diag = 1.f;
+
     // load the data, create a model matrix, bins and a texture
     std::vector<util::bin_t> *histogramBins = nullptr;
     void *volumeData = nullptr;
@@ -324,6 +334,7 @@ int main(int argc, char *argv[])
         volumeData = nullptr;
         volumeTex = 0;
     }
+
 
     // render loop
     // -----------
@@ -358,6 +369,15 @@ int main(int argc, char *argv[])
             zNear,
             zFar);
 
+        // calculate the diagonal of a voxel
+        voxel_diag = glm::length(glm::vec3(
+                (modelMX *
+                    glm::vec4(
+                        1.f / static_cast<float>(vConf.getVolumeDim()[0]),
+                        1.f / static_cast<float>(vConf.getVolumeDim()[1]),
+                        1.f / static_cast<float>(vConf.getVolumeDim()[2]),
+                        1.f)).xyz));
+
         // apply gui settings
         if(gui_wireframe)
             glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
@@ -386,7 +406,8 @@ int main(int argc, char *argv[])
         shaderVolume.setVec3("bbMin", (modelMX * bbMin).xyz);
         shaderVolume.setVec3("bbMax", (modelMX * bbMax).xyz);
         shaderVolume.setInt("mode", gui_mode);
-        shaderVolume.setFloat("step_size", gui_step_size);
+        shaderVolume.setInt("gradMethod", gui_grad_method);
+        shaderVolume.setFloat("step_size", voxel_diag * gui_step_size);
         shaderVolume.setFloat("brightness", gui_brightness);
         shaderVolume.setFloat("isovalue", gui_isovalue);
         shaderVolume.setVec3(
@@ -752,12 +773,26 @@ static void showSettingsWindow(
 
         ImGui::Spacing();
 
-        ImGui::InputFloat(
-            "step size", &gui_step_size, 0.0001f, 0.01f, "%.4f");
+        ImGui::SliderFloat(
+            "step size", &gui_step_size, 0.05f, 2.f, "%.3f");
 
         ImGui::Spacing();
 
         ImGui::InputFloat("brightness", &gui_brightness, 0.01f, 0.1f);
+
+        ImGui::Spacing();
+
+        ImGui::Text("Gradient Calculation Method:");
+        ImGui::RadioButton(
+            "central differences",
+            &gui_grad_method,
+            static_cast<int>(Gradient::central_differences));
+        ImGui::RadioButton(
+            "sobel operators",
+            &gui_grad_method,
+            static_cast<int>(Gradient::sobel_operators));
+
+        ImGui::Spacing();
 
         if (ImGui::CollapsingHeader("Isosurface"))
         {
@@ -770,7 +805,7 @@ static void showSettingsWindow(
             if (ImGui::TreeNode("Lighting"))
             {
                 ImGui::SliderFloat3(
-                    "light direction", gui_light_dir, 0.f, 1.f);
+                    "light direction", gui_light_dir, -1.f, 1.f);
                 ImGui::ColorEdit3("ambient", gui_ambient);
                 ImGui::ColorEdit3("diffuse", gui_diffuse);
                 ImGui::ColorEdit3("specular", gui_specular);
@@ -780,7 +815,7 @@ static void showSettingsWindow(
                 ImGui::SliderFloat("k_amb", &gui_k_amb, 0.f, 1.f);
                 ImGui::SliderFloat("k_diff", &gui_k_diff, 0.f, 1.f);
                 ImGui::SliderFloat("k_spec", &gui_k_spec, 0.f, 1.f);
-                ImGui::SliderFloat("k_exp", &gui_k_spec, 0.f, 50.f);
+                ImGui::SliderFloat("k_exp", &gui_k_exp, 0.f, 50.f);
                 ImGui::TreePop();
             }
         }
