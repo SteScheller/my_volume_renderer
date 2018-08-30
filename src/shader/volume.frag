@@ -40,6 +40,10 @@ uniform float k_exp;        //!< specular exponent
 uniform bool invert_colors; //!< switch for inverting the color output
 uniform bool invert_alpha;  //!< switch for inverting the alpha output
 
+uniform bool slice_volume;          //!< switch for slicing plane
+uniform vec3 slice_plane_normal;    //!< normal of slicing plane
+uniform vec3 slice_plane_base;      //!< base point of slicing plane
+
 #define M_PIH   1.570796
 #define M_PI    3.141592
 #define M_2PI   6.283185
@@ -114,6 +118,35 @@ bool intersectBoundingBox(
     tFar = smallestTMax;
 
     return (smallestTMax > largestTMin);
+}
+
+/*!
+ *  \brief Intersects a ray with an infinite plane
+ *
+ *  Intersection test of ray with plane based on:
+ *  stackoverflow.com/questions/23975555/how-to-do-ray-plane-intersection
+ *
+ *  \param rayOrig The origin of the ray
+ *  \param rayDir The direction of the ray
+ *  \param planeBase The base point of the plane
+ *  \param planeNormal The normal of the plane
+ *  \param t Out: distance from ray origin to the intersection point
+ *  \return True if the ray intersects the plane
+ */
+bool intersectPlane(
+        vec3 rayOrig, vec3 rayDir, vec3 planeBase, vec3 planeNormal, out float t)
+{
+    bool intersect = false;
+    t = 0.f;
+
+    float denom = dot(rayDir, planeNormal);
+    if (abs(denom) > EPS)
+    {
+        t = dot(planeBase - rayOrig, planeNormal) / denom;
+        if (t >= EPS) intersect = true;
+    }
+
+    return intersect;
 }
 
 /**
@@ -300,6 +333,8 @@ void main()
     float value = 0.f;      //!< value sampled from the volume
     float denoised_value = 0.f;      //!< denoised value from the volume
 
+    bool intersect = false; //!< flag if we did hit the bounding box
+    float temp = 0.f;       //!< temporary variable
     vec3 volCoord = vec3(0.f);      //!< coordinates for texture access
 
     bool terminateEarly = false;    //!< early ray termination
@@ -335,8 +370,49 @@ void main()
 
     // intersect with bounding box and handle special case when we are inside
     // the box. In this case the ray marching starts directly at the origin.
-    if (!intersectBoundingBox(rayOrig, rayDir, tNear, tFar))
+    volCoord = rayOrig - bbMin;
+    if ((volCoord.x < bbMax.x) &&
+        (volCoord.y < bbMax.y) &&
+        (volCoord.z < bbMax.z))
+    {
+        // we are within the volume -> nevertheless make an intersection test
+        // to get the exit point
+        intersect = true;
+        intersectBoundingBox(rayOrig, rayDir, temp, tFar);
         tNear = 0.f;
+    }
+    else
+    {
+        intersect = intersectBoundingBox(rayOrig, rayDir, tNear, tFar);
+    }
+
+    if (!intersect)
+    {
+        // we do not hit the volume
+        frag_color = vec4(0.f);
+        return;
+    }
+    else
+    {
+        // we do hit the volume -> check if it shall be sliced and update
+        // the starting position accordingly
+        if (slice_volume)
+        {
+            if (intersectPlane(
+                        rayOrig,
+                        rayDir,
+                        slice_plane_base,
+                        slice_plane_normal,
+                        temp))
+            {
+                // we intersect the slicing plane update the starting point
+                // to show everything behind the plane
+                tNear = temp;
+            }
+            else
+                tNear = tFar + dx;
+        }
+    }
 
     for (x = tNear; x <= tFar; x += dx)
     {

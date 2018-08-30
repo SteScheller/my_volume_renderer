@@ -105,6 +105,11 @@ bool gui_frame = true;
 bool gui_wireframe = false;
 bool gui_invert_colors = false;
 bool gui_invert_alpha = false;
+
+bool gui_slice_volume = false;
+float gui_slice_plane_normal[3] = {0.f, 0.f, 1.f};
+float gui_slice_plane_base[3] = {0.f, 0.f, 0.f};
+
 //-----------------------------------------------------------------------------
 // function prototypes
 //-----------------------------------------------------------------------------
@@ -337,6 +342,8 @@ int main(int argc, char *argv[])
         volumeTex = 0;
     }
 
+    // temporary variables
+    glm::vec3 tempVec3 = glm::vec3(0.f);
 
     // render loop
     // -----------
@@ -414,8 +421,11 @@ int main(int argc, char *argv[])
         shaderVolume.setFloat("isovalue", gui_isovalue);
         shaderVolume.setBool("iso_denoise", gui_iso_denoise);
         shaderVolume.setFloat("iso_denoise_r", voxel_diag * gui_iso_denoise_r);
+        tempVec3 = glm::normalize(
+                glm::vec3(
+                    gui_light_dir[0], gui_light_dir[1], gui_light_dir[2]));
         shaderVolume.setVec3(
-            "lightDir", gui_light_dir[0], gui_light_dir[1], gui_light_dir[2]);
+            "lightDir", tempVec3[0], tempVec3[1], tempVec3[2]);
         shaderVolume.setVec3(
             "ambient", gui_ambient[0], gui_ambient[1], gui_ambient[2]);
         shaderVolume.setVec3(
@@ -428,6 +438,22 @@ int main(int argc, char *argv[])
         shaderVolume.setFloat("k_exp", gui_k_exp);
         shaderVolume.setBool("invert_colors", gui_invert_colors);
         shaderVolume.setBool("invert_alpha", gui_invert_alpha);
+        shaderVolume.setBool("slice_volume", gui_slice_volume);
+        tempVec3 = glm::normalize(
+                glm::vec3(
+                    gui_slice_plane_normal[0],
+                    gui_slice_plane_normal[1],
+                    gui_slice_plane_normal[2]));
+        shaderVolume.setVec3(
+            "slice_plane_normal", tempVec3[0], tempVec3[1], tempVec3[2]);
+        tempVec3 = (modelMX *
+                glm::vec4(
+                    gui_slice_plane_base[0] / 2.f,
+                    gui_slice_plane_base[1] / 2.f,
+                    gui_slice_plane_base[2] / 2.f,
+                    1.f)).xyz;
+        shaderVolume.setVec3(
+            "slice_plane_base", tempVec3[0], tempVec3[1], tempVec3[2]);
 
         glBindVertexArray(volumeVAO);
         glDrawElements(GL_TRIANGLES, 3*2*6, GL_UNSIGNED_INT, 0);
@@ -881,6 +907,14 @@ static void showSettingsWindow(
                 "show ImGui demo window", &gui_show_demo_window);
             ImGui::Checkbox("invert colors", &gui_invert_colors);
             ImGui::Checkbox("invert alpha", &gui_invert_alpha);
+
+            ImGui::Spacing();
+
+            ImGui::Checkbox("Slice volume", &gui_slice_volume);
+            ImGui::SliderFloat3(
+                "slicing plane normal", gui_slice_plane_normal, -1.f, 1.f);
+            ImGui::SliderFloat3(
+                "slicing plane base", gui_slice_plane_base, -1.f, 1.f);
         }
 
         ImGui::Separator();
