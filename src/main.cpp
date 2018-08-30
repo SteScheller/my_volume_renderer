@@ -24,6 +24,7 @@ namespace po = boost::program_options;
 #include "util.hpp"
 #include "configraw.hpp"
 #include "texture.hpp"
+#include "transferfunc.hpp"
 
 //-----------------------------------------------------------------------------
 // type definitions
