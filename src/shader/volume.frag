@@ -23,6 +23,8 @@ uniform float step_size;    //!< distance between sample points along the ray
 uniform float brightness;   //!< color coefficient
 
 uniform float isovalue;     //!< value for isosurface
+uniform bool iso_denoise;   //!< switch for smoothing of the isosurface
+uniform float iso_denoise_r;//!< radius for denoising
 
 uniform vec3 lightDir;      //!< light direction
 
@@ -252,6 +254,43 @@ vec3 gradient(sampler3D volume, vec3 pos, float h, int method)
 
     return grad;
 }
+
+/**
+ *  \brief returns an average value of the volume around pos
+ *
+ *  \param volume handle to the 3d texture
+ *  \param pos central volume postion where the value shall be calculated
+ *  \param r radius of the averaged sphere
+ *  \return averaged value
+ *
+ *  Calculates the average value of the volume around a given position by
+ *  sampling a sphere with paramatrizable radius at fixed positions.
+ */
+float denoiseSphereAvg(sampler3D volume, vec3 pos, float r)
+{
+    float avg = 4.f * texture(volume, pos).r;
+    float sqrt_rr_by_2 = sqrt(r * r / 2.f);
+    float r_by_2 = r / 2.f;
+
+    avg += 2.f * texture(volume, pos + vec3(-r, 0.f, 0.f)).r;
+    avg += 2.f * texture(volume, pos + vec3(r, 0.f, 0.f)).r;
+    avg += 2.f * texture(volume, pos + vec3(0.f, -r, 0.f)).r;
+    avg += 2.f * texture(volume, pos + vec3(0.f, r, 0.f)).r;
+    avg += 2.f * texture(volume, pos + vec3(0.f, 0.f, -r)).r;
+    avg += 2.f * texture(volume, pos + vec3(0.f, 0.f, r)).r;
+
+    avg += texture(volume, pos + vec3(r_by_2,   sqrt_rr_by_2,   r_by_2)).r;
+    avg += texture(volume, pos + vec3(-r_by_2,  sqrt_rr_by_2,   r_by_2)).r;
+    avg += texture(volume, pos + vec3(r_by_2,   sqrt_rr_by_2,   -r_by_2)).r;
+    avg += texture(volume, pos + vec3(-r_by_2,  sqrt_rr_by_2,   -r_by_2)).r;
+    avg += texture(volume, pos + vec3(r_by_2,   -sqrt_rr_by_2,  r_by_2)).r;
+    avg += texture(volume, pos + vec3(-r_by_2,  -sqrt_rr_by_2,  r_by_2)).r;
+    avg += texture(volume, pos + vec3(r_by_2,   -sqrt_rr_by_2,  -r_by_2)).r;
+    avg += texture(volume, pos + vec3(-r_by_2,  -sqrt_rr_by_2,  -r_by_2)).r;
+
+    return (avg / 24.f);
+}
+
 // ----------------------------------------------------------------------------
 //   main
 // ----------------------------------------------------------------------------
@@ -259,6 +298,7 @@ void main()
 {
     vec4 color = vec4(0.f); //!< RGBA color of the fragment
     float value = 0.f;      //!< value sampled from the volume
+    float denoised_value = 0.f;      //!< denoised value from the volume
 
     vec3 volCoord = vec3(0.f);      //!< coordinates for texture access
 
@@ -277,14 +317,14 @@ void main()
     // maximum intensity projection
     float maxValue = 0.f;
 
-    // iso-surface
+    // isosurface
     float valueLast = 0.f;          //!< temporary variable for storing the
                                     //!< last sample value
     vec3 posLast = rayOrig;         //!< temporary variable for storing the
                                     //!< last sampled position on the ray
 
     // Blinn-Phong shading
-    vec3 p = vec3(0.f);             //!< position on the iso-surface in world
+    vec3 p = vec3(0.f);             //!< position on the isosurface in world
                                     //!< coordinates
     vec3 n = vec3(0.f);             //!< surface normal pointing away from the
                                     //!< surface
@@ -326,6 +366,22 @@ void main()
             case 2:
                 if (0.f > ((value - isovalue) * (valueLast - isovalue)))
                 {
+                    if(iso_denoise)
+                    {
+                        // check if we still cross the isovalue after denoising
+                        denoised_value = denoiseSphereAvg(
+                                volumeTex, volCoord, iso_denoise_r);
+                        if (!(0.f > (
+                                (denoised_value - isovalue) *
+                                (valueLast - isovalue))))
+                        {
+                            // after denoising we do not cross the isovalue
+                            valueLast = denoised_value;
+                            posLast = pos;
+                            break;
+                        }
+                    }
+
                     p = mix(
                         posLast,
                         pos,

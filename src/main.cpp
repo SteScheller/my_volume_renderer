@@ -79,6 +79,8 @@ float gui_cam_zoom_speed = 0.1f;
 float gui_cam_rot_speed = 0.2f;
 
 float gui_isovalue = 0.1f;
+bool gui_iso_denoise = true;
+float gui_iso_denoise_r = 0.1f;
 
 float gui_light_dir[3] = {0.3f, 1.f, -0.3f};
 float gui_ambient[3] = {0.2f, 0.2f, 0.2f};
@@ -410,6 +412,8 @@ int main(int argc, char *argv[])
         shaderVolume.setFloat("step_size", voxel_diag * gui_step_size);
         shaderVolume.setFloat("brightness", gui_brightness);
         shaderVolume.setFloat("isovalue", gui_isovalue);
+        shaderVolume.setBool("iso_denoise", gui_iso_denoise);
+        shaderVolume.setFloat("iso_denoise_r", voxel_diag * gui_iso_denoise_r);
         shaderVolume.setVec3(
             "lightDir", gui_light_dir[0], gui_light_dir[1], gui_light_dir[2]);
         shaderVolume.setVec3(
@@ -802,6 +806,9 @@ static void showSettingsWindow(
                 0.01f,
                 0.1f,
                 "%.3f");
+            ImGui::Checkbox("denoise", &gui_iso_denoise);
+            ImGui::SliderFloat(
+                "denoise radius", &gui_iso_denoise_r, 0.001f, 5.f, "%.3f");
             if (ImGui::TreeNode("Lighting"))
             {
                 ImGui::SliderFloat3(
