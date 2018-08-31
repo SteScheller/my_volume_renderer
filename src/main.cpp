@@ -111,6 +111,10 @@ bool gui_slice_volume = false;
 float gui_slice_plane_normal[3] = {0.f, 0.f, 1.f};
 float gui_slice_plane_base[3] = {0.f, 0.f, 0.f};
 
+float gui_tf_cp_pos = 0.f;
+float gui_tf_cp_color_rgb[3] = {0.f, 0.f, 0.0f};
+float gui_tf_cp_color_a = 0.f;
+
 //-----------------------------------------------------------------------------
 // function prototypes
 //-----------------------------------------------------------------------------
@@ -137,7 +141,8 @@ static void showHistogramWindow(
     std::vector<util::bin_t> *&histogramBins,
     cr::VolumeConfig vConf,
     void* volumeData);
-static void showTransferFunctionWindow();
+static void showTransferFunctionWindow(
+    tf::TransferFuncRGBA1D &transferFunction);
 std::vector<util::bin_t> *loadHistogramBins(
     cr::VolumeConfig vConf, void* values, size_t numBins, float min, float max);
 GLuint loadScalarVolumeTex(cr::VolumeConfig vConf, void* volumeData);
@@ -343,6 +348,9 @@ int main(int argc, char *argv[])
         volumeTex = 0;
     }
 
+    // create a transfer function object
+    tf::TransferFuncRGBA1D transferFunction = tf::TransferFuncRGBA1D();
+
     // temporary variables
     glm::vec3 tempVec3 = glm::vec3(0.f);
 
@@ -473,7 +481,8 @@ int main(int argc, char *argv[])
         if(gui_show_demo_window) ImGui::ShowDemoWindow(&gui_show_demo_window);
         if(gui_mode == static_cast<int>(Mode::transfer_function))
         {
-            if(gui_show_tf_window) showTransferFunctionWindow();
+            if(gui_show_tf_window)
+                showTransferFunctionWindow(transferFunction);
             if(gui_show_histogram_window)
                 showHistogramWindow(
                     histogramBins,
@@ -979,10 +988,53 @@ static void showHistogramWindow(
 /**
  * \brief Shows and handles the ImGui Window for the transfer function editor
 */
-static void showTransferFunctionWindow()
+static void showTransferFunctionWindow(
+        tf::TransferFuncRGBA1D &transferFunction)
 {
+    glm::vec4 tempVec4 = glm::vec4(0.f);
+    float temp = 0.f;
+
     ImGui::Begin("Transfer Function Editor", &gui_show_tf_window);
     ImGui::Text("Here comes the transfer function editor");
+
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    ImGui::Text("New control point:");
+    ImGui::InputFloat("position", &gui_tf_cp_pos);
+    ImGui::ColorEdit3("assigned color", gui_tf_cp_color);
+    ImGui::SliderFloat("alpha", &gui_tf_cp_color_a, 0.f, 1.f);
+    if(ImGui::Button("add"))
+    {
+        tempVec4 = glm::vec4(
+                gui_tf_cp_color[0],
+                gui_tf_cp_color[1],
+                gui_tf_cp_color[2],
+                gui_tf_cp_color_a);
+
+        transferFunction.insertControlPoint(tempVec4, gui_tf_cp_pos);
+    }
+
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    for (
+            auto i = transferFunction.getControlPoints()->begin();
+            i != transferFunction.getControlPoints()->end();
+            ++i)
+    {
+        ImGui::InputFloat("position", &(i->pos)); ImGui::SameLine();
+        ImGui::InputFloat("slope", &(i->slope));
+        ImGui::ColorEdit3("assigned color",
+                &(i->color.r)
+                &(i->color.g)
+                &(i->color.b));
+        ImGui::SliderFloat("alpha", &(i->color.a), 0.f, 1.f);
+        ImGui::Spacing();
+    }
+
     ImGui::End();
 }
 

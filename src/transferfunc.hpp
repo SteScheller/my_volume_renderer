@@ -37,12 +37,15 @@ namespace tf
         float fderiv;
     };
 
+    typedef std::set<
+            ControlPointRGBA1D,
+            bool (*) (ControlPointRGBA1D, ControlPointRGBA1D)>
+                controlPointSet1D;
+
     class TransferFuncRGBA1D
     {
         private:
-        std::set<
-            ControlPointRGBA1D,
-            bool (*) (ControlPointRGBA1D, ControlPointRGBA1D)> controlPoints;
+        controlPointSet1D controlPoints;
 
         public:
         TransferFuncRGBA1D();                    //!< default constructor
@@ -87,6 +90,11 @@ namespace tf
          * \brief removes the control point at the given position
          */
         //void removeControlPoint(float pos);
+
+        /*
+         * \brief returns a pointer to the set of control points
+         */
+        controlPointSet1D* getControlPoints();
     };
 }
 

@@ -67,10 +67,7 @@ tf::TransferFuncRGBA1D::TransferFuncRGBA1D()
     bool (*fn_pt) (ControlPointRGBA1D, ControlPointRGBA1D) =
         tf::ControlPointRGBA1D::compare;
 
-    controlPoints =
-        std::set<
-            ControlPointRGBA1D,
-            bool (*) (ControlPointRGBA1D, ControlPointRGBA1D)>(fn_pt);
+    controlPoints = controlPointSet1D(fn_pt);
 }
 tf::TransferFuncRGBA1D::~TransferFuncRGBA1D(){}
 
@@ -146,3 +143,9 @@ void tf::TransferFuncRGBA1D::insertControlPoint(glm::vec4 color, float pos)
     if (controlPoints.find(cp) != controlPoints.end())
         controlPoints.insert(cp);
 }
+
+tf::controlPointSet1D* tf::TransferFuncRGBA1D::getControlPoints()
+{
+    return &controlPoints;
+}
+
