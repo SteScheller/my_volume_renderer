@@ -1,6 +1,7 @@
 #include "transferfunc.hpp"
 
 #include <iostream>
+#include <utility>
 #include <iterator>
 #include <cmath>
 #include <cassert>
@@ -17,6 +18,7 @@ tf::ControlPointRGBA::ControlPointRGBA(float r, float g, float b, float a)
     color = glm::vec4(r, g, b, a);
 }
 tf::ControlPointRGBA::~ControlPointRGBA(){}
+
 bool tf::ControlPointRGBA::compare(
         __attribute__((unused)) ControlPointRGBA a,
         __attribute__((unused)) ControlPointRGBA b)
@@ -25,6 +27,16 @@ bool tf::ControlPointRGBA::compare(
             "point base class" << std::endl;
         assert(0);
 }
+
+/*bool tf::ControlPointRGBA::operator==(const ControlPointRGBA &other)
+{
+    return (this->color == other.color);
+}
+
+bool tf::ControlPointRGBA::operator!=(const ControlPointRGBA &other)
+{
+    return !(*this == other);
+}*/
 
 //-----------------------------------------------------------------------------
 //  Definitions for ControlPointRGBA1D
@@ -58,6 +70,19 @@ bool tf::ControlPointRGBA1D::compare(
 {
     return a.pos < b.pos;
 }
+
+/*bool tf::ControlPointRGBA1D::operator==(const ControlPointRGBA1D &other)
+{
+    return (    (this->color == other.color)    &&
+                (this->pos == other.pos)        &&
+                (this->fderiv == other.fderiv));
+}
+
+bool tf::ControlPointRGBA1D::operator!=(const ControlPointRGBA1D &other)
+{
+    return !(*this == other);
+}*/
+
 //-----------------------------------------------------------------------------
 //  Definitions for TransferFuncRGBA1D
 //-----------------------------------------------------------------------------
@@ -67,7 +92,7 @@ tf::TransferFuncRGBA1D::TransferFuncRGBA1D()
     bool (*fn_pt) (ControlPointRGBA1D, ControlPointRGBA1D) =
         tf::ControlPointRGBA1D::compare;
 
-    controlPoints = controlPointSet1D(fn_pt);
+    controlPoints = tf::controlPointSet1D(fn_pt);
 }
 tf::TransferFuncRGBA1D::~TransferFuncRGBA1D(){}
 
@@ -128,7 +153,7 @@ glm::vec4 tf::TransferFuncRGBA1D::operator()(float t)
 
         if ((t >= a.pos) && (t < b.pos))
         {
-            value = interpolateCHermite(a, b, t);
+            value = interpolateCHermite(a, b, (t - a.pos) / (b.pos - a.pos));
             break;
         }
     }
@@ -136,16 +161,42 @@ glm::vec4 tf::TransferFuncRGBA1D::operator()(float t)
     return value;
 }
 
-void tf::TransferFuncRGBA1D::insertControlPoint(glm::vec4 color, float pos)
-{
-    tf::ControlPointRGBA1D cp = tf::ControlPointRGBA1D(color, pos);
-
-    if (controlPoints.find(cp) != controlPoints.end())
-        controlPoints.insert(cp);
-}
-
 tf::controlPointSet1D* tf::TransferFuncRGBA1D::getControlPoints()
 {
     return &controlPoints;
+}
+
+std::pair<tf::controlPointSet1D::iterator, bool>
+    tf::TransferFuncRGBA1D::insertControlPoint(
+        glm::vec4 color, float pos)
+{
+    return controlPoints.emplace(color, pos);
+}
+
+std::pair<tf::controlPointSet1D::iterator, bool>
+    tf::TransferFuncRGBA1D::insertControlPoint(
+        ControlPointRGBA1D cp)
+{
+    return controlPoints.insert(cp);
+}
+
+void tf::TransferFuncRGBA1D::removeControlPoint(float pos)
+{
+    controlPoints.erase(tf::ControlPointRGBA1D(glm::vec4(1.f), pos));
+}
+
+void tf::TransferFuncRGBA1D::removeControlPoint(
+        tf::controlPointSet1D::iterator i)
+{
+    controlPoints.erase(*i);
+}
+
+std::pair<tf::controlPointSet1D::iterator, bool>
+    tf::TransferFuncRGBA1D::updateControlPoint(
+        tf::controlPointSet1D::iterator i, ControlPointRGBA1D cp)
+{
+
+    controlPoints.erase(*i);
+    return controlPoints.insert(cp);
 }
 

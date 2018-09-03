@@ -12,6 +12,7 @@
 #define GLM_FORCE_SWIZZLE
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 #include <boost/program_options.hpp>
 namespace po = boost::program_options;
@@ -992,7 +993,7 @@ static void showTransferFunctionWindow(
         tf::TransferFuncRGBA1D &transferFunction)
 {
     glm::vec4 tempVec4 = glm::vec4(0.f);
-    float temp = 0.f;
+    tf::ControlPointRGBA1D cp = tf::ControlPointRGBA1D();
 
     ImGui::Begin("Transfer Function Editor", &gui_show_tf_window);
     ImGui::Text("Here comes the transfer function editor");
@@ -1003,14 +1004,14 @@ static void showTransferFunctionWindow(
 
     ImGui::Text("New control point:");
     ImGui::InputFloat("position", &gui_tf_cp_pos);
-    ImGui::ColorEdit3("assigned color", gui_tf_cp_color);
+    ImGui::ColorEdit3("assigned color", gui_tf_cp_color_rgb);
     ImGui::SliderFloat("alpha", &gui_tf_cp_color_a, 0.f, 1.f);
     if(ImGui::Button("add"))
     {
         tempVec4 = glm::vec4(
-                gui_tf_cp_color[0],
-                gui_tf_cp_color[1],
-                gui_tf_cp_color[2],
+                gui_tf_cp_color_rgb[0],
+                gui_tf_cp_color_rgb[1],
+                gui_tf_cp_color_rgb[2],
                 gui_tf_cp_color_a);
 
         transferFunction.insertControlPoint(tempVec4, gui_tf_cp_pos);
@@ -1021,18 +1022,20 @@ static void showTransferFunctionWindow(
     ImGui::Spacing();
 
     for (
-            auto i = transferFunction.getControlPoints()->begin();
-            i != transferFunction.getControlPoints()->end();
+            auto i = transferFunction.getControlPoints()->cbegin();
+            i != transferFunction.getControlPoints()->cend();
             ++i)
     {
-        ImGui::InputFloat("position", &(i->pos)); ImGui::SameLine();
-        ImGui::InputFloat("slope", &(i->slope));
-        ImGui::ColorEdit3("assigned color",
-                &(i->color.r)
-                &(i->color.g)
-                &(i->color.b));
-        ImGui::SliderFloat("alpha", &(i->color.a), 0.f, 1.f);
+        cp = *i;
+
+        ImGui::InputFloat("asbs position", &(cp.pos)); ImGui::SameLine();
+        ImGui::InputFloat("slope", &(cp.fderiv));
+        ImGui::ColorEdit3("assigned color", glm::value_ptr(cp.color));
+        ImGui::SliderFloat("alpha", &(cp.color.a), 0.f, 1.f);
         ImGui::Spacing();
+
+        /*if (cp != *i)
+            transferFunction.updateControlPoint(i, cp);*/
     }
 
     ImGui::End();
