@@ -1021,21 +1021,45 @@ static void showTransferFunctionWindow(
     ImGui::Separator();
     ImGui::Spacing();
 
+    int idx = 0;
+    static bool once = true;
     for (
             auto i = transferFunction.getControlPoints()->cbegin();
             i != transferFunction.getControlPoints()->cend();
             ++i)
     {
+
         cp = *i;
 
-        ImGui::InputFloat("asbs position", &(cp.pos)); ImGui::SameLine();
-        ImGui::InputFloat("slope", &(cp.fderiv));
-        ImGui::ColorEdit3("assigned color", glm::value_ptr(cp.color));
-        ImGui::SliderFloat("alpha", &(cp.color.a), 0.f, 1.f);
+        if (once)
+        {
+            once = false;
+            std::cout << cp.pos << std::endl;
+            std::cout << cp.color.a << std::endl;
+            std::cout << gui_tf_cp_pos << std::endl;
+            std::cout << gui_tf_cp_color_a << std::endl;
+        }
+
+        ImGui::InputFloat(
+            (std::string("position##") + std::to_string(idx)).c_str(),
+            &(cp.pos));
+        ImGui::InputFloat(
+            (std::string("slope##") + std::to_string(idx)).c_str(),
+            &(cp.fderiv));
+        ImGui::ColorEdit3(
+            (std::string("assigned color##") + std::to_string(idx)).c_str(),
+            glm::value_ptr(cp.color));
+        ImGui::SliderFloat(
+            (std::string("alpha##") + std::to_string(idx)).c_str(),
+            &(cp.color.a),
+            0.f,
+            1.f);
         ImGui::Spacing();
 
-        /*if (cp != *i)
-            transferFunction.updateControlPoint(i, cp);*/
+        if (cp != *i)
+            transferFunction.updateControlPoint(i, cp);
+
+        ++idx;
     }
 
     ImGui::End();

@@ -4,6 +4,10 @@
 #include <set>
 #include <utility>
 #include <iterator>
+
+#include <GL/gl3w.h>
+
+#define GLM_FORCE_SWIZZLE
 #include <glm/glm.hpp>
 
 namespace tf
@@ -15,6 +19,7 @@ namespace tf
         ControlPointRGBA(glm::vec4 color);  //!< construction from vector
         ControlPointRGBA(       //!< constrution from individual values
                 float r, float g, float b, float a);
+        ControlPointRGBA(const tf::ControlPointRGBA &other);
 
         ~ControlPointRGBA();    //!< destructor
 
@@ -34,17 +39,20 @@ namespace tf
          * \return true if all attributes of the compared control points are
          *         equal.
          */
-        //virtual bool operator==(const ControlPointRGBA &other);
-        //virtual bool operator!=(const ControlPointRGBA &other);
+        virtual bool operator==(const ControlPointRGBA &other);
+        virtual bool operator!=(const ControlPointRGBA &other);
     };
 
     class ControlPointRGBA1D : public ControlPointRGBA
     {
         public:
         ControlPointRGBA1D();           //!< default constructor
-        ControlPointRGBA1D(glm::vec4, float pos);  //!< construction from vector
+        ControlPointRGBA1D(glm::vec4 color, float pos);  //!< construction with
+                                                         //!< color and
+                                                         //!< position
         ControlPointRGBA1D(             //!< constrution from individual values
                 float r, float g, float b, float a, float pos);
+        ControlPointRGBA1D(const tf::ControlPointRGBA1D &other);
 
         ~ControlPointRGBA1D();          //!< destructor
 
@@ -65,8 +73,8 @@ namespace tf
          * \return true if all attributes of the compared control points are
          *         equal.
          */
-        //bool operator==(const ControlPointRGBA1D &other);
-        //bool operator!=(const ControlPointRGBA1D &other);
+        bool operator==(const ControlPointRGBA1D &other);
+        bool operator!=(const ControlPointRGBA1D &other);
     };
 
     typedef std::set<
@@ -78,6 +86,7 @@ namespace tf
     {
         private:
         controlPointSet1D controlPoints;
+        GLuint transferTex;
 
         public:
         TransferFuncRGBA1D();                    //!< default constructor
@@ -172,6 +181,37 @@ namespace tf
          */
         std::pair<tf::controlPointSet1D::iterator, bool> updateControlPoint(
                 controlPointSet1D::iterator i, ControlPointRGBA1D cp);
+        /*
+         * \brief Updates the transfer function texture
+         *
+         * \param min lowest value where the function shall be evaluated
+         * \param max highest value where the function shall be evaluated
+         * \param res horizontal resolution
+         *
+         * \return OpenGL ID of the texture object
+         *
+         * Samples the transfer function uniformly at in the given interval
+         * and creates a texture of size [res x 1] with the evaluated RGBA
+         * color and updates the transferTex attribute of this instance.
+         *
+         * Note:
+         * - res must be >= 2 otherwise it is set to 2 internally
+         */
+        void updateTexture(float min, float max, unsigned int res);
+
+        /*
+         * \brief returns the ID of a texture sampled from the transfer func.
+         *
+         * Returns the ID of the internally stored texture object which
+         * contains the RGBA values of the transfer functions in a given
+         * interval. The interval and resolution can be set by calling the
+         * updateTexture method. If this method has not been called prior to
+         * this retrieval the texture will be created internally in the
+         * interval between the control point with the lowest and highest
+         * position with a fixed resolution.
+         */
+        GLuint getTexture();
+
     };
 }
 

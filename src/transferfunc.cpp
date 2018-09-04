@@ -5,17 +5,25 @@
 #include <iterator>
 #include <cmath>
 #include <cassert>
+
+#include <GL/gl3w.h>
+
+#define GLM_FORCE_SWIZZLE
 #include <glm/glm.hpp>
 
 //-----------------------------------------------------------------------------
 //  Definitions for ControlPointRGBA
 //-----------------------------------------------------------------------------
 // Constructors / Destructor
-tf::ControlPointRGBA::ControlPointRGBA(){color = glm::vec4(0.f);}
-tf::ControlPointRGBA::ControlPointRGBA(glm::vec4 color){color = color;}
+tf::ControlPointRGBA::ControlPointRGBA(){this->color = glm::vec4(0.f);}
+tf::ControlPointRGBA::ControlPointRGBA(glm::vec4 color){this->color = color;}
 tf::ControlPointRGBA::ControlPointRGBA(float r, float g, float b, float a)
 {
-    color = glm::vec4(r, g, b, a);
+    this->color = glm::vec4(r, g, b, a);
+}
+tf::ControlPointRGBA::ControlPointRGBA(const tf::ControlPointRGBA &other)
+{
+    this->color = other.color;
 }
 tf::ControlPointRGBA::~ControlPointRGBA(){}
 
@@ -28,7 +36,7 @@ bool tf::ControlPointRGBA::compare(
         assert(0);
 }
 
-/*bool tf::ControlPointRGBA::operator==(const ControlPointRGBA &other)
+bool tf::ControlPointRGBA::operator==(const ControlPointRGBA &other)
 {
     return (this->color == other.color);
 }
@@ -36,7 +44,7 @@ bool tf::ControlPointRGBA::compare(
 bool tf::ControlPointRGBA::operator!=(const ControlPointRGBA &other)
 {
     return !(*this == other);
-}*/
+}
 
 //-----------------------------------------------------------------------------
 //  Definitions for ControlPointRGBA1D
@@ -45,22 +53,28 @@ bool tf::ControlPointRGBA::operator!=(const ControlPointRGBA &other)
 tf::ControlPointRGBA1D::ControlPointRGBA1D() :
     tf::ControlPointRGBA()
 {
-    pos = 0.f;
-    fderiv = 0.f;
+    this->pos = 0.f;
+    this->fderiv = 0.f;
 }
-
 tf::ControlPointRGBA1D::ControlPointRGBA1D(glm::vec4 color, float pos) :
     tf::ControlPointRGBA(color)
 {
-    pos = pos;
-    fderiv = 0.f;
+    this->pos = pos;
+    this->fderiv = 0.f;
 }
 tf::ControlPointRGBA1D::ControlPointRGBA1D(
         float r, float g, float b, float a, float pos) :
     tf::ControlPointRGBA(r, g, b, a)
 {
-    pos = pos;
-    fderiv = 0.f;
+    this->pos = pos;
+    this->fderiv = 0.f;
+}
+tf::ControlPointRGBA1D::ControlPointRGBA1D(
+        const tf::ControlPointRGBA1D &other) :
+    tf::ControlPointRGBA(other)
+{
+    this->pos = other.pos;
+    this->fderiv = other.fderiv;
 }
 tf::ControlPointRGBA1D::~ControlPointRGBA1D(){}
 
@@ -71,7 +85,7 @@ bool tf::ControlPointRGBA1D::compare(
     return a.pos < b.pos;
 }
 
-/*bool tf::ControlPointRGBA1D::operator==(const ControlPointRGBA1D &other)
+bool tf::ControlPointRGBA1D::operator==(const ControlPointRGBA1D &other)
 {
     return (    (this->color == other.color)    &&
                 (this->pos == other.pos)        &&
@@ -81,7 +95,7 @@ bool tf::ControlPointRGBA1D::compare(
 bool tf::ControlPointRGBA1D::operator!=(const ControlPointRGBA1D &other)
 {
     return !(*this == other);
-}*/
+}
 
 //-----------------------------------------------------------------------------
 //  Definitions for TransferFuncRGBA1D
@@ -92,9 +106,14 @@ tf::TransferFuncRGBA1D::TransferFuncRGBA1D()
     bool (*fn_pt) (ControlPointRGBA1D, ControlPointRGBA1D) =
         tf::ControlPointRGBA1D::compare;
 
-    controlPoints = tf::controlPointSet1D(fn_pt);
+    this->controlPoints = tf::controlPointSet1D(fn_pt);
+    this->transferTex = 0;
 }
-tf::TransferFuncRGBA1D::~TransferFuncRGBA1D(){}
+tf::TransferFuncRGBA1D::~TransferFuncRGBA1D()
+{
+    if (this->transferTex != 0)
+        glDeleteTextures(1, &(this->transferTex));
+}
 
 // Member functions
 glm::vec4 tf::TransferFuncRGBA1D::interpolateCHermite(
@@ -137,8 +156,8 @@ glm::vec4 tf::TransferFuncRGBA1D::operator()(float t)
     // position
     if (t < controlPoints.begin()->pos)
         return controlPoints.begin()->color;
-    else if (t >= controlPoints.end()->pos)
-        return controlPoints.end()->color;
+    else if (t >= controlPoints.rbegin()->pos)
+        return controlPoints.rbegin()->color;
 
     // Find the correct pair of control points where t lies in between
     // and interpolate the function value
@@ -200,3 +219,53 @@ std::pair<tf::controlPointSet1D::iterator, bool>
     return controlPoints.insert(cp);
 }
 
+void tf::TransferFuncRGBA1D::updateTexture(
+        float min, float max, unsigned int res)
+{
+    float step = 0.f;
+    size_t idx = 0;
+    glm::vec4 *fx = nullptr;
+
+    if (res < 2)
+        res = 2;
+
+    fx = new glm::vec4[res];
+
+    step = (max - min) / static_cast<float>(res - 1);
+
+
+    for (float x = min; x <= max; x += step)
+    {
+        fx[idx] = (*this)(x);
+        ++idx;
+    }
+
+    if (transferTex != 0)
+        glDeleteTextures(1, &transferTex);
+
+    glGenTextures(1, &transferTex);
+    glBindTexture(GL_TEXTURE_2D, transferTex);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, res, 1, 0, GL_RGBA, GL_FLOAT, fx);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+    delete[] fx;
+}
+
+GLuint tf::TransferFuncRGBA1D::getTexture()
+{
+    if (transferTex != 0)
+        return transferTex;
+
+    // the texture does not exist yet. Create it with a fixed resolution.
+
+    this->updateTexture(
+        controlPoints.begin()->pos,
+        controlPoints.rbegin()->pos,
+        256);
+
+    return transferTex;
+}
