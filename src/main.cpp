@@ -22,9 +22,8 @@ namespace po = boost::program_options;
 #include <imgui_impl_opengl3.h>
 
 #include "shader.hpp"
-#include "util.hpp"
+#include "util/util.hpp"
 #include "configraw.hpp"
-#include "texture.hpp"
 #include "transferfunc.hpp"
 
 //-----------------------------------------------------------------------------
@@ -48,6 +47,12 @@ enum class Gradient : int
 //-----------------------------------------------------------------------------
 unsigned int win_w = 1600;
 unsigned int win_h = 900;
+
+unsigned int tf_func_img_w = 512;
+unsigned int tf_func_img_h = 128;
+
+unsigned int tf_color_img_w = 512;
+unsigned int tf_color_img_h = 16;
 
 float fovY = 90.f;
 float zNear = 0.000001f;
@@ -131,6 +136,18 @@ GLFWwindow* createWindow(
 void applyProgramOptions(int argc, char *argv[]);
 void initializeGl3w();
 void initializeImGui(GLFWwindow* window);
+static GLuint createFrameVAO(
+    const float vertices[4 * 8],
+    const unsigned int indices[2 * 12],
+    const float texCoords[3 * 8]);
+static GLuint createVolumeVAO(
+    const float vertices[4 * 8],
+    const unsigned int indices[3 * 2 * 6],
+    const float texCoords[3 * 8]);
+static GLuint createQuadVAO(
+        const float vertices[2 * 4],
+        const unsigned int indices[2 * 3],
+        const float texCoords[2 * 4]);
 static void showHelpMarker(const char* desc);
 static void showSettingsWindow(
     cr::VolumeConfig &vConf,
@@ -143,7 +160,12 @@ static void showHistogramWindow(
     cr::VolumeConfig vConf,
     void* volumeData);
 static void showTransferFunctionWindow(
-    tf::TransferFuncRGBA1D &transferFunction);
+    tf::TransferFuncRGBA1D &transferFunction,
+    Shader &shaderTfColor,
+    Shader &shaderTfValue,
+    GLuint tfColorFBO,
+    GLuint tfValueFBO,
+    GLuint quadVAO);
 std::vector<util::bin_t> *loadHistogramBins(
     cr::VolumeConfig vConf, void* values, size_t numBins, float min, float max);
 GLuint loadScalarVolumeTex(cr::VolumeConfig vConf, void* volumeData);
@@ -157,6 +179,13 @@ static void reloadStuff(
     size_t num_bins,
     float x_min,
     float x_max);
+static void drawTfColor(
+    tf::TransferFuncRGBA1D &transferFunc,
+    Shader &shaderTfColor,
+    GLuint fboID,
+    GLuint quadVAO,
+    unsigned int width,
+    unsigned int height);
 //-----------------------------------------------------------------------------
 // internals
 //-----------------------------------------------------------------------------
@@ -181,10 +210,12 @@ int main(int argc, char *argv[])
 
     Shader shaderFrame("src/shader/frame.vert", "src/shader/frame.frag");
     Shader shaderVolume("src/shader/volume.vert", "src/shader/volume.frag");
+    Shader shaderTfColor("src/shader/tfColor.vert", "src/shader/tfColor.frag");
+    Shader shaderTfValue("src/shader/tfValue.vert", "src/shader/tfValue.frag");
 
-    // bounding cube geometry
-    // ----------------------
-    float vertices[] = {
+    // bounding box and volume geometry
+    // --------------------------------
+    float verticesCube[] = {
         -0.5f,  -0.5f,  -0.5f,  1.f,
         0.5f,   -0.5f,  -0.5f,  1.f,
         0.5f,   0.5f,   -0.5f,  1.f,
@@ -193,35 +224,6 @@ int main(int argc, char *argv[])
         0.5f,   -0.5f,  0.5f,   1.f,
         0.5f,   0.5f,   0.5f,   1.f,
         -0.5f,  0.5f,   0.5f,   1.f
-    };
-    glm::vec4 bbMin = glm::vec4(
-            vertices[0], vertices[1],vertices[2], vertices[3]);
-    glm::vec4 bbMax = glm::vec4(
-            vertices[24], vertices[25],vertices[26], vertices[27]);
-
-    float texCoords[] = {
-        0.f, 0.f, 1.f,
-        1.f, 0.f, 1.f,
-        1.f, 1.f, 1.f,
-        0.f, 1.f, 1.f,
-        0.f, 0.f, 0.f,
-        1.f, 0.f, 0.f,
-        1.f, 1.f, 0.f,
-        0.f, 1.f, 0.f
-    };
-    unsigned int volumeIndices[] = {
-        2, 1, 0,
-        0, 3, 2,
-        6, 5, 1,
-        1, 2, 6,
-        7, 4, 5,
-        5, 6, 7,
-        3, 0, 4,
-        4, 7, 3,
-        3, 7, 6,
-        6, 2, 3,
-        4, 0, 1,
-        1, 5, 4
     };
     unsigned int frameIndices[] = {
         0, 1,
@@ -237,73 +239,61 @@ int main(int argc, char *argv[])
         2, 6,
         3, 7
     };
+    unsigned int volumeIndices[] = {
+        2, 1, 0,
+        0, 3, 2,
+        6, 5, 1,
+        1, 2, 6,
+        7, 4, 5,
+        5, 6, 7,
+        3, 0, 4,
+        4, 7, 3,
+        3, 7, 6,
+        6, 2, 3,
+        4, 0, 1,
+        1, 5, 4
+    };
+    // bounding box
+    glm::vec4 bbMin = glm::vec4(
+        verticesCube[0], verticesCube[1],verticesCube[2], verticesCube[3]);
+    glm::vec4 bbMax = glm::vec4(
+        verticesCube[24], verticesCube[25],verticesCube[26], verticesCube[27]);
+
+    float texCoordsCube[] = {
+        0.f, 0.f, 1.f,
+        1.f, 0.f, 1.f,
+        1.f, 1.f, 1.f,
+        0.f, 1.f, 1.f,
+        0.f, 0.f, 0.f,
+        1.f, 0.f, 0.f,
+        1.f, 1.f, 0.f,
+        0.f, 1.f, 0.f
+    };
+
+    // bounding box and volume geometry
+    // --------------------------------
+    float verticesQuad[] = {
+        0.f,    0.f,
+        1.f,    0.f,
+        1.f,    1.f,
+        0.f,    1.f
+    };
+    unsigned int quadIndices[] = {
+        0, 1, 2,
+        2, 3, 0
+    };
 
     // ---------------------------
     // create vertex array objects
     // ---------------------------
-    GLuint frameVAO, volumeVAO;
-    GLuint frameEBO, volumeEBO;
-    GLuint VBO[2];
+    GLuint frameVAO = 0, volumeVAO = 0, quadVAO = 0;
 
-    // frame
-    glGenVertexArrays(1, &frameVAO);
-    glGenBuffers(2, VBO);
-    glGenBuffers(1, &frameEBO);
-
-    glBindVertexArray(frameVAO);
-
-    // vertex coordinates
-    glBindBuffer(GL_ARRAY_BUFFER, VBO[0]);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-    glVertexAttribPointer(
-        0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-
-    // vertex indices
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, frameEBO);
-    glBufferData(
-        GL_ELEMENT_ARRAY_BUFFER,
-        sizeof(frameIndices),
-        frameIndices,
-        GL_STATIC_DRAW);
-
-    // texture coordinates
-    glBindBuffer(GL_ARRAY_BUFFER, VBO[1]);
-    glBufferData(
-        GL_ARRAY_BUFFER, sizeof(texCoords), texCoords, GL_STATIC_DRAW);
-    glVertexAttribPointer(
-        1, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(1);
+    frameVAO = createFrameVAO(verticesCube, frameIndices, texCoordsCube);
+    volumeVAO = createVolumeVAO(verticesCube, volumeIndices, texCoordsCube);
+    quadVAO = createQuadVAO(verticesQuad, quadIndices, verticesQuad);
 
     //-------------------------------------------------------------------------
     // volume
-    glGenVertexArrays(1, &volumeVAO);
-    glGenBuffers(1, &volumeEBO);
-
-    glBindVertexArray(volumeVAO);
-
-    // vertex coordinates
-    glBindBuffer(GL_ARRAY_BUFFER, VBO[0]);  // reuse frame vertex buffer
-    glVertexAttribPointer(
-        0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-
-    // vertex indices
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, volumeEBO);
-    glBufferData(
-        GL_ELEMENT_ARRAY_BUFFER,
-        sizeof(volumeIndices),
-        volumeIndices,
-        GL_STATIC_DRAW);
-
-    // texture coordinates
-    glBindBuffer(GL_ARRAY_BUFFER, VBO[1]); // reuse frame vertex buffer
-    glVertexAttribPointer(
-        1, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(1);
-
-    glBindVertexArray(0);
-
     // initialize model, view and projection matrices
     // ----------------------------------------------
     glm::mat4 modelMX = glm::mat4(1.f);
@@ -369,11 +359,17 @@ int main(int argc, char *argv[])
 
             glDeleteProgram(shaderVolume.ID);
             glDeleteProgram(shaderFrame.ID);
+            glDeleteProgram(shaderTfColor.ID);
+            glDeleteProgram(shaderTfValue.ID);
 
             shaderFrame = Shader(
                 "src/shader/frame.vert", "src/shader/frame.frag");
             shaderVolume = Shader(
                 "src/shader/volume.vert", "src/shader/volume.frag");
+            shaderTfColor = Shader(
+                "src/shader/tfColor.vert", "src/shader/tfColor.frag");
+            shaderTfValue = Shader(
+                "src/shader/tfValue.vert", "src/shader/tfValue.frag");
         }
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -482,8 +478,6 @@ int main(int argc, char *argv[])
         if(gui_show_demo_window) ImGui::ShowDemoWindow(&gui_show_demo_window);
         if(gui_mode == static_cast<int>(Mode::transfer_function))
         {
-            if(gui_show_tf_window)
-                showTransferFunctionWindow(transferFunction);
             if(gui_show_histogram_window)
                 showHistogramWindow(
                     histogramBins,
@@ -510,12 +504,11 @@ int main(int argc, char *argv[])
 
     glDeleteProgram(shaderVolume.ID);
     glDeleteProgram(shaderFrame.ID);
+    glDeleteProgram(shaderTfColor.ID);
+    glDeleteProgram(shaderTfValue.ID);
 
     glDeleteVertexArrays(1, &frameVAO);
-    glDeleteBuffers(2, VBO);    // also used for volume
-    glDeleteBuffers(1, &frameEBO);
     glDeleteVertexArrays(1, &volumeVAO);
-    glDeleteBuffers(1, &volumeEBO);
 
     glfwDestroyWindow(window);
     glfwTerminate();
@@ -717,6 +710,150 @@ void initializeImGui(GLFWwindow* window)
 
     ImGui::StyleColorsDark();
 }
+
+static GLuint createFrameVAO(
+        const float vertices[4 * 8],
+        const unsigned int indices[2 * 12],
+        const float texCoords[3 * 8])
+{
+    GLuint frameVAO = 0;
+    GLuint ebo = 0;
+    GLuint vbo[2] = {0, 0};
+
+    // create buffers
+    glGenVertexArrays(1, &frameVAO);
+    glGenBuffers(2, vbo);
+    glGenBuffers(1, &ebo);
+
+    glBindVertexArray(frameVAO);
+
+    // vertex coordinates
+    glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
+    glBufferData(
+        GL_ARRAY_BUFFER, 32 * sizeof(float), vertices, GL_STATIC_DRAW);
+    glVertexAttribPointer(
+        0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*) 0);
+    glEnableVertexAttribArray(0);
+
+    // vertex indices
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+    glBufferData(
+        GL_ELEMENT_ARRAY_BUFFER,
+        24 * sizeof(unsigned int),
+        indices,
+        GL_STATIC_DRAW);
+
+    // texture coordinates
+    glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);
+    glBufferData(
+        GL_ARRAY_BUFFER, 24 * sizeof(float), texCoords, GL_STATIC_DRAW);
+    glVertexAttribPointer(
+        1, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*) 0);
+    glEnableVertexAttribArray(1);
+
+    // unbind vao and delete buffers that are not need anymore
+    glBindVertexArray(0);
+    glDeleteBuffers(2, vbo);
+    glDeleteBuffers(1, &ebo);
+
+    return frameVAO;
+}
+
+static GLuint createVolumeVAO(
+        const float vertices[4 * 8],
+        const unsigned int indices[3 * 2 * 6],
+        const float texCoords[3 * 8])
+{
+    GLuint volumeVAO = 0;
+    GLuint ebo = 0;
+    GLuint vbo[2] = {0, 0};
+
+    // create buffers
+    glGenVertexArrays(1, &volumeVAO);
+    glGenBuffers(2, vbo);
+    glGenBuffers(1, &ebo);
+
+    glBindVertexArray(volumeVAO);
+
+    // vertex coordinates
+    glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
+    glBufferData(
+        GL_ARRAY_BUFFER, 32 * sizeof(float), vertices, GL_STATIC_DRAW);
+    glVertexAttribPointer(
+        0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*) 0);
+    glEnableVertexAttribArray(0);
+
+    // vertex indices
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+    glBufferData(
+        GL_ELEMENT_ARRAY_BUFFER,
+        36 * sizeof(unsigned int),
+        indices,
+        GL_STATIC_DRAW);
+
+    // texture coordinates
+    glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);
+    glBufferData(
+        GL_ARRAY_BUFFER, 24 * sizeof(float), texCoords, GL_STATIC_DRAW);
+    glVertexAttribPointer(
+        1, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*) 0);
+    glEnableVertexAttribArray(1);
+
+    // unbind vao and delete buffers that are not need anymore
+    glBindVertexArray(0);
+    glDeleteBuffers(2, vbo);
+    glDeleteBuffers(1, &ebo);
+
+    return volumeVAO;
+}
+static GLuint createQuadVAO(
+        const float vertices[2 * 4],
+        const unsigned int indices[2 * 3],
+        const float texCoords[2 * 4])
+{
+    GLuint quadVAO = 0;
+    GLuint ebo = 0;
+    GLuint vbo[2] = {0, 0};
+
+    // create buffers
+    glGenVertexArrays(1, &quadVAO);
+    glGenBuffers(2, vbo);
+    glGenBuffers(1, &ebo);
+
+    glBindVertexArray(quadVAO);
+
+    // vertex coordinates
+    glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
+    glBufferData(
+        GL_ARRAY_BUFFER, 8 * sizeof(float), vertices, GL_STATIC_DRAW);
+    glVertexAttribPointer(
+        0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*) 0);
+    glEnableVertexAttribArray(0);
+
+    // vertex indices
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+    glBufferData(
+        GL_ELEMENT_ARRAY_BUFFER,
+        6 * sizeof(unsigned int),
+        indices,
+        GL_STATIC_DRAW);
+
+    // texture coordinates
+    glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);
+    glBufferData(
+        GL_ARRAY_BUFFER, 8 * sizeof(float), texCoords, GL_STATIC_DRAW);
+    glVertexAttribPointer(
+        1, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*) 0);
+    glEnableVertexAttribArray(1);
+
+    // unbind vao and delete buffers that are not need anymore
+    glBindVertexArray(0);
+    glDeleteBuffers(2, vbo);
+    glDeleteBuffers(1, &ebo);
+
+    return quadVAO;
+}
+
 // from imgui_demo.cpp
 static void showHelpMarker(const char* desc)
 {
@@ -990,11 +1127,26 @@ static void showHistogramWindow(
  * \brief Shows and handles the ImGui Window for the transfer function editor
 */
 static void showTransferFunctionWindow(
-        tf::TransferFuncRGBA1D &transferFunction)
+        tf::TransferFuncRGBA1D &transferFunction,
+        Shader &shaderTfColor,
+        Shader &shaderTfValue,
+        GLuint tfColorFBO,
+        GLuint tfValueFBO,
+        GLuint quadVAO)
 {
     glm::vec4 tempVec4 = glm::vec4(0.f);
     tf::ControlPointRGBA1D cp = tf::ControlPointRGBA1D();
 
+    // render the transfer function
+    drawTfColor(
+        transferFunction,
+        shaderTfColor,
+        tfColorFBO,
+        quadVAO,
+        tf_color_img_w,
+        tf_color_img_h);
+
+    // draw the imgui elements
     ImGui::Begin("Transfer Function Editor", &gui_show_tf_window);
     ImGui::Text("Here comes the transfer function editor");
 
@@ -1289,4 +1441,48 @@ static void reloadStuff(
     histogramBins = loadHistogramBins(
         vConf, volumeData, num_bins, x_min, x_max);
     volumeTex = loadScalarVolumeTex(vConf, volumeData);
+}
+
+/**
+ * \brief draws the color resulting from the transfer function to an fbo object
+ */
+static void drawTfColor(
+    tf::TransferFuncRGBA1D &transferFunc,
+    Shader &shaderTfColor,
+    GLuint fboID,
+    GLuint quadVAO,
+    unsigned int width,
+    unsigned int height)
+{
+    if (!glIsFramebuffer(fboID))
+        return;
+
+    // activate the framebuffer object as current framebuffer
+    glViewport(0, 0, width, height);
+    glBindFramebuffer(GL_FRAMEBUFFER, fboID);
+
+    // select color attachments as render targets
+    static const GLenum buf = GL_COLOR_ATTACHMENT0;
+    glDrawBuffers(1, &buf);
+
+    // clear old buffer content
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    // set up the projection matrix
+	static const glm::mat4 projMX = glm::ortho(0.0f, 1.0f, 0.0f, 1.0f);
+
+    // draw the resulting transfer function colors
+    shaderTfColor.use();
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, transferFunc.getTexture());
+    shaderTfColor.setInt("transferTex", 0);
+    shaderTfColor.setMat4("projMX", projMX);
+
+    glBindVertexArray(quadVAO);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    glBindVertexArray(0);
+
+    // reset framebuffer to default
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }

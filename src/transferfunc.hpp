@@ -25,7 +25,7 @@ namespace tf
 
         glm::vec4 color;        //!< RGBA color value assigned to that point
 
-        /*
+        /**
          * \brief key comparison function for sorting of control points
          *
          * Key comparison function for use with stl containers for determining
@@ -33,7 +33,7 @@ namespace tf
          */
         virtual bool compare(ControlPointRGBA a, ControlPointRGBA b);
 
-        /*
+        /**
          * \brief equality comparison that compares all attributes
          *
          * \return true if all attributes of the compared control points are
@@ -59,7 +59,7 @@ namespace tf
         float pos;
         float fderiv;
 
-        /*
+        /**
          * \brief key comparison function for sorting of control points
          *
          * Key comparison function for use with stl containers for determining
@@ -67,7 +67,7 @@ namespace tf
          */
         static bool compare(ControlPointRGBA1D a, ControlPointRGBA1D b);
 
-        /*
+        /**
          * \brief equality comparison that compares all attributes
          *
          * \return true if all attributes of the compared control points are
@@ -92,7 +92,7 @@ namespace tf
         TransferFuncRGBA1D();                    //!< default constructor
         ~TransferFuncRGBA1D();                   //!< destructor
 
-        /*
+        /**
          * \brief interpolates the assigned RGBA values of a and b based on t
          *
          * Interpolates using cubic hermite polynomials.
@@ -108,7 +108,7 @@ namespace tf
                 ControlPointRGBA1D const &b,
                 float t);
 
-        /*
+        /**
          * \brief evaluates the transfer function at t
          *
          * \param t position to calculate the function value at
@@ -119,12 +119,12 @@ namespace tf
          */
         glm::vec4 operator()(float t);  //!< () operator
 
-        /*
+        /**
          * \brief returns a pointer to the set of control points
          */
         controlPointSet1D* getControlPoints();
 
-        /*
+        /**
          * \brief inserts a new control point at the given position
          *
          * \param color RGBA color value of the new control point
@@ -137,7 +137,7 @@ namespace tf
         std::pair<controlPointSet1D::iterator, bool> insertControlPoint(
                 glm::vec4 color, float pos);
 
-        /*
+        /**
          * \brief adds the given control point to the transfer function
          *
          * Adds the given control point to the set of control points of the
@@ -154,21 +154,21 @@ namespace tf
         std::pair<controlPointSet1D::iterator, bool> insertControlPoint(
                 ControlPointRGBA1D cp);
 
-        /*
+        /**
          * \brief removes the control point at the given position
          *
          * \param pos 1D spatial position of the control point
          */
         void removeControlPoint(float pos);
 
-        /*
+        /**
          * \brief removes the control point at the iterator position
          *
          * \param i iterator position in control point set
          */
         void removeControlPoint(controlPointSet1D::iterator i);
 
-        /*
+        /**
          * \brief Updates the color and alpha value of the control point
          *
          * \param i iterator position of the control point that shall be
@@ -181,7 +181,7 @@ namespace tf
          */
         std::pair<tf::controlPointSet1D::iterator, bool> updateControlPoint(
                 controlPointSet1D::iterator i, ControlPointRGBA1D cp);
-        /*
+        /**
          * \brief Updates the transfer function texture
          *
          * \param min lowest value where the function shall be evaluated
@@ -199,7 +199,7 @@ namespace tf
          */
         void updateTexture(float min, float max, unsigned int res);
 
-        /*
+        /**
          * \brief returns the ID of a texture sampled from the transfer func.
          *
          * Returns the ID of the internally stored texture object which

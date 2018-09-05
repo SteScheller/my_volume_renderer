@@ -21,6 +21,28 @@ namespace util
     // Declarations
     //-------------------------------------------------------------------------
     bool printOglError(const char *file, int line);
+    GLuint create3dTexFromScalar(
+        const GLvoid *buf,
+        GLenum type,
+        GLsizei res_x,
+        GLsizei res_y,
+        GLsizei res_z);
+    GLuint create2dTextureObject(
+        const GLenum internalFormat,
+        const GLenum format,
+        const GLenum type,
+        GLint filter,
+        int width,
+        int height);
+    GLuint createFrameBufferObject(
+        GLsizei width,
+        GLsizei height,
+        unsigned int numAttachments,
+        GLenum attachment[],
+        GLint internalFormat[],
+        GLenum format[],
+        GLenum datatype[],
+        GLint filter[]);
 
     //-------------------------------------------------------------------------
     // Type definitions

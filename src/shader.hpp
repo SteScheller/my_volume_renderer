@@ -14,6 +14,8 @@
 #define SHADER_H
 
 #include <GL/gl3w.h>
+
+#define GLM_FORCE_SWIZZLE
 #include <glm/glm.hpp>
 
 #include <string>
@@ -75,7 +77,7 @@ public:
 
         // compile shaders
         // ---------------
-        unsigned int vertex, fragment;
+        unsigned int vertex = 0, fragment = 0;
         vertex = glCreateShader(GL_VERTEX_SHADER);
         glShaderSource(vertex, 1, &vShaderCode, nullptr);
         glCompileShader(vertex);
@@ -86,7 +88,7 @@ public:
         glCompileShader(fragment);
         checkCompileErrors(fragment, "FRAGMENT");
 
-        unsigned int geometry;
+        unsigned int geometry = 0;
         if(geometryPath != nullptr)
         {
             const char * gShaderCode = geometryCode.c_str();
