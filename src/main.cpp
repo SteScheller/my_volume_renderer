@@ -162,9 +162,11 @@ static void showHistogramWindow(
 static void showTransferFunctionWindow(
     tf::TransferFuncRGBA1D &transferFunction,
     Shader &shaderTfColor,
-    Shader &shaderTfValue,
+    Shader &shaderTfFunc,
     GLuint tfColorFBO,
-    GLuint tfValueFBO,
+    GLuint *tfColorTexIDs,
+    GLuint tfFuncFBO,
+    GLuint *tfFuncTexIDs,
     GLuint quadVAO);
 std::vector<util::bin_t> *loadHistogramBins(
     cr::VolumeConfig vConf, void* values, size_t numBins, float min, float max);
@@ -211,7 +213,7 @@ int main(int argc, char *argv[])
     Shader shaderFrame("src/shader/frame.vert", "src/shader/frame.frag");
     Shader shaderVolume("src/shader/volume.vert", "src/shader/volume.frag");
     Shader shaderTfColor("src/shader/tfColor.vert", "src/shader/tfColor.frag");
-    Shader shaderTfValue("src/shader/tfValue.vert", "src/shader/tfValue.frag");
+    Shader shaderTfFunc("src/shader/tfFunc.vert", "src/shader/tfFunc.frag");
 
     // bounding box and volume geometry
     // --------------------------------
@@ -270,8 +272,8 @@ int main(int argc, char *argv[])
         0.f, 1.f, 0.f
     };
 
-    // bounding box and volume geometry
-    // --------------------------------
+    // quad for rendering to textures
+    // ------------------------------
     float verticesQuad[] = {
         0.f,    0.f,
         1.f,    0.f,
@@ -283,19 +285,65 @@ int main(int argc, char *argv[])
         2, 3, 0
     };
 
-    // ---------------------------
-    // create vertex array objects
-    // ---------------------------
+    // ------------------------------------------------------------------------
+    // vertex array objects
+    // ------------------------------------------------------------------------
     GLuint frameVAO = 0, volumeVAO = 0, quadVAO = 0;
 
     frameVAO = createFrameVAO(verticesCube, frameIndices, texCoordsCube);
     volumeVAO = createVolumeVAO(verticesCube, volumeIndices, texCoordsCube);
     quadVAO = createQuadVAO(verticesQuad, quadIndices, verticesQuad);
 
-    //-------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    // framebuffer objects
+    // ------------------------------------------------------------------------
+    GLuint tfColorFBO = 0;
+    GLuint tfColorTexIDs[1] = { 0 };
+
+    {
+        GLenum attachments[1] = { GL_COLOR_ATTACHMENT0 };
+        GLint  internalFormats[1] = { GL_RGBA };
+        GLenum formats[1] = { GL_RGBA };
+        GLenum datatypes[1] = { GL_FLOAT };
+        GLint  filters[1] = { GL_LINEAR };
+
+        tfColorFBO = util::createFrameBufferObject(
+                tf_color_img_w,
+                tf_color_img_h,
+                tfColorTexIDs,
+                1,
+                attachments,
+                internalFormats,
+                formats,
+                datatypes,
+                filters);
+    }
+
+    GLuint tfFuncFBO = 0;
+    GLuint tfFuncTexIDs[1] = {0};
+
+    {
+        GLenum attachments[1] = { GL_COLOR_ATTACHMENT0 };
+        GLint  internalFormats[1] = { GL_RGBA };
+        GLenum formats[1] = { GL_RGBA };
+        GLenum datatypes[1] = { GL_FLOAT };
+        GLint  filters[1] = { GL_LINEAR };
+
+        tfFuncFBO = util::createFrameBufferObject(
+                tf_func_img_w,
+                tf_func_img_h,
+                tfFuncTexIDs,
+                1,
+                attachments,
+                internalFormats,
+                formats,
+                datatypes,
+                filters);
+    }
+    // ------------------------------------------------------------------------
     // volume
     // initialize model, view and projection matrices
-    // ----------------------------------------------
+    // ------------------------------------------------------------------------
     glm::mat4 modelMX = glm::mat4(1.f);
 
     glm::vec3 right = glm::normalize(
@@ -339,14 +387,18 @@ int main(int argc, char *argv[])
         volumeTex = 0;
     }
 
+    // ------------------------------------------------------------------------
+    // misc. stuff
+    // ------------------------------------------------------------------------
     // create a transfer function object
     tf::TransferFuncRGBA1D transferFunction = tf::TransferFuncRGBA1D();
 
     // temporary variables
     glm::vec3 tempVec3 = glm::vec3(0.f);
 
+    // ------------------------------------------------------------------------
     // render loop
-    // -----------
+    // ------------------------------------------------------------------------
     while (!glfwWindowShouldClose(window))
     {
         glfwPollEvents();
@@ -360,7 +412,7 @@ int main(int argc, char *argv[])
             glDeleteProgram(shaderVolume.ID);
             glDeleteProgram(shaderFrame.ID);
             glDeleteProgram(shaderTfColor.ID);
-            glDeleteProgram(shaderTfValue.ID);
+            glDeleteProgram(shaderTfFunc.ID);
 
             shaderFrame = Shader(
                 "src/shader/frame.vert", "src/shader/frame.frag");
@@ -368,8 +420,8 @@ int main(int argc, char *argv[])
                 "src/shader/volume.vert", "src/shader/volume.frag");
             shaderTfColor = Shader(
                 "src/shader/tfColor.vert", "src/shader/tfColor.frag");
-            shaderTfValue = Shader(
-                "src/shader/tfValue.vert", "src/shader/tfValue.frag");
+            shaderTfFunc = Shader(
+                "src/shader/tfFunc.vert", "src/shader/tfFunc.frag");
         }
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -478,6 +530,16 @@ int main(int argc, char *argv[])
         if(gui_show_demo_window) ImGui::ShowDemoWindow(&gui_show_demo_window);
         if(gui_mode == static_cast<int>(Mode::transfer_function))
         {
+            if(gui_show_tf_window)
+                showTransferFunctionWindow(
+                    transferFunction,
+                    shaderTfColor,
+                    shaderTfFunc,
+                    tfColorFBO,
+                    tfColorTexIDs,
+                    tfFuncFBO,
+                    tfFuncTexIDs,
+                    quadVAO);
             if(gui_show_histogram_window)
                 showHistogramWindow(
                     histogramBins,
@@ -500,15 +562,21 @@ int main(int argc, char *argv[])
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
 
+    glDeleteFramebuffers(1, &tfColorFBO);
+    glDeleteTextures(1, tfColorTexIDs);
+    glDeleteFramebuffers(1, &tfFuncFBO);
+    glDeleteTextures(1, tfFuncTexIDs);
+
     glDeleteTextures(1, &volumeTex);
 
     glDeleteProgram(shaderVolume.ID);
     glDeleteProgram(shaderFrame.ID);
     glDeleteProgram(shaderTfColor.ID);
-    glDeleteProgram(shaderTfValue.ID);
+    glDeleteProgram(shaderTfFunc.ID);
 
     glDeleteVertexArrays(1, &frameVAO);
     glDeleteVertexArrays(1, &volumeVAO);
+    glDeleteVertexArrays(1, &quadVAO);
 
     glfwDestroyWindow(window);
     glfwTerminate();
@@ -1129,9 +1197,11 @@ static void showHistogramWindow(
 static void showTransferFunctionWindow(
         tf::TransferFuncRGBA1D &transferFunction,
         Shader &shaderTfColor,
-        Shader &shaderTfValue,
+        Shader &shaderTfFunc,
         GLuint tfColorFBO,
-        GLuint tfValueFBO,
+        GLuint *tfColorTexIDs,
+        GLuint tfFuncFBO,
+        GLuint *tfFuncTexIDs,
         GLuint quadVAO)
 {
     glm::vec4 tempVec4 = glm::vec4(0.f);

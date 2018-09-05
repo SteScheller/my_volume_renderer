@@ -58,6 +58,8 @@ bool util::printOglError(const char *file, int line)
  *
  *  \param width            horizontal size in pixel
  *  \param height           vertical size in pixel
+ *  \param texIDs           pointer to an array where the object IDs of the
+ *                          attached textures are stored
  *  \param numAttachments   sum of color and attachments that shall be created
  *  \param attachment       array with attachment points (color, depth ...)
  *  \param internalFormat   array with internal format of the attachments
@@ -65,11 +67,13 @@ bool util::printOglError(const char *file, int line)
  *  \param type             array with data type: GL_UNSIGNED_BYTE, ...
  *  \param filter           array with texture filter: GL_LINEAR or GL_NEAREST
  *
- *  \return the ID of the framebuffer object
+ *  \return The ID of the framebuffer object and the IDs of attached textures
+ *          via texIDs.
  */
 GLuint util::createFrameBufferObject(
     GLsizei width,
     GLsizei height,
+    GLuint *texIDs,
     unsigned int numAttachments,
     GLenum attachment[],
     GLint internalFormat[],
@@ -78,14 +82,13 @@ GLuint util::createFrameBufferObject(
     GLint filter[])
 {
     GLuint fboID = 0;
-    GLuint colorAttachID[numAttachments];
 
 	glGenFramebuffers(1, &fboID);
 	glBindFramebuffer(GL_FRAMEBUFFER, fboID);
 
     for (unsigned int i = 0; i < numAttachments; ++i)
     {
-        colorAttachID[i] = util::create2dTextureObject(
+        texIDs[i] = util::create2dTextureObject(
             internalFormat[i],
             format[i],
             datatype[i],
@@ -97,7 +100,7 @@ GLuint util::createFrameBufferObject(
             GL_FRAMEBUFFER,
             attachment[i],
             GL_TEXTURE_2D,
-            colorAttachID[i],
+            texIDs[i],
             0);
     }
 
