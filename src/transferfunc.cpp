@@ -108,6 +108,7 @@ tf::TransferFuncRGBA1D::TransferFuncRGBA1D()
 
     this->controlPoints = tf::controlPointSet1D(fn_pt);
     this->transferTex = 0;
+    this->controlPoints.emplace(glm::vec4(0.f), 0.f);
 }
 tf::TransferFuncRGBA1D::~TransferFuncRGBA1D()
 {
@@ -212,18 +213,25 @@ void tf::TransferFuncRGBA1D::removeControlPoint(
 
 std::pair<tf::controlPointSet1D::iterator, bool>
     tf::TransferFuncRGBA1D::updateControlPoint(
-        tf::controlPointSet1D::iterator i, ControlPointRGBA1D cp)
+        tf::controlPointSet1D::iterator i, tf::ControlPointRGBA1D cp)
 {
+    std::pair<tf::controlPointSet1D::iterator, bool> ret;
+    tf::ControlPointRGBA1D backup = *i;
 
     controlPoints.erase(*i);
-    return controlPoints.insert(cp);
+    ret = controlPoints.insert(cp);
+
+    if (ret.second == true)
+        return ret;
+    else
+        return controlPoints.insert(backup);
 }
 
 void tf::TransferFuncRGBA1D::updateTexture(
         float min, float max, unsigned int res)
 {
     float step = 0.f;
-    size_t idx = 0;
+    float x = 0.f;
     glm::vec4 *fx = nullptr;
 
     if (res < 2)
@@ -233,11 +241,11 @@ void tf::TransferFuncRGBA1D::updateTexture(
 
     step = (max - min) / static_cast<float>(res - 1);
 
-
-    for (float x = min; x <= max; x += step)
+    x = min;
+    for (size_t i = 0; i < res; ++i)
     {
-        fx[idx] = (*this)(x);
-        ++idx;
+        x += step;
+        fx[i] = (*this)(x);
     }
 
     if (transferTex != 0)
@@ -264,8 +272,7 @@ GLuint tf::TransferFuncRGBA1D::getTexture()
 
     this->updateTexture(
         controlPoints.begin()->pos,
-        controlPoints.rbegin()->pos,
-        256);
+        controlPoints.rbegin()->pos);
 
     return transferTex;
 }

@@ -4,7 +4,8 @@ layout(location = 0) out vec4 frag_color;
 in vec3 vTexCoord;      //!< texture coordinates
 in vec3 vWorldCoord;      //!< texture coordinates
 
-uniform sampler3D volumeTex;    //!< 3D texture handle
+uniform sampler3D volumeTex;            //!< 3D texture handle
+uniform sampler2D transferfunctionTex;  //!< 3D texture handle
 
 uniform vec3 eyePos;            //!< camera / eye position in world coordinates
 uniform vec3 bbMin;             //!< axes aligned bounding box min. corner
@@ -368,6 +369,9 @@ void main()
     vec3 e = -rayDir;               //!< direction of the (virtual) eye in
                                     //!< world coordinates
 
+    // transfer function
+    vec4 tfColor = vec4(0.f);       //!< color value from the transferfunction
+
     // intersect with bounding box and handle special case when we are inside
     // the box. In this case the ray marching starts directly at the origin.
     volCoord = rayOrig - bbMin;
@@ -479,8 +483,12 @@ void main()
 
             // transfer function
             case 3:
-                //TODO
-                color = frontToBack(color, vTexCoord, 1.f);
+                tfColor = texture(
+                    transferfunctionTex,
+                    vec2(value, 0.5f));
+                color = frontToBack(
+                    color,
+                    tfColor.rgb, tfColor.a);
                 if (color.a > 0.99f)
                     terminateEarly = true;
                 break;

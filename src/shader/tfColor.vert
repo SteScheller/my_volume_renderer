@@ -18,11 +18,11 @@ out vec2 vTexCoord;     //!< texture coordinates for sampling the transfer
 
 void main()
 {
-    gl_Position = projMX * in_position;
+    gl_Position = projMX * vec4(in_position, 0.f, 1.f);
 
-    //TODO: check this calculation
-    vTexCoord.x = tex_coords.x *
-        ((x_max - x_min) / (tf_interval_upper - tf_interval_lower)) +
-        (x_min / (tf_interval_upper;
+    vTexCoord.x =
+        (tex_coords.x * (x_max - x_min) + x_min - tf_interval_lower) /
+        (tf_interval_upper - tf_interval_lower);
+
     vTexCoord.y = 0.5f;
 }

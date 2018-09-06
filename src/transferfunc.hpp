@@ -197,7 +197,7 @@ namespace tf
          * Note:
          * - res must be >= 2 otherwise it is set to 2 internally
          */
-        void updateTexture(float min, float max, unsigned int res);
+        void updateTexture(float min, float max, unsigned int res = 256);
 
         /**
          * \brief returns the ID of a texture sampled from the transfer func.

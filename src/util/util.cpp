@@ -58,8 +58,8 @@ bool util::printOglError(const char *file, int line)
  *
  *  \param width            horizontal size in pixel
  *  \param height           vertical size in pixel
- *  \param texIDs           pointer to an array where the object IDs of the
- *                          attached textures are stored
+ *  \param texIDs           array where the object IDs of the attached
+ *                          textures are stored
  *  \param numAttachments   sum of color and attachments that shall be created
  *  \param attachment       array with attachment points (color, depth ...)
  *  \param internalFormat   array with internal format of the attachments
@@ -73,7 +73,7 @@ bool util::printOglError(const char *file, int line)
 GLuint util::createFrameBufferObject(
     GLsizei width,
     GLsizei height,
-    GLuint *texIDs,
+    GLuint texIDs[],
     unsigned int numAttachments,
     GLenum attachment[],
     GLint internalFormat[],

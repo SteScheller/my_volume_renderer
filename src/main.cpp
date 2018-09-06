@@ -146,7 +146,7 @@ static GLuint createVolumeVAO(
     const float texCoords[3 * 8]);
 static GLuint createQuadVAO(
         const float vertices[2 * 4],
-        const unsigned int indices[2 * 3],
+        const unsigned int indices[4],
         const float texCoords[2 * 4]);
 static void showHelpMarker(const char* desc);
 static void showSettingsWindow(
@@ -281,8 +281,7 @@ int main(int argc, char *argv[])
         0.f,    1.f
     };
     unsigned int quadIndices[] = {
-        0, 1, 2,
-        2, 3, 0
+        0, 1, 2, 3
     };
 
     // ------------------------------------------------------------------------
@@ -467,6 +466,11 @@ int main(int argc, char *argv[])
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_3D, volumeTex);
         shaderVolume.setInt("volumeTex", 0);
+
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, transferFunction.getTexture());
+        shaderVolume.setInt("transferfunctionTex", 1);
+
         shaderVolume.setMat4("modelMX", modelMX);
         shaderVolume.setMat4("pvmMX", projMX * viewMX * modelMX);
         shaderVolume.setVec3("eyePos", camPos);
@@ -876,7 +880,7 @@ static GLuint createVolumeVAO(
 }
 static GLuint createQuadVAO(
         const float vertices[2 * 4],
-        const unsigned int indices[2 * 3],
+        const unsigned int indices[4],
         const float texCoords[2 * 4])
 {
     GLuint quadVAO = 0;
@@ -902,7 +906,7 @@ static GLuint createQuadVAO(
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
     glBufferData(
         GL_ELEMENT_ARRAY_BUFFER,
-        6 * sizeof(unsigned int),
+        4 * sizeof(unsigned int),
         indices,
         GL_STATIC_DRAW);
 
@@ -1218,14 +1222,25 @@ static void showTransferFunctionWindow(
 
     // draw the imgui elements
     ImGui::Begin("Transfer Function Editor", &gui_show_tf_window);
-    ImGui::Text("Here comes the transfer function editor");
+
+    ImGui::InputFloat("x min", &gui_x_min, 0.1f, 1.f);
+    ImGui::InputFloat("x max", &gui_x_max, 0.1f, 1.f);
+    if (gui_x_max < gui_x_min) gui_x_max = gui_x_min;
+
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    ImGui::Image(
+        reinterpret_cast<ImTextureID>(tfColorTexIDs[0]),
+        ImVec2(tf_color_img_w, tf_color_img_h));
 
     ImGui::Spacing();
     ImGui::Separator();
     ImGui::Spacing();
 
     ImGui::Text("New control point:");
-    ImGui::InputFloat("position", &gui_tf_cp_pos);
+    ImGui::SliderFloat("position", &gui_tf_cp_pos, gui_x_min, gui_x_max);
     ImGui::ColorEdit3("assigned color", gui_tf_cp_color_rgb);
     ImGui::SliderFloat("alpha", &gui_tf_cp_color_a, 0.f, 1.f);
     if(ImGui::Button("add"))
@@ -1237,6 +1252,7 @@ static void showTransferFunctionWindow(
                 gui_tf_cp_color_a);
 
         transferFunction.insertControlPoint(tempVec4, gui_tf_cp_pos);
+        transferFunction.updateTexture(gui_x_min, gui_x_max);
     }
 
     ImGui::Spacing();
@@ -1244,7 +1260,6 @@ static void showTransferFunctionWindow(
     ImGui::Spacing();
 
     int idx = 0;
-    static bool once = true;
     for (
             auto i = transferFunction.getControlPoints()->cbegin();
             i != transferFunction.getControlPoints()->cend();
@@ -1253,21 +1268,16 @@ static void showTransferFunctionWindow(
 
         cp = *i;
 
-        if (once)
-        {
-            once = false;
-            std::cout << cp.pos << std::endl;
-            std::cout << cp.color.a << std::endl;
-            std::cout << gui_tf_cp_pos << std::endl;
-            std::cout << gui_tf_cp_color_a << std::endl;
-        }
-
-        ImGui::InputFloat(
+        ImGui::SliderFloat(
             (std::string("position##") + std::to_string(idx)).c_str(),
-            &(cp.pos));
-        ImGui::InputFloat(
+            &(cp.pos),
+            gui_x_min,
+            gui_x_max);
+        ImGui::SliderFloat(
             (std::string("slope##") + std::to_string(idx)).c_str(),
-            &(cp.fderiv));
+            &(cp.fderiv),
+            -1.f,
+            1.f);
         ImGui::ColorEdit3(
             (std::string("assigned color##") + std::to_string(idx)).c_str(),
             glm::value_ptr(cp.color));
@@ -1279,7 +1289,10 @@ static void showTransferFunctionWindow(
         ImGui::Spacing();
 
         if (cp != *i)
+        {
             transferFunction.updateControlPoint(i, cp);
+            transferFunction.updateTexture(gui_x_min, gui_x_max);
+        }
 
         ++idx;
     }
@@ -1548,9 +1561,13 @@ static void drawTfColor(
     glBindTexture(GL_TEXTURE_2D, transferFunc.getTexture());
     shaderTfColor.setInt("transferTex", 0);
     shaderTfColor.setMat4("projMX", projMX);
+    shaderTfColor.setFloat("x_min", gui_x_min);
+    shaderTfColor.setFloat("x_max", gui_x_max);
+    shaderTfColor.setFloat("tf_interval_lower", gui_x_min);
+    shaderTfColor.setFloat("tf_interval_upper", gui_x_max);
 
     glBindVertexArray(quadVAO);
-    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
     glBindVertexArray(0);
 
     // reset framebuffer to default

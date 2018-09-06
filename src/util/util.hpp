@@ -37,6 +37,7 @@ namespace util
     GLuint createFrameBufferObject(
         GLsizei width,
         GLsizei height,
+        GLuint texIDs[],
         unsigned int numAttachments,
         GLenum attachment[],
         GLint internalFormat[],
