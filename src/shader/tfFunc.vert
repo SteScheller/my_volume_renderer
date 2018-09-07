@@ -22,7 +22,7 @@ void main()
     gl_Position = projMX * vec4(in_position, 0.f, 1.f);
 
     vTfTexCoord.x =
-        (tex_coords.x * (x_max - x_min) + x_min - tf_interval_lower) /
+        (mix(x_min, x_max, tex_coords.x) - tf_interval_lower) /
         (tf_interval_upper - tf_interval_lower);
 
     vTfTexCoord.y = 0.5f;

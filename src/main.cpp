@@ -1328,7 +1328,7 @@ static void showTransferFunctionWindow(
     ImGui::Text("Edit selected control point:");
 
     // get attributes of the selected control point
-    /*cp = tf::ControlPointRGBA1D(_selected_cp_pos);
+    cp = tf::ControlPointRGBA1D(_selected_cp_pos);
     cpIterator = transferFunction.getControlPoints()->find(cp);
     if (transferFunction.getControlPoints()->cend() != cpIterator)
     {
@@ -1344,12 +1344,14 @@ static void showTransferFunctionWindow(
     if (cp != (*cpSelected))
     {
         transferFunction.updateControlPoint(cpIterator, cp);
-        transferFunction.updateTexture(gui_x_min, gui_x_max);
+        transferFunction.updateTexture(
+            transferFunction.getControlPoints()->begin()->pos,
+            transferFunction.getControlPoints()->rbegin()->pos);
     }
 
     ImGui::Spacing();
     ImGui::Separator();
-    ImGui::Spacing();*/
+    ImGui::Spacing();
 
     ImGui::Text("Add new control point:");
     ImGui::SliderFloat("position", &gui_tf_cp_pos, gui_x_min, gui_x_max);
@@ -1404,7 +1406,10 @@ static void showTransferFunctionWindow(
         if (cp != *i)
         {
             transferFunction.updateControlPoint(i, cp);
-            transferFunction.updateTexture(gui_x_min, gui_x_max);
+            transferFunction.updateTexture(
+                transferFunction.getControlPoints()->begin()->pos,
+                transferFunction.getControlPoints()->rbegin()->pos);
+
         }
 
         ++idx;
