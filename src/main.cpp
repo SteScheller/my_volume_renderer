@@ -163,6 +163,7 @@ static void showTransferFunctionWindow(
     tf::TransferFuncRGBA1D &transferFunction,
     Shader &shaderTfColor,
     Shader &shaderTfFunc,
+    Shader &shaderTfPoint,
     GLuint tfColorFBO,
     GLuint *tfColorTexIDs,
     GLuint tfFuncFBO,
@@ -188,10 +189,23 @@ static void drawTfColor(
     GLuint quadVAO,
     unsigned int width,
     unsigned int height);
+static void drawTfFunc(
+    tf::TransferFuncRGBA1D &transferFunc,
+    Shader &shaderTfFunc,
+    Shader &shaderTfPoint,
+    GLuint fboID,
+    GLuint quadVAO,
+    unsigned int width,
+    unsigned int height);
 //-----------------------------------------------------------------------------
 // internals
 //-----------------------------------------------------------------------------
 static bool _flag_reload_shaders = false;
+
+// for picking of control points in transfer function editor
+static float _selected_cp_pos = 0.f;
+static GLuint _selected_cp_fbo = 0.f;
+static ImVec2 _tf_screen_pos = ImVec2();
 
 //-----------------------------------------------------------------------------
 // main program
@@ -210,10 +224,13 @@ int main(int argc, char *argv[])
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glClearColor(0.f, 0.f, 0.f, 1.f);
 
+    glPointSize(10.f);
+
     Shader shaderFrame("src/shader/frame.vert", "src/shader/frame.frag");
     Shader shaderVolume("src/shader/volume.vert", "src/shader/volume.frag");
     Shader shaderTfColor("src/shader/tfColor.vert", "src/shader/tfColor.frag");
     Shader shaderTfFunc("src/shader/tfFunc.vert", "src/shader/tfFunc.frag");
+    Shader shaderTfPoint("src/shader/tfPoint.vert", "src/shader/tfPoint.frag");
 
     // bounding box and volume geometry
     // --------------------------------
@@ -319,26 +336,28 @@ int main(int argc, char *argv[])
     }
 
     GLuint tfFuncFBO = 0;
-    GLuint tfFuncTexIDs[1] = {0};
+    GLuint tfFuncTexIDs[2] = {0, 0};
 
     {
-        GLenum attachments[1] = { GL_COLOR_ATTACHMENT0 };
-        GLint  internalFormats[1] = { GL_RGBA };
-        GLenum formats[1] = { GL_RGBA };
-        GLenum datatypes[1] = { GL_FLOAT };
-        GLint  filters[1] = { GL_LINEAR };
+        GLenum attachments[2] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
+        GLint  internalFormats[2] = { GL_RGBA, GL_R32F};
+        GLenum formats[2] = { GL_RGBA, GL_RED};
+        GLenum datatypes[2] = { GL_FLOAT, GL_FLOAT };
+        GLint  filters[2] = { GL_LINEAR, GL_NEAREST };
 
         tfFuncFBO = util::createFrameBufferObject(
                 tf_func_img_w,
                 tf_func_img_h,
                 tfFuncTexIDs,
-                1,
+                2,
                 attachments,
                 internalFormats,
                 formats,
                 datatypes,
                 filters);
     }
+    _selected_cp_fbo = tfFuncFBO;
+
     // ------------------------------------------------------------------------
     // volume
     // initialize model, view and projection matrices
@@ -412,6 +431,7 @@ int main(int argc, char *argv[])
             glDeleteProgram(shaderFrame.ID);
             glDeleteProgram(shaderTfColor.ID);
             glDeleteProgram(shaderTfFunc.ID);
+            glDeleteProgram(shaderTfPoint.ID);
 
             shaderFrame = Shader(
                 "src/shader/frame.vert", "src/shader/frame.frag");
@@ -421,6 +441,8 @@ int main(int argc, char *argv[])
                 "src/shader/tfColor.vert", "src/shader/tfColor.frag");
             shaderTfFunc = Shader(
                 "src/shader/tfFunc.vert", "src/shader/tfFunc.frag");
+            shaderTfPoint = Shader(
+                "src/shader/tfPoint.vert", "src/shader/tfPoint.frag");
         }
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -539,6 +561,7 @@ int main(int argc, char *argv[])
                     transferFunction,
                     shaderTfColor,
                     shaderTfFunc,
+                    shaderTfPoint,
                     tfColorFBO,
                     tfColorTexIDs,
                     tfFuncFBO,
@@ -569,7 +592,7 @@ int main(int argc, char *argv[])
     glDeleteFramebuffers(1, &tfColorFBO);
     glDeleteTextures(1, tfColorTexIDs);
     glDeleteFramebuffers(1, &tfFuncFBO);
-    glDeleteTextures(1, tfFuncTexIDs);
+    glDeleteTextures(2, tfFuncTexIDs);
 
     glDeleteTextures(1, &volumeTex);
 
@@ -577,6 +600,7 @@ int main(int argc, char *argv[])
     glDeleteProgram(shaderFrame.ID);
     glDeleteProgram(shaderTfColor.ID);
     glDeleteProgram(shaderTfFunc.ID);
+    glDeleteProgram(shaderTfPoint.ID);
 
     glDeleteVertexArrays(1, &frameVAO);
     glDeleteVertexArrays(1, &volumeVAO);
@@ -621,6 +645,41 @@ void cursor_position_cb(GLFWwindow *window, double xpos, double ypos)
 
 void mouse_button_cb(GLFWwindow* window, int button, int action, int mods)
 {
+    double mouseX = 0.0, mouseY = 0.0;
+
+    if ((button == GLFW_MOUSE_BUTTON_LEFT) && (action == GLFW_RELEASE))
+    {
+        if (    (gui_mode == static_cast<int>(Mode::transfer_function)) &&
+                gui_show_tf_window  )
+        {
+            // the user might try to select a control point in the transfer
+            // function editor
+            glfwGetCursorPos(window, &mouseX, &mouseY);
+
+            // bind FBO-object and the color-attachment which contains
+            // the unique picking ID
+            glBindFramebuffer(GL_READ_FRAMEBUFFER, _selected_cp_fbo);
+            glReadBuffer(GL_COLOR_ATTACHMENT1);
+
+            // send all commands to the GPU and wait until everything is drawn
+            glFlush();
+            glFinish();
+
+            glReadPixels(
+                static_cast<GLint>(mouseX - _tf_screen_pos.x),
+                static_cast<GLint>(mouseY - _tf_screen_pos.y),
+                1,
+                1,
+                GL_RED,
+                GL_FLOAT,
+                &_selected_cp_pos);
+
+            std::cout << "Mouse: " << mouseX << ", " << mouseY << std::endl;
+            std::cout << "Function: " << _tf_screen_pos.x << ", " << _tf_screen_pos.y << std::endl;
+            std::cout << "clicked object: " << _selected_cp_pos << std::endl;
+            glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+	    }
+    }
     // chain ImGui callback
     ImGui_ImplGlfw_MouseButtonCallback(window, button, action, mods);
 }
@@ -1046,12 +1105,8 @@ static void showSettingsWindow(
 
         if (ImGui::CollapsingHeader("Isosurface"))
         {
-            ImGui::InputFloat(
-                "isovalue",
-                &gui_isovalue,
-                0.01f,
-                0.1f,
-                "%.3f");
+            ImGui::SliderFloat(
+                "isovalue", &gui_isovalue, 0.f, 1.f, "%.3f");
             ImGui::Checkbox("denoise", &gui_iso_denoise);
             ImGui::SliderFloat(
                 "denoise radius", &gui_iso_denoise_r, 0.001f, 5.f, "%.3f");
@@ -1182,10 +1237,16 @@ static void showHistogramWindow(
     ImGui::Separator();
     ImGui::Spacing();
 
-    ImGui::InputInt("# bins", &gui_num_bins);
-    ImGui::InputFloat("x min", &gui_x_min, 0.1f, 1.f);
-    ImGui::InputFloat("x max", &gui_x_max, 0.1f, 1.f);
-    if (gui_x_max < gui_x_min) gui_x_max = gui_x_min;
+    ImGui::DragFloatRange2(
+            "interval",
+            &gui_x_min,
+            &gui_x_max,
+            1.f,
+            0.f,
+            0.f,
+            "Min: %.1f",
+            "Max: %.1f");
+    ImGui::InputInt("number of bins", &gui_num_bins);
     if(ImGui::Button("Regenerate Histogram"))
     {
         delete histogramBins;
@@ -1202,6 +1263,7 @@ static void showTransferFunctionWindow(
         tf::TransferFuncRGBA1D &transferFunction,
         Shader &shaderTfColor,
         Shader &shaderTfFunc,
+        Shader &shaderTfPoint,
         GLuint tfColorFBO,
         GLuint *tfColorTexIDs,
         GLuint tfFuncFBO,
@@ -1210,6 +1272,8 @@ static void showTransferFunctionWindow(
 {
     glm::vec4 tempVec4 = glm::vec4(0.f);
     tf::ControlPointRGBA1D cp = tf::ControlPointRGBA1D();
+    static tf::controlPointSet1D::iterator cpSelected;
+    tf::controlPointSet1D::iterator cpIterator;
 
     // render the transfer function
     drawTfColor(
@@ -1219,27 +1283,75 @@ static void showTransferFunctionWindow(
         quadVAO,
         tf_color_img_w,
         tf_color_img_h);
+    drawTfFunc(
+        transferFunction,
+        shaderTfFunc,
+        shaderTfPoint,
+        tfFuncFBO,
+        quadVAO,
+        tf_func_img_w,
+        tf_func_img_h);
 
     // draw the imgui elements
     ImGui::Begin("Transfer Function Editor", &gui_show_tf_window);
 
-    ImGui::InputFloat("x min", &gui_x_min, 0.1f, 1.f);
-    ImGui::InputFloat("x max", &gui_x_max, 0.1f, 1.f);
-    if (gui_x_max < gui_x_min) gui_x_max = gui_x_min;
+    ImGui::DragFloatRange2(
+            "interval",
+            &gui_x_min,
+            &gui_x_max,
+            1.f,
+            0.f,
+            0.f,
+            "Min: %.1f",
+            "Max: %.1f");
 
     ImGui::Spacing();
     ImGui::Separator();
+    ImGui::Spacing();
+
+    _tf_screen_pos = ImGui::GetCursorScreenPos();
+    ImGui::Image(
+        reinterpret_cast<ImTextureID>(tfFuncTexIDs[0]),
+        ImVec2(tf_func_img_w, tf_func_img_h));
+
     ImGui::Spacing();
 
     ImGui::Image(
         reinterpret_cast<ImTextureID>(tfColorTexIDs[0]),
         ImVec2(tf_color_img_w, tf_color_img_h));
 
+
     ImGui::Spacing();
     ImGui::Separator();
     ImGui::Spacing();
 
-    ImGui::Text("New control point:");
+    ImGui::Text("Edit selected control point:");
+
+    // get attributes of the selected control point
+    /*cp = tf::ControlPointRGBA1D(_selected_cp_pos);
+    cpIterator = transferFunction.getControlPoints()->find(cp);
+    if (transferFunction.getControlPoints()->cend() != cpIterator)
+    {
+        cpSelected = cpIterator;
+    }
+    cp = *cpSelected;
+
+    ImGui::SliderFloat("position##edit", &(cp.pos), gui_x_min, gui_x_max);
+    ImGui::SliderFloat("slope##edit", &(cp.fderiv), -10.f, 10.f);
+    ImGui::ColorEdit3("assigned color##edit", glm::value_ptr(cp.color));
+    ImGui::SliderFloat("alpha##edit", &(cp.color.a), 0.f, 1.f);
+
+    if (cp != (*cpSelected))
+    {
+        transferFunction.updateControlPoint(cpIterator, cp);
+        transferFunction.updateTexture(gui_x_min, gui_x_max);
+    }
+
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();*/
+
+    ImGui::Text("Add new control point:");
     ImGui::SliderFloat("position", &gui_tf_cp_pos, gui_x_min, gui_x_max);
     ImGui::ColorEdit3("assigned color", gui_tf_cp_color_rgb);
     ImGui::SliderFloat("alpha", &gui_tf_cp_color_a, 0.f, 1.f);
@@ -1251,10 +1363,11 @@ static void showTransferFunctionWindow(
                 gui_tf_cp_color_rgb[2],
                 gui_tf_cp_color_a);
 
-        transferFunction.insertControlPoint(tempVec4, gui_tf_cp_pos);
+        transferFunction.insertControlPoint(gui_tf_cp_pos, tempVec4);
         transferFunction.updateTexture(gui_x_min, gui_x_max);
     }
 
+    // dynamic list of control points
     ImGui::Spacing();
     ImGui::Separator();
     ImGui::Spacing();
@@ -1563,13 +1676,90 @@ static void drawTfColor(
     shaderTfColor.setMat4("projMX", projMX);
     shaderTfColor.setFloat("x_min", gui_x_min);
     shaderTfColor.setFloat("x_max", gui_x_max);
-    shaderTfColor.setFloat("tf_interval_lower", gui_x_min);
-    shaderTfColor.setFloat("tf_interval_upper", gui_x_max);
+    shaderTfColor.setFloat("tf_interval_lower",
+            transferFunc.getControlPoints()->begin()->pos);
+    shaderTfColor.setFloat("tf_interval_upper",
+            transferFunc.getControlPoints()->rbegin()->pos);
 
     glBindVertexArray(quadVAO);
-    glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+    glDrawElements(GL_TRIANGLE_FAN, 4, GL_UNSIGNED_INT, 0);
     glBindVertexArray(0);
 
     // reset framebuffer to default
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+/**
+ * \brief draws the alpha value from the transfer function to an fbo object
+ */
+static void drawTfFunc(
+    tf::TransferFuncRGBA1D &transferFunc,
+    Shader &shaderTfFunc,
+    Shader &shaderTfPoint,
+    GLuint fboID,
+    GLuint quadVAO,
+    unsigned int width,
+    unsigned int height)
+{
+    if (!glIsFramebuffer(fboID))
+        return;
+
+    // activate the framebuffer object as current framebuffer
+    glViewport(0, 0, width, height);
+    glBindFramebuffer(GL_FRAMEBUFFER, fboID);
+
+    // select color attachments as render targets
+    static const GLenum buf[2] =
+        { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
+    glDrawBuffers(2, buf);
+
+    // clear old buffer content
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    // set up the projection matrix
+	static const glm::mat4 projMX = glm::ortho(0.0f, 1.0f, 0.0f, 1.0f);
+
+    // draw the line plot of the transfer function alpha value
+    shaderTfFunc.use();
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, transferFunc.getTexture());
+    shaderTfFunc.setInt("transferTex", 0);
+    shaderTfFunc.setMat4("projMX", projMX);
+    shaderTfFunc.setFloat("x_min", gui_x_min);
+    shaderTfFunc.setFloat("x_max", gui_x_max);
+    shaderTfFunc.setFloat("tf_interval_lower",
+            transferFunc.getControlPoints()->begin()->pos);
+    shaderTfFunc.setFloat("tf_interval_upper",
+            transferFunc.getControlPoints()->rbegin()->pos);
+    shaderTfFunc.setInt("width", tf_func_img_w);
+    shaderTfFunc.setInt("height", tf_func_img_h);
+
+    glBindVertexArray(quadVAO);
+    glDrawElements(GL_TRIANGLE_FAN, 4, GL_UNSIGNED_INT, 0);
+    //glBindVertexArray(0);
+
+    // draw the control points
+    glClear(GL_DEPTH_BUFFER_BIT);
+    shaderTfPoint.use();
+
+    shaderTfPoint.setMat4("projMX", projMX);
+    shaderTfPoint.setFloat("x_min", gui_x_min);
+    shaderTfPoint.setFloat("x_max", gui_x_max);
+
+    for (
+            auto i = transferFunc.getControlPoints()->cbegin();
+            i != transferFunc.getControlPoints()->cend();
+            ++i)
+    {
+        shaderTfPoint.setFloat("pos", i->pos);
+        shaderTfPoint.setVec4("color", i->color);
+
+        glDrawArrays(GL_POINTS, 0, 1);
+    }
+
+    glBindVertexArray(0);
+
+    // reset framebuffer to default
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
 }

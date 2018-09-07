@@ -47,11 +47,12 @@ namespace tf
     {
         public:
         ControlPointRGBA1D();           //!< default constructor
-        ControlPointRGBA1D(glm::vec4 color, float pos);  //!< construction with
+        ControlPointRGBA1D(float pos);  //!< construction with position
+        ControlPointRGBA1D(float pos, glm::vec4 color);  //!< construction with
                                                          //!< color and
                                                          //!< position
         ControlPointRGBA1D(             //!< constrution from individual values
-                float r, float g, float b, float a, float pos);
+                float pos, float r, float g, float b, float a);
         ControlPointRGBA1D(const tf::ControlPointRGBA1D &other);
 
         ~ControlPointRGBA1D();          //!< destructor
@@ -127,15 +128,15 @@ namespace tf
         /**
          * \brief inserts a new control point at the given position
          *
+         * \param pos position of the new control point
          * \param color RGBA color value of the new control point
-         * \param t position of the new control point
          *
          * \return A pair consisting of an iterator to the inserted element
          * (or to the element that prevented the insertion) and a bool value
          * set to true if the insertion took place.
          */
         std::pair<controlPointSet1D::iterator, bool> insertControlPoint(
-                glm::vec4 color, float pos);
+               float pos, glm::vec4 color);
 
         /**
          * \brief adds the given control point to the transfer function

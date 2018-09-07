@@ -56,14 +56,20 @@ tf::ControlPointRGBA1D::ControlPointRGBA1D() :
     this->pos = 0.f;
     this->fderiv = 0.f;
 }
-tf::ControlPointRGBA1D::ControlPointRGBA1D(glm::vec4 color, float pos) :
+tf::ControlPointRGBA1D::ControlPointRGBA1D(float pos) :
+    tf::ControlPointRGBA()
+{
+    this->pos = pos;
+    this->fderiv = 0.f;
+}
+tf::ControlPointRGBA1D::ControlPointRGBA1D(float pos, glm::vec4 color) :
     tf::ControlPointRGBA(color)
 {
     this->pos = pos;
     this->fderiv = 0.f;
 }
 tf::ControlPointRGBA1D::ControlPointRGBA1D(
-        float r, float g, float b, float a, float pos) :
+        float pos, float r, float g, float b, float a) :
     tf::ControlPointRGBA(r, g, b, a)
 {
     this->pos = pos;
@@ -108,7 +114,7 @@ tf::TransferFuncRGBA1D::TransferFuncRGBA1D()
 
     this->controlPoints = tf::controlPointSet1D(fn_pt);
     this->transferTex = 0;
-    this->controlPoints.emplace(glm::vec4(0.f), 0.f);
+    this->controlPoints.emplace(0.f, glm::vec4(0.f));
 }
 tf::TransferFuncRGBA1D::~TransferFuncRGBA1D()
 {
@@ -188,9 +194,9 @@ tf::controlPointSet1D* tf::TransferFuncRGBA1D::getControlPoints()
 
 std::pair<tf::controlPointSet1D::iterator, bool>
     tf::TransferFuncRGBA1D::insertControlPoint(
-        glm::vec4 color, float pos)
+        float pos, glm::vec4 color)
 {
-    return controlPoints.emplace(color, pos);
+    return controlPoints.emplace(pos, color);
 }
 
 std::pair<tf::controlPointSet1D::iterator, bool>
@@ -202,7 +208,7 @@ std::pair<tf::controlPointSet1D::iterator, bool>
 
 void tf::TransferFuncRGBA1D::removeControlPoint(float pos)
 {
-    controlPoints.erase(tf::ControlPointRGBA1D(glm::vec4(1.f), pos));
+    controlPoints.erase(tf::ControlPointRGBA1D(pos));
 }
 
 void tf::TransferFuncRGBA1D::removeControlPoint(
