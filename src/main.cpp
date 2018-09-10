@@ -5,6 +5,7 @@
 #include <vector>
 #include <string>
 #include <exception>
+#include <algorithm>
 
 #include <GL/gl3w.h>
 #include <GLFW/glfw3.h>
@@ -224,7 +225,7 @@ int main(int argc, char *argv[])
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glClearColor(0.f, 0.f, 0.f, 1.f);
 
-    glPointSize(10.f);
+    glPointSize(13.f);
 
     Shader shaderFrame("src/shader/frame.vert", "src/shader/frame.frag");
     Shader shaderVolume("src/shader/volume.vert", "src/shader/volume.frag");
@@ -340,8 +341,8 @@ int main(int argc, char *argv[])
 
     {
         GLenum attachments[2] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
-        GLint  internalFormats[2] = { GL_RGBA, GL_R32F};
-        GLenum formats[2] = { GL_RGBA, GL_RED};
+        GLint  internalFormats[2] = { GL_RGBA, GL_RG32F};
+        GLenum formats[2] = { GL_RGBA, GL_RG};
         GLenum datatypes[2] = { GL_FLOAT, GL_FLOAT };
         GLint  filters[2] = { GL_LINEAR, GL_NEAREST };
 
@@ -646,6 +647,7 @@ void cursor_position_cb(GLFWwindow *window, double xpos, double ypos)
 void mouse_button_cb(GLFWwindow* window, int button, int action, int mods)
 {
     double mouseX = 0.0, mouseY = 0.0;
+    glm::vec2 temp = glm::vec2(0.f);
 
     if ((button == GLFW_MOUSE_BUTTON_LEFT) && (action == GLFW_RELEASE))
     {
@@ -670,15 +672,15 @@ void mouse_button_cb(GLFWwindow* window, int button, int action, int mods)
                 static_cast<GLint>(mouseY - _tf_screen_pos.y),
                 1,
                 1,
-                GL_RED,
+                GL_RG,
                 GL_FLOAT,
-                &_selected_cp_pos);
+                glm::value_ptr(temp));
 
-            std::cout << "Mouse: " << mouseX << ", " << mouseY << std::endl;
-            std::cout << "Function: " << _tf_screen_pos.x << ", " << _tf_screen_pos.y << std::endl;
-            std::cout << "clicked object: " << _selected_cp_pos << std::endl;
+            if (temp.g > 0.f)
+                _selected_cp_pos = temp.r;
+
             glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
-	    }
+        }
     }
     // chain ImGui callback
     ImGui_ImplGlfw_MouseButtonCallback(window, button, action, mods);
@@ -1274,6 +1276,7 @@ static void showTransferFunctionWindow(
     tf::ControlPointRGBA1D cp = tf::ControlPointRGBA1D();
     static tf::controlPointSet1D::iterator cpSelected;
     tf::controlPointSet1D::iterator cpIterator;
+    std::pair<tf::controlPointSet1D::iterator, bool> ret;
 
     // render the transfer function
     drawTfColor(
@@ -1345,8 +1348,8 @@ static void showTransferFunctionWindow(
     {
         transferFunction.updateControlPoint(cpIterator, cp);
         transferFunction.updateTexture(
-            transferFunction.getControlPoints()->begin()->pos,
-            transferFunction.getControlPoints()->rbegin()->pos);
+                transferFunction.getControlPoints()->begin()->pos,
+                transferFunction.getControlPoints()->rbegin()->pos);
     }
 
     ImGui::Spacing();
@@ -1365,8 +1368,17 @@ static void showTransferFunctionWindow(
                 gui_tf_cp_color_rgb[2],
                 gui_tf_cp_color_a);
 
-        transferFunction.insertControlPoint(gui_tf_cp_pos, tempVec4);
-        transferFunction.updateTexture(gui_x_min, gui_x_max);
+        ret = transferFunction.insertControlPoint(gui_tf_cp_pos, tempVec4);
+        if(ret.second == true)
+        {
+            transferFunction.updateTexture(
+                std::max(
+                    gui_x_min,
+                    transferFunction.getControlPoints()->begin()->pos),
+                std::min(
+                    gui_x_max,
+                    transferFunction.getControlPoints()->rbegin()->pos));
+        }
     }
 
     // dynamic list of control points
@@ -1670,7 +1682,7 @@ static void drawTfColor(
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     // set up the projection matrix
-	static const glm::mat4 projMX = glm::ortho(0.0f, 1.0f, 0.0f, 1.0f);
+    static const glm::mat4 projMX = glm::ortho(0.0f, 1.0f, 0.0f, 1.0f);
 
     // draw the resulting transfer function colors
     shaderTfColor.use();
@@ -1705,12 +1717,21 @@ static void drawTfFunc(
     unsigned int width,
     unsigned int height)
 {
+    bool enableBlend = false;
+
     if (!glIsFramebuffer(fboID))
         return;
 
     // activate the framebuffer object as current framebuffer
     glViewport(0, 0, width, height);
     glBindFramebuffer(GL_FRAMEBUFFER, fboID);
+
+    // disable alpha blending to prevent discarding of fragments
+    if (glIsEnabled(GL_BLEND))
+    {
+        glDisable(GL_BLEND);
+        enableBlend = true;
+    }
 
     // select color attachments as render targets
     static const GLenum buf[2] =
@@ -1721,7 +1742,7 @@ static void drawTfFunc(
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     // set up the projection matrix
-	static const glm::mat4 projMX = glm::ortho(0.0f, 1.0f, 0.0f, 1.0f);
+    static const glm::mat4 projMX = glm::ortho(0.0f, 1.0f, 0.0f, 1.0f);
 
     // draw the line plot of the transfer function alpha value
     shaderTfFunc.use();
@@ -1763,6 +1784,9 @@ static void drawTfFunc(
     }
 
     glBindVertexArray(0);
+
+    if (enableBlend)
+        glEnable(GL_BLEND);
 
     // reset framebuffer to default
     glBindFramebuffer(GL_FRAMEBUFFER, 0);

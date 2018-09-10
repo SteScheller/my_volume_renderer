@@ -1,6 +1,6 @@
 #version 330 core
 layout(location = 0) out vec4 frag_color;
-layout(location = 1) out float picking;
+layout(location = 1) out vec2 picking;
 
 in vec2 vTfTexCoord;
 in vec2 vQuadCoord;
@@ -17,8 +17,6 @@ uniform int height;  //!< height of the frame in pixels
 #define BG_SQUARE_SIZE 8.f
 #define BG_COLOR_1 vec4(vec3(0.3f), 1.f)
 #define BG_COLOR_2 vec4(vec3(0.1f), 1.f)
-
-const float nan = 0.0 / 0.0;
 
 void main()
 {
@@ -52,5 +50,5 @@ void main()
         }
     }
 
-    picking = nan;
+    picking = vec2(0.f);
 }
