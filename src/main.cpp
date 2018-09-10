@@ -68,6 +68,8 @@ glm::vec3 camPos = glm::vec3(1.2f, 0.75f, 1.f);
 
 #define DEFAULT_VOLUME_JSON_FILE "/mnt/data/steffen/jet.json"
 
+#define CONTROL_POINT_LIST false
+
 //-----------------------------------------------------------------------------
 // gui parameters
 //-----------------------------------------------------------------------------
@@ -202,6 +204,7 @@ static void drawTfFunc(
 // internals
 //-----------------------------------------------------------------------------
 static bool _flag_reload_shaders = false;
+static bool _flag_show_menues = true;
 
 // for picking of control points in transfer function editor
 static float _selected_cp_pos = 0.f;
@@ -422,6 +425,10 @@ int main(int argc, char *argv[])
     {
         glfwPollEvents();
 
+        glViewport(0, 0, win_w, win_h);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
         // check if shader programs shall be reloaded
         if (_flag_reload_shaders)
         {
@@ -445,8 +452,6 @@ int main(int argc, char *argv[])
             shaderTfPoint = Shader(
                 "src/shader/tfPoint.vert", "src/shader/tfPoint.frag");
         }
-
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // update model, view and projection matrix
         right = glm::normalize(glm::cross(-camPos, glm::vec3(0.f, 1.f, 0.f)));
@@ -545,39 +550,41 @@ int main(int argc, char *argv[])
         glBindVertexArray(0);
 
         // draw ImGui windows
-        ImGui_ImplOpenGL3_NewFrame();
-        ImGui_ImplGlfw_NewFrame();
-        ImGui::NewFrame();
-        showSettingsWindow(
-            vConf,
-            volumeData,
-            volumeTex,
-            modelMX,
-            histogramBins);
-        if(gui_show_demo_window) ImGui::ShowDemoWindow(&gui_show_demo_window);
-        if(gui_mode == static_cast<int>(Mode::transfer_function))
+        if(_flag_show_menues)
         {
-            if(gui_show_tf_window)
-                showTransferFunctionWindow(
-                    transferFunction,
-                    shaderTfColor,
-                    shaderTfFunc,
-                    shaderTfPoint,
-                    tfColorFBO,
-                    tfColorTexIDs,
-                    tfFuncFBO,
-                    tfFuncTexIDs,
-                    quadVAO);
-            if(gui_show_histogram_window)
-                showHistogramWindow(
-                    histogramBins,
-                    vConf,
-                    volumeData);
+            ImGui_ImplOpenGL3_NewFrame();
+            ImGui_ImplGlfw_NewFrame();
+            ImGui::NewFrame();
+            showSettingsWindow(
+                vConf,
+                volumeData,
+                volumeTex,
+                modelMX,
+                histogramBins);
+            if(gui_show_demo_window)
+                ImGui::ShowDemoWindow(&gui_show_demo_window);
+            if(gui_mode == static_cast<int>(Mode::transfer_function))
+            {
+                if(gui_show_tf_window)
+                    showTransferFunctionWindow(
+                        transferFunction,
+                        shaderTfColor,
+                        shaderTfFunc,
+                        shaderTfPoint,
+                        tfColorFBO,
+                        tfColorTexIDs,
+                        tfFuncFBO,
+                        tfFuncTexIDs,
+                        quadVAO);
+                if(gui_show_histogram_window)
+                    showHistogramWindow(
+                        histogramBins,
+                        vConf,
+                        volumeData);
+            }
+            ImGui::Render();
+            ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         }
-
-        glViewport(0, 0, win_w, win_h);
-        ImGui::Render();
-        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
         glfwSwapBuffers(window);
     }
@@ -711,6 +718,9 @@ void key_cb(GLFWwindow* window, int key, int scancode , int action, int mods)
 
     if((key == GLFW_KEY_F5) && (action == GLFW_PRESS))
         _flag_reload_shaders = true;
+
+    if((key == GLFW_KEY_F10) && (action == GLFW_PRESS))
+        _flag_show_menues = !_flag_show_menues;
 
     // chain ImGui callback
     ImGui_ImplGlfw_KeyCallback(window, key, scancode, action, mods);
@@ -1346,10 +1356,30 @@ static void showTransferFunctionWindow(
 
     if (cp != (*cpSelected))
     {
-        transferFunction.updateControlPoint(cpIterator, cp);
-        transferFunction.updateTexture(
-                transferFunction.getControlPoints()->begin()->pos,
-                transferFunction.getControlPoints()->rbegin()->pos);
+        ret = transferFunction.updateControlPoint(cpIterator, cp);
+        if (ret.second == true)
+        {
+            transferFunction.updateTexture(
+                    transferFunction.getControlPoints()->begin()->pos,
+                    transferFunction.getControlPoints()->rbegin()->pos);
+            cpSelected = ret.first;
+            _selected_cp_pos = cpSelected->pos;
+        }
+    }
+    if (ImGui::Button("remove"))
+    {
+        if(transferFunction.getControlPoints()->size() > 1)
+        {
+            transferFunction.removeControlPoint(cpSelected);
+            cpSelected = transferFunction.getControlPoints()->begin();
+            transferFunction.updateTexture(
+                std::max(
+                    gui_x_min,
+                    transferFunction.getControlPoints()->begin()->pos),
+                std::min(
+                    gui_x_max,
+                    transferFunction.getControlPoints()->rbegin()->pos));
+        }
     }
 
     ImGui::Spacing();
@@ -1382,49 +1412,52 @@ static void showTransferFunctionWindow(
     }
 
     // dynamic list of control points
-    ImGui::Spacing();
-    ImGui::Separator();
-    ImGui::Spacing();
-
-    int idx = 0;
-    for (
-            auto i = transferFunction.getControlPoints()->cbegin();
-            i != transferFunction.getControlPoints()->cend();
-            ++i)
+    if(CONTROL_POINT_LIST)
     {
-
-        cp = *i;
-
-        ImGui::SliderFloat(
-            (std::string("position##") + std::to_string(idx)).c_str(),
-            &(cp.pos),
-            gui_x_min,
-            gui_x_max);
-        ImGui::SliderFloat(
-            (std::string("slope##") + std::to_string(idx)).c_str(),
-            &(cp.fderiv),
-            -1.f,
-            1.f);
-        ImGui::ColorEdit3(
-            (std::string("assigned color##") + std::to_string(idx)).c_str(),
-            glm::value_ptr(cp.color));
-        ImGui::SliderFloat(
-            (std::string("alpha##") + std::to_string(idx)).c_str(),
-            &(cp.color.a),
-            0.f,
-            1.f);
+        ImGui::Spacing();
+        ImGui::Separator();
         ImGui::Spacing();
 
-        if (cp != *i)
+        int idx = 0;
+        for (
+                auto i = transferFunction.getControlPoints()->cbegin();
+                i != transferFunction.getControlPoints()->cend();
+                ++i)
         {
-            transferFunction.updateControlPoint(i, cp);
-            transferFunction.updateTexture(
-                transferFunction.getControlPoints()->begin()->pos,
-                transferFunction.getControlPoints()->rbegin()->pos);
 
+            cp = *i;
+
+            ImGui::SliderFloat(
+                (std::string("position##") + std::to_string(idx)).c_str(),
+                &(cp.pos),
+                gui_x_min,
+                gui_x_max);
+            ImGui::SliderFloat(
+                (std::string("slope##") + std::to_string(idx)).c_str(),
+                &(cp.fderiv),
+                -1.f,
+                1.f);
+            ImGui::ColorEdit3(
+                (std::string("assigned color##") + std::to_string(idx)).c_str(),
+                glm::value_ptr(cp.color));
+            ImGui::SliderFloat(
+                (std::string("alpha##") + std::to_string(idx)).c_str(),
+                &(cp.color.a),
+                0.f,
+                1.f);
+            ImGui::Spacing();
+
+            if (cp != *i)
+            {
+                transferFunction.updateControlPoint(i, cp);
+                transferFunction.updateTexture(
+                    transferFunction.getControlPoints()->begin()->pos,
+                    transferFunction.getControlPoints()->rbegin()->pos);
+
+            }
+
+            ++idx;
         }
-
-        ++idx;
     }
 
     ImGui::End();
