@@ -1,15 +1,21 @@
 #version 330 core
-layout(location = 0) out vec4 frag_color;
+layout(location = 0) out vec4 fragColor;
+layout(location = 1) out uvec4 stateOut;
 
-in vec3 vTexCoord;      //!< texture coordinates
-in vec3 vWorldCoord;      //!< texture coordinates
+in vec3 vTexCoord;          //!< texture coordinates
+in vec3 vWorldCoord;        //!< texture coordinates
 
 uniform sampler3D volumeTex;            //!< 3D texture handle
 uniform sampler2D transferfunctionTex;  //!< 3D texture handle
 
+uniform usampler2D stateIn;     //!< state of random number generator
+
 uniform vec3 eyePos;            //!< camera / eye position in world coordinates
 uniform vec3 bbMin;             //!< axes aligned bounding box min. corner
 uniform vec3 bbMax;             //!< axes aligned bounding box max. corner
+
+uniform uint winWidth;          //!< width of the window in pixels
+uniform uint winHeight;         //!< height of the window in pixels
 
 // rendering method:
 //   0: line-of-sight
@@ -20,12 +26,14 @@ uniform int mode;
 
 uniform int gradMethod;     //!< switch to select gradient calculation method
 
-uniform float step_size;    //!< distance between sample points along the ray
-uniform float brightness;   //!< color coefficient
+uniform float stepSize;         //!< distance between sample points between
+                                //!< sample points in world coordinates
+uniform float stepSizeVoxel;    //!< distance between sample points in voxels
+uniform float brightness;       //!< color coefficient
 
 uniform float isovalue;     //!< value for isosurface
-uniform bool iso_denoise;   //!< switch for smoothing of the isosurface
-uniform float iso_denoise_r;//!< radius for denoising
+uniform bool isoDenoise;   //!< switch for smoothing of the isosurface
+uniform float isoDenoiseR;//!< radius for denoising
 
 uniform vec3 lightDir;      //!< light direction
 
@@ -33,22 +41,135 @@ uniform vec3 ambient;       //!< ambient color
 uniform vec3 diffuse;       //!< diffuse color
 uniform vec3 specular;      //!< specular color
 
-uniform float k_amb;        //!< ambient factor
-uniform float k_diff;       //!< diffuse factor
-uniform float k_spec;       //!< specular factor
-uniform float k_exp;        //!< specular exponent
+uniform float kAmb;        //!< ambient factor
+uniform float kDiff;       //!< diffuse factor
+uniform float kSpec;       //!< specular factor
+uniform float kExp;        //!< specular exponent
 
-uniform bool invert_colors; //!< switch for inverting the color output
-uniform bool invert_alpha;  //!< switch for inverting the alpha output
+uniform bool invertColors; //!< switch for inverting the color output
+uniform bool invertAlpha;  //!< switch for inverting the alpha output
 
-uniform bool slice_volume;          //!< switch for slicing plane
-uniform vec3 slice_plane_normal;    //!< normal of slicing plane
-uniform vec3 slice_plane_base;      //!< base point of slicing plane
+uniform bool sliceVolume;          //!< switch for slicing plane
+uniform vec3 slicePlaneNormal;    //!< normal of slicing plane
+uniform vec3 slicePlaneBase;      //!< base point of slicing plane
 
 #define M_PIH   1.570796
 #define M_PI    3.141592
 #define M_2PI   6.283185
 #define EPS     0.000001
+
+// ----------------------------------------------------------------------------
+// random number generator
+//
+// Generates uniform random numbers in the interval [0,1]
+//
+// - needs a 4 channel uint texture as in and output for managing its state
+// - this state texture must be initialized externally with four random numbers
+//   >128  + four values that are unique for that pixel
+// - before use the state of the rng has to be initialized by calling initRNG()
+// - random numbers can be retrieved by calling uniformRandom()
+// - implemented according to:
+//
+// https://math.stackexchange.com/questions/337782/
+//  pseudo-random-number-generation-on-the-gpu
+//
+// https://developer.nvidia.com/gpugems/GPUGems3/gpugems3_ch37.html
+// ----------------------------------------------------------------------------
+
+uint z1, z2, z3, z4;
+
+void initRNG()
+{
+    uvec4 stateVec = uvec4(0U);
+
+    stateVec = texture(
+        stateIn, vec2(gl_FragCoord.x / winWidth, gl_FragCoord.y / winHeight));
+
+    z1 = stateVec.x;
+    z2 = stateVec.y;
+    z3 = stateVec.z;
+    z4 = stateVec.w;
+}
+
+uint tausStep(uint z, int S1, int S2, int S3, uint M)
+{
+    uint b = (((z << S1) ^ z) >> S2);
+
+    return (((z & M) << S3) ^ b);
+}
+
+uint lcgStep(uint z, uint A, uint C)
+{
+    return (A * z + C);
+}
+
+float uniformRandom()
+{
+    z1 = tausStep(z1, 13, 19, 12, 4294967294U);
+    z2 = tausStep(z2, 2, 25, 4, 4294967288U);
+    z3 = tausStep(z3, 3, 11, 17, 4294967280U);
+    z4 = lcgStep(z4, 1664525U, 1013904223U);
+
+    stateOut = uvec4(z1, z2, z3, z4);
+
+    return 2.3283064365387e-10 * float(z1 ^ z2 ^ z3 ^ z4);
+}
+// ----------------------------------------------------------------------------
+
+/*!
+ *  \brief samples uniform random direction vectors around in a unit half dome
+ *
+ *  \param b normalized vector which points to the upper pole of the half dome
+ *
+ *  \return normalized sampled direction vector
+ *
+ *  implementation is based on:
+ *  https://math.stackexchange.com/questions/180418/
+ *  calculate-rotation-matrix-to-align-vector-a-to-vector-b-in-3d/476311#476311
+ *
+ *  The coordinates are sampled using an area (and therefore uniformity)
+ *  conserving mapping from spherical coordinates with height (z) and
+ *  azimut angle (phi) parameters.
+ */
+vec3 sampleHalfdomeDirectionUpper(vec3 b)
+{
+    vec3 dir = vec3(0.f);
+    float z = 0.f, phi = 0.f, temp = 0.f, s = 0.f, c = 0.f;
+    vec3 v = vec3(0.f), a = vec3(0.f);
+    mat3 V = mat3(0.f), R = mat3(0.f);
+
+    // Sample a direction
+    //
+    // Calculation of rotation matrix only works if n and vec3(0, 1, 0) do
+    // not point into exactly opposite directions.
+    if (dot(b, vec3(0, 1.f, 0.f)) >= 0.f)
+    {
+        a = vec3(0, 1.f, 0.f);
+        z = 2.f * uniformRandom() - 1.f;
+    }
+    else
+    {
+        a = vec3(0, -1.f, 0.f);
+        z = 1.f - 2.f * uniformRandom();
+    }
+    phi = uniformRandom() * M_2PI;
+    temp = sqrt(1.f - pow(z,2));
+    dir = normalize(vec3(temp * sin(phi), temp * cos(phi), z));
+
+    // Find a rotation matrix to transform the sampled direction into the
+    // half dome defined by b
+    v = cross(a, b);
+    s = length(v);
+    c = dot(a, b);
+
+    V = mat3(
+            0.f,    v.z,    -v.y,   // first column
+            -v.z,   0.f,    v.x,    // second column
+            v.y,    -v.x,   0.f);   // third column
+    R = mat3(1.f) + V + (V * V) * (1.f / (1.f + c));
+
+    return R * dir;
+}
 
 /*!
  *  \brief calculates the fragment color with the Blinn-Phong model
@@ -63,10 +184,10 @@ vec3 blinnPhong(vec3 n, vec3 l, vec3 v)
     vec3 color = vec3(0.0);     // accumulated RGB color of the fragment
     vec3 h = normalize(v + l);  // halfway vector
 
-    color = k_amb * ambient;
-    color += k_diff * diffuse * max(0.f, dot(n, l));
-    color += k_spec * specular * ((k_exp + 2.f) / M_2PI) *
-        pow(max(0.f, dot(h,n)), k_exp);
+    color = kAmb * ambient;
+    color += kDiff * diffuse * max(0.f, dot(n, l));
+    color += kSpec * specular * ((kExp + 2.f) / M_2PI) *
+        pow(max(0.f, dot(h,n)), kExp);
 
     return color;
 }
@@ -77,14 +198,20 @@ vec3 blinnPhong(vec3 n, vec3 l, vec3 v)
  *  \param input input color as RGBA vector
  *  \param c color of the blended element
  *  \param a alpha of the blended element
+ *  \param tStep current step size over basis step size used to adjust the
+ *               opacity contribution
+ *
  *  \return output color as RGBA vector
  */
-vec4 frontToBack(vec4 inRGBA, vec3 c, float a)
+vec4 frontToBack(vec4 inRGBA, vec3 c, float a, float tStep)
 {
     vec4 outRGBA;
+    float adjustedAlpha = 0.f;
 
-    outRGBA.rgb = inRGBA.rgb + (1 - inRGBA.a) * c * a;
-    outRGBA.a = inRGBA.a + (1 - inRGBA.a) * a;
+    adjustedAlpha = (1.f - pow(1.f - a, tStep));
+
+    outRGBA.rgb = inRGBA.rgb + (1.f - inRGBA.a) * c * adjustedAlpha;
+    outRGBA.a = inRGBA.a + (1.f - inRGBA.a) * adjustedAlpha;
 
     return outRGBA;
 }
@@ -332,7 +459,7 @@ void main()
 {
     vec4 color = vec4(0.f); //!< RGBA color of the fragment
     float value = 0.f;      //!< value sampled from the volume
-    float denoised_value = 0.f;      //!< denoised value from the volume
+    float denoisedValue = 0.f;      //!< denoised value from the volume
 
     bool intersect = false; //!< flag if we did hit the bounding box
     float temp = 0.f;       //!< temporary variable
@@ -343,7 +470,7 @@ void main()
     vec3 pos = vec3(0.f);   //!< current position on the ray in world
                             //!< coordinates
     float x = 0.f;          //!< distance from origin to current position
-    float dx = step_size;   //!< distance between sample points along the ray
+    float dx = stepSize;   //!< distance between sample points along the ray
     float tNear, tFar;      //!< near and far distances where the shot ray
                             //!< intersects the bounding box of the volume data
 
@@ -393,20 +520,20 @@ void main()
     if (!intersect)
     {
         // we do not hit the volume
-        frag_color = vec4(0.f);
+        fragColor = vec4(0.f);
         return;
     }
     else
     {
         // we do hit the volume -> check if it shall be sliced and update
         // the starting position accordingly
-        if (slice_volume)
+        if (sliceVolume)
         {
             if (intersectPlane(
                         rayOrig,
                         rayDir,
-                        slice_plane_base,
-                        slice_plane_normal,
+                        slicePlaneBase,
+                        slicePlaneNormal,
                         temp))
             {
                 // we intersect the slicing plane update the starting point
@@ -430,6 +557,8 @@ void main()
             case 0:
                 color.rgb += vec3(value * dx);
                 color.a = 1.f;
+                if (color.r > 0.99f)
+                    terminateEarly = true;
                 break;
 
             // maximum-intensity projection
@@ -439,6 +568,8 @@ void main()
                     maxValue = value;
                     color.rgb = vec3(value);
                     color.a = 1.f;
+                    if (color.r > 0.99f)
+                        terminateEarly = true;
                 }
                 break;
 
@@ -446,17 +577,17 @@ void main()
             case 2:
                 if (0.f > ((value - isovalue) * (valueLast - isovalue)))
                 {
-                    if(iso_denoise)
+                    if(isoDenoise)
                     {
                         // check if we still cross the isovalue after denoising
-                        denoised_value = denoiseSphereAvg(
-                                volumeTex, volCoord, iso_denoise_r);
+                        denoisedValue = denoiseSphereAvg(
+                                volumeTex, volCoord, isoDenoiseR);
                         if (!(0.f > (
-                                (denoised_value - isovalue) *
+                                (denoisedValue - isovalue) *
                                 (valueLast - isovalue))))
                         {
                             // after denoising we do not cross the isovalue
-                            valueLast = denoised_value;
+                            valueLast = denoisedValue;
                             posLast = pos;
                             break;
                         }
@@ -488,7 +619,7 @@ void main()
                     vec2(value, 0.5f));
                 color = frontToBack(
                     color,
-                    tfColor.rgb, tfColor.a);
+                    tfColor.rgb, tfColor.a, stepSizeVoxel);
                 if (color.a > 0.99f)
                     terminateEarly = true;
                 break;
@@ -498,12 +629,12 @@ void main()
             break;
     }
 
-    if (invert_colors)
+    if (invertColors)
         color.rgb = vec3(1.f) - color.rgb;
 
-    if (invert_alpha)
+    if (invertAlpha)
         color.a = 1.f - color.a;
 
-    frag_color = vec4(brightness * color.rgb, color.a);
+    fragColor = vec4(brightness * color.rgb, color.a);
 }
 

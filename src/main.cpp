@@ -506,11 +506,12 @@ int main(int argc, char *argv[])
         shaderVolume.setVec3("bbMax", (modelMX * bbMax).xyz);
         shaderVolume.setInt("mode", gui_mode);
         shaderVolume.setInt("gradMethod", gui_grad_method);
-        shaderVolume.setFloat("step_size", voxel_diag * gui_step_size);
+        shaderVolume.setFloat("stepSize", voxel_diag * gui_step_size);
+        shaderVolume.setFloat("stepSizeVoxel", gui_step_size);
         shaderVolume.setFloat("brightness", gui_brightness);
         shaderVolume.setFloat("isovalue", gui_isovalue);
-        shaderVolume.setBool("iso_denoise", gui_iso_denoise);
-        shaderVolume.setFloat("iso_denoise_r", voxel_diag * gui_iso_denoise_r);
+        shaderVolume.setBool("isoDenoise", gui_iso_denoise);
+        shaderVolume.setFloat("isoDenoiseR", voxel_diag * gui_iso_denoise_r);
         tempVec3 = glm::normalize(
                 glm::vec3(
                     gui_light_dir[0], gui_light_dir[1], gui_light_dir[2]));
@@ -522,20 +523,20 @@ int main(int argc, char *argv[])
             "diffuse", gui_diffuse[0], gui_diffuse[1], gui_diffuse[2]);
         shaderVolume.setVec3(
             "specular", gui_specular[0], gui_specular[1], gui_specular[2]);
-        shaderVolume.setFloat("k_amb", gui_k_amb);
-        shaderVolume.setFloat("k_diff", gui_k_diff);
-        shaderVolume.setFloat("k_spec", gui_k_spec);
-        shaderVolume.setFloat("k_exp", gui_k_exp);
-        shaderVolume.setBool("invert_colors", gui_invert_colors);
-        shaderVolume.setBool("invert_alpha", gui_invert_alpha);
-        shaderVolume.setBool("slice_volume", gui_slice_volume);
+        shaderVolume.setFloat("kAmb", gui_k_amb);
+        shaderVolume.setFloat("kDiff", gui_k_diff);
+        shaderVolume.setFloat("kSpec", gui_k_spec);
+        shaderVolume.setFloat("kExp", gui_k_exp);
+        shaderVolume.setBool("invertColors", gui_invert_colors);
+        shaderVolume.setBool("invertAlpha", gui_invert_alpha);
+        shaderVolume.setBool("sliceVolume", gui_slice_volume);
         tempVec3 = glm::normalize(
                 glm::vec3(
                     gui_slice_plane_normal[0],
                     gui_slice_plane_normal[1],
                     gui_slice_plane_normal[2]));
         shaderVolume.setVec3(
-            "slice_plane_normal", tempVec3[0], tempVec3[1], tempVec3[2]);
+            "slicePlaneNormal", tempVec3[0], tempVec3[1], tempVec3[2]);
         tempVec3 = (modelMX *
                 glm::vec4(
                     gui_slice_plane_base[0] / 2.f,
@@ -543,7 +544,7 @@ int main(int argc, char *argv[])
                     gui_slice_plane_base[2] / 2.f,
                     1.f)).xyz;
         shaderVolume.setVec3(
-            "slice_plane_base", tempVec3[0], tempVec3[1], tempVec3[2]);
+            "slicePlaneBase", tempVec3[0], tempVec3[1], tempVec3[2]);
 
         glBindVertexArray(volumeVAO);
         glDrawElements(GL_TRIANGLES, 3*2*6, GL_UNSIGNED_INT, 0);
