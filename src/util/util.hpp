@@ -32,8 +32,8 @@ namespace util
         const GLenum format,
         const GLenum type,
         GLint filter,
-        int width,
-        int height);
+        GLsizei width,
+        GLsizei height);
     GLuint createFrameBufferObject(
         GLsizei width,
         GLsizei height,
@@ -44,6 +44,10 @@ namespace util
         GLenum format[],
         GLenum datatype[],
         GLint filter[]);
+    void initialize2dHybridTausTexture(
+        const GLint texID,
+        GLsizei width,
+        GLsizei height);
 
     //-------------------------------------------------------------------------
     // Type definitions

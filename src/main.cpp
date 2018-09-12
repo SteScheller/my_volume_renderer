@@ -120,6 +120,11 @@ bool gui_slice_volume = false;
 float gui_slice_plane_normal[3] = {0.f, 0.f, 1.f};
 float gui_slice_plane_base[3] = {0.f, 0.f, 0.f};
 
+bool gui_ambient_occlusion = false;
+float gui_ambient_occlusion_radius = 0.2f;
+float gui_ambient_occlusion_proportion = 0.5f;
+int gui_ambient_occlusion_samples = 10;
+
 float gui_tf_cp_pos = 0.f;
 float gui_tf_cp_color_rgb[3] = {0.f, 0.f, 0.0f};
 float gui_tf_cp_color_a = 0.f;
@@ -139,7 +144,7 @@ GLFWwindow* createWindow(
 void applyProgramOptions(int argc, char *argv[]);
 void createDefaultFBO(
     GLuint &fbo,
-    GLuint texIDs[],
+    GLuint texIDs[2],
     unsigned int win_w,
     unsigned int win_h);
 void initializeGl3w();
@@ -540,6 +545,12 @@ int main(int argc, char *argv[])
         shaderVolume.setFloat("stepSize", voxel_diag * gui_step_size);
         shaderVolume.setFloat("stepSizeVoxel", gui_step_size);
         shaderVolume.setFloat("brightness", gui_brightness);
+        shaderVolume.setBool("ambientOcclusion", gui_ambient_occlusion);
+        shaderVolume.setInt("aoSamples", gui_ambient_occlusion_samples);
+        shaderVolume.setFloat(
+                "aoRadius", voxel_diag * gui_ambient_occlusion_radius);
+        shaderVolume.setFloat(
+                "aoProportion", gui_ambient_occlusion_proportion);
         shaderVolume.setFloat("isovalue", gui_isovalue);
         shaderVolume.setBool("isoDenoise", gui_iso_denoise);
         shaderVolume.setFloat("isoDenoiseR", voxel_diag * gui_iso_denoise_r);
@@ -858,7 +869,7 @@ void applyProgramOptions(int argc, char *argv[])
 
 void createDefaultFBO(
     GLuint &fbo,
-    GLuint texIDs[],
+    GLuint texIDs[2],
     unsigned int win_w,
     unsigned int win_h)
 {
@@ -878,6 +889,7 @@ void createDefaultFBO(
             formats,
             datatypes,
             filters);
+    util::initialize2dHybridTausTexture(texIDs[1], win_w, win_h);
 }
 
 GLFWwindow* createWindow(
@@ -1283,11 +1295,18 @@ static void showSettingsWindow(
 
             ImGui::Spacing();
 
-            ImGui::Checkbox("Slice volume", &gui_slice_volume);
+            ImGui::Checkbox("slice volume", &gui_slice_volume);
             ImGui::SliderFloat3(
                 "slicing plane normal", gui_slice_plane_normal, -1.f, 1.f);
             ImGui::SliderFloat3(
                 "slicing plane base", gui_slice_plane_base, -1.f, 1.f);
+
+            ImGui::Spacing();
+
+            ImGui::Checkbox("ambient occlusion", &gui_ambient_occlusion);
+            ImGui::SliderFloat("proportion", &gui_ambient_occlusion_proportion, 0.f, 1.f);
+            ImGui::SliderFloat("halfdome radius", &gui_ambient_occlusion_radius, 0.01f, 10.f);
+            ImGui::SliderInt("number of samples", &gui_ambient_occlusion_samples, 1, 100);
         }
 
         ImGui::Separator();

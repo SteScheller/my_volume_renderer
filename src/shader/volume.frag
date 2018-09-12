@@ -31,9 +31,15 @@ uniform float stepSize;         //!< distance between sample points between
 uniform float stepSizeVoxel;    //!< distance between sample points in voxels
 uniform float brightness;       //!< color coefficient
 
-uniform float isovalue;     //!< value for isosurface
-uniform bool isoDenoise;   //!< switch for smoothing of the isosurface
-uniform float isoDenoiseR;//!< radius for denoising
+uniform bool ambientOcclusion;  //!< switch for activating ambient occlusion
+uniform float aoProportion;     //!< weight of ambient occlusion on final color
+uniform int aoSamples;          //!< number of samples involved in ambient
+                                //!< occlusion calculation
+uniform float aoRadius;         //!< radius of the sampled halfdome
+
+uniform float isovalue;         //!< value for isosurface
+uniform bool isoDenoise;        //!< switch for smoothing of the isosurface
+uniform float isoDenoiseR;      //!< radius for denoising
 
 uniform vec3 lightDir;      //!< light direction
 
@@ -119,7 +125,7 @@ float uniformRandom()
 /*!
  *  \brief samples uniform random direction vectors around in a unit half dome
  *
- *  \param b normalized vector which points to the upper pole of the half dome
+ *  \param n normalized vector which points to the upper pole of the half dome
  *
  *  \return normalized sampled direction vector
  *
@@ -131,36 +137,25 @@ float uniformRandom()
  *  conserving mapping from spherical coordinates with height (z) and
  *  azimut angle (phi) parameters.
  */
-vec3 sampleHalfdomeDirectionUpper(vec3 b)
+vec3 sampleHalfdomeDirectionUpper(vec3 n)
 {
     vec3 dir = vec3(0.f);
     float z = 0.f, phi = 0.f, temp = 0.f, s = 0.f, c = 0.f;
     vec3 v = vec3(0.f), a = vec3(0.f);
     mat3 V = mat3(0.f), R = mat3(0.f);
 
-    // Sample a direction
-    //
-    // Calculation of rotation matrix only works if n and vec3(0, 1, 0) do
-    // not point into exactly opposite directions.
-    if (dot(b, vec3(0, 1.f, 0.f)) >= 0.f)
-    {
-        a = vec3(0, 1.f, 0.f);
-        z = 2.f * uniformRandom() - 1.f;
-    }
-    else
-    {
-        a = vec3(0, -1.f, 0.f);
-        z = 1.f - 2.f * uniformRandom();
-    }
+    // Sample a direction in haldome define by the y axis
+    a = vec3(0, 1.f, 0.f);
+    z = 2.f * uniformRandom() - 1.f;
     phi = uniformRandom() * M_2PI;
     temp = sqrt(1.f - pow(z,2));
     dir = normalize(vec3(temp * sin(phi), temp * cos(phi), z));
 
-    // Find a rotation matrix to transform the sampled direction into the
-    // half dome defined by b
-    v = cross(a, b);
+    // Find a rotation matrix that transforms the given normal into the sample
+    // direction
+    v = cross(a, dir);
     s = length(v);
-    c = dot(a, b);
+    c = dot(a, dir);
 
     V = mat3(
             0.f,    v.z,    -v.y,   // first column
@@ -168,7 +163,7 @@ vec3 sampleHalfdomeDirectionUpper(vec3 b)
             v.y,    -v.x,   0.f);   // third column
     R = mat3(1.f) + V + (V * V) * (1.f / (1.f + c));
 
-    return R * dir;
+    return R * n;
 }
 
 /*!
@@ -190,6 +185,47 @@ vec3 blinnPhong(vec3 n, vec3 l, vec3 v)
         pow(max(0.f, dot(h,n)), kExp);
 
     return color;
+}
+/*!
+ *  \brief calculates and scalar ambient occlusion factor
+ *
+ *  \param volume sampler that contains the volume data
+ *  \param pos position in the volume where the occlusion factor shall be
+ *             calculated
+ *  \param n normal that points towards the pole of the sampled halfdome
+ *  \param r radius of the sampled halfdome
+ *  \param samples number of samples that shall be taken for the calculation
+ *                 of the occlusion factor
+ *  \param threshold values above this will be considered as occluding
+ *
+ *  Samples halfdome defined by a position and a normal with a given radius
+ *  and returns the ratio of samples that have a value > threshold and the
+ *  amount of taken samples.
+ */
+float calcAmbientOcclussionFactor(
+        sampler3D volume,
+        vec3 pos,
+        vec3 n,
+        float r,
+        int samples,
+        float threshold)
+{
+    int i = 0, count = 0;
+    vec3 sampleDir = vec3(0.f), sampleCoord = vec3(0.f);
+    float value = 0.f, ratio = 0.f;
+
+    for (i = 0; i < samples; ++i)
+    {
+        sampleDir = sampleHalfdomeDirectionUpper(n);
+        sampleCoord = pos + r * sampleDir;
+        value = texture(volume, sampleCoord).r;
+        if (value > threshold)
+            ++count;
+    }
+
+    ratio = float(count) / float(samples);
+
+    return ratio;
 }
 
 /*!
@@ -470,12 +506,14 @@ void main()
     vec3 pos = vec3(0.f);   //!< current position on the ray in world
                             //!< coordinates
     float x = 0.f;          //!< distance from origin to current position
-    float dx = stepSize;   //!< distance between sample points along the ray
+    float dx = stepSize;    //!< distance between sample points along the ray
     float tNear, tFar;      //!< near and far distances where the shot ray
                             //!< intersects the bounding box of the volume data
 
     vec3 rayOrig = eyePos;                          //!< origin of the ray
     vec3 rayDir = normalize(vWorldCoord - rayOrig); //!< direction of the ray
+
+    float aoFactor = 0.f;   //! multiplicative factor for ambient occlusion
 
     // maximum intensity projection
     float maxValue = 0.f;
@@ -489,6 +527,8 @@ void main()
     // Blinn-Phong shading
     vec3 p = vec3(0.f);             //!< position on the isosurface in world
                                     //!< coordinates
+    vec3 pTexCoord = vec3(0.f);     //!< position on the isosurface in volume
+                                    //!< texture coordinates
     vec3 n = vec3(0.f);             //!< surface normal pointing away from the
                                     //!< surface
     vec3 l = lightDir;              //!< direction of the distant light source
@@ -597,15 +637,24 @@ void main()
                         posLast,
                         pos,
                         (isovalue - valueLast) / (value - valueLast));
-
-                    n = -gradient(
-                        volumeTex,
-                        (p - bbMin) / (bbMax - bbMin),
-                        dx,
-                        gradMethod);
+                    pTexCoord = (p - bbMin) / (bbMax - bbMin);
+                    n = -gradient(volumeTex, pTexCoord, dx, gradMethod);
 
                     color.rgb = blinnPhong(n, l, e);
                     color.a = 1.f;
+
+                    if(ambientOcclusion)
+                    {
+                        aoFactor = calcAmbientOcclussionFactor(
+                            volumeTex,
+                            pTexCoord,
+                            n,
+                            aoRadius,
+                            aoSamples,
+                            isovalue);
+                        color.rgb = mix(
+                            color.rgb, aoFactor * color.rgb, aoProportion);
+                    }
                     terminateEarly = true;
                 }
                 valueLast = value;

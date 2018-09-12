@@ -1,3 +1,5 @@
+#include <random>
+
 #include <GL/gl3w.h>
 
 #include "util.hpp"
@@ -62,8 +64,8 @@ GLuint util::create2dTextureObject(
     const GLenum format,
     const GLenum type,
     GLint filter,
-    int width,
-    int height)
+    GLsizei width,
+    GLsizei height)
 {
     GLuint texID = 0;
 
@@ -90,3 +92,53 @@ GLuint util::create2dTextureObject(
 
     return texID;
 }
+
+/**
+ * \brief intializes a texture use with the HybridTaus random generator
+ *
+ * \param texID            OpenGL ID of the texture object
+ * \param width            texture width
+ * \param height           texture height
+ */
+void util::initialize2dHybridTausTexture(
+        const GLint texID,
+        GLsizei width,
+        GLsizei height)
+{
+    uint32_t *buf = new uint32_t[4 * width * height];
+    uint32_t r1 = 0, r2 = 0, r3 = 0, r4 = 0;
+
+    std::random_device rd;  // for getting one non-deterministic random number
+                            // and seeding the mersenne twister
+    std::mt19937 mt(rd());  // for actually sampling subsequent (pseudo-)
+                            // random numbers with good performance
+    std::uniform_int_distribution<uint32_t> distribution(128, 1023);
+
+    r1 = distribution(mt);
+    r2 = distribution(mt);
+    r3 = distribution(mt);
+    r4 = distribution(mt);
+    for (size_t i = 0; i < static_cast<size_t>(width * height); ++i)
+    {
+        buf[i * 4] = r1 + static_cast<uint32_t>(i << 10);
+        buf[i * 4 + 1] = r2 + static_cast<uint32_t>(i << 10);
+        buf[i * 4 + 2] = r3 + static_cast<uint32_t>(i << 10);
+        buf[i * 4 + 3] = r4 + static_cast<uint32_t>(i << 10);
+    }
+
+    glBindTexture(GL_TEXTURE_2D, texID);
+
+    glTexImage2D(
+        GL_TEXTURE_2D,
+        0,
+        GL_RGBA32UI,
+        width,
+        height,
+        0,
+        GL_RGBA_INTEGER,
+        GL_UNSIGNED_INT,
+        buf);
+
+    delete[] buf;
+}
+
