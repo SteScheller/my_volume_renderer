@@ -49,10 +49,10 @@ enum class Gradient : int
 unsigned int win_w = 1600;
 unsigned int win_h = 900;
 
-unsigned int tf_func_img_w = 512;
-unsigned int tf_func_img_h = 128;
+unsigned int tf_func_img_w = 384;
+unsigned int tf_func_img_h = 96;
 
-unsigned int tf_color_img_w = 512;
+unsigned int tf_color_img_w = 384;
 unsigned int tf_color_img_h = 16;
 
 float fovY = 90.f;
@@ -137,6 +137,11 @@ void error_cb(int error, const char* description);
 GLFWwindow* createWindow(
     unsigned int win_w, unsigned int win_h, const char* title);
 void applyProgramOptions(int argc, char *argv[]);
+void createDefaultFBO(
+    GLuint &fbo,
+    GLuint texIDs[],
+    unsigned int win_w,
+    unsigned int win_h);
 void initializeGl3w();
 void initializeImGui(GLFWwindow* window);
 static GLuint createFrameVAO(
@@ -206,6 +211,10 @@ static void drawTfFunc(
 static bool _flag_reload_shaders = false;
 static bool _flag_show_menues = true;
 
+// default fbo for storing different rendering results and helpers
+static GLuint _defaultFBO = 0;
+static GLuint _defaultTexIDs[2] = { 0, 0 };
+
 // for picking of control points in transfer function editor
 static float _selected_cp_pos = 0.f;
 static GLuint _selected_cp_fbo = 0.f;
@@ -230,6 +239,7 @@ int main(int argc, char *argv[])
 
     glPointSize(13.f);
 
+    Shader shaderQuad("src/shader/quad.vert", "src/shader/quad.frag");
     Shader shaderFrame("src/shader/frame.vert", "src/shader/frame.frag");
     Shader shaderVolume("src/shader/volume.vert", "src/shader/volume.frag");
     Shader shaderTfColor("src/shader/tfColor.vert", "src/shader/tfColor.frag");
@@ -317,9 +327,10 @@ int main(int argc, char *argv[])
     // ------------------------------------------------------------------------
     // framebuffer objects
     // ------------------------------------------------------------------------
+    createDefaultFBO(_defaultFBO, _defaultTexIDs, win_w, win_h);
+
     GLuint tfColorFBO = 0;
     GLuint tfColorTexIDs[1] = { 0 };
-
     {
         GLenum attachments[1] = { GL_COLOR_ATTACHMENT0 };
         GLint  internalFormats[1] = { GL_RGBA };
@@ -418,6 +429,8 @@ int main(int argc, char *argv[])
     // temporary variables
     glm::vec3 tempVec3 = glm::vec3(0.f);
 
+    // projection matrix for the window filling quad
+    glm::mat4 projMXquad = glm::ortho(0.f, 1.f, 0.f, 1.f);
     // ------------------------------------------------------------------------
     // render loop
     // ------------------------------------------------------------------------
@@ -425,22 +438,21 @@ int main(int argc, char *argv[])
     {
         glfwPollEvents();
 
-        glViewport(0, 0, win_w, win_h);
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-        // check if shader programs shall be reloaded
+                // check if shader programs shall be reloaded
         if (_flag_reload_shaders)
         {
             _flag_reload_shaders = false;
             std::cout << "reloading shaders..." << std::endl;
 
-            glDeleteProgram(shaderVolume.ID);
+            glDeleteProgram(shaderQuad.ID);
             glDeleteProgram(shaderFrame.ID);
+            glDeleteProgram(shaderVolume.ID);
             glDeleteProgram(shaderTfColor.ID);
             glDeleteProgram(shaderTfFunc.ID);
             glDeleteProgram(shaderTfPoint.ID);
 
+            shaderQuad = Shader(
+                "src/shader/quad.vert", "src/shader/quad.frag");
             shaderFrame = Shader(
                 "src/shader/frame.vert", "src/shader/frame.frag");
             shaderVolume = Shader(
@@ -452,6 +464,21 @@ int main(int argc, char *argv[])
             shaderTfPoint = Shader(
                 "src/shader/tfPoint.vert", "src/shader/tfPoint.frag");
         }
+        // --------------------------------------------------------------------
+        // draw the volume, frame and menues into a frame buffer object
+        // --------------------------------------------------------------------
+
+        // activate the framebuffer object as current framebuffer
+        glViewport(0, 0, win_w, win_h);
+        glBindFramebuffer(GL_FRAMEBUFFER, _defaultFBO);
+
+        // select color attachments as render targets
+        static const GLenum buf[2] = {
+            GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
+        glDrawBuffers(2, buf);
+
+        // clear old buffer content
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // update model, view and projection matrix
         right = glm::normalize(glm::cross(-camPos, glm::vec3(0.f, 1.f, 0.f)));
@@ -498,6 +525,10 @@ int main(int argc, char *argv[])
         glActiveTexture(GL_TEXTURE1);
         glBindTexture(GL_TEXTURE_2D, transferFunction.getTexture());
         shaderVolume.setInt("transferfunctionTex", 1);
+
+        glActiveTexture(GL_TEXTURE2);
+        glBindTexture(GL_TEXTURE_2D, _defaultTexIDs[1]);
+        shaderVolume.setInt("stateIn", 2);
 
         shaderVolume.setMat4("modelMX", modelMX);
         shaderVolume.setMat4("pvmMX", projMX * viewMX * modelMX);
@@ -586,6 +617,25 @@ int main(int argc, char *argv[])
             ImGui::Render();
             ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         }
+        // --------------------------------------------------------------------
+        // show the rendering result as window filling quad in the default
+        // framebuffer
+        // --------------------------------------------------------------------
+        glViewport(0, 0, win_w, win_h);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
+
+        shaderQuad.use();
+
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, _defaultTexIDs[0]);
+        shaderQuad.setInt("tex", 0);
+
+        shaderQuad.setMat4("projMX", projMXquad);
+
+        glBindVertexArray(quadVAO);
+        glDrawElements(GL_TRIANGLE_FAN, 4, GL_UNSIGNED_INT, 0);
+        glBindVertexArray(0);
 
         glfwSwapBuffers(window);
     }
@@ -598,6 +648,8 @@ int main(int argc, char *argv[])
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
 
+    glDeleteFramebuffers(1, &_defaultFBO);
+    glDeleteTextures(2, _defaultTexIDs);
     glDeleteFramebuffers(1, &tfColorFBO);
     glDeleteTextures(1, tfColorTexIDs);
     glDeleteFramebuffers(1, &tfFuncFBO);
@@ -605,6 +657,7 @@ int main(int argc, char *argv[])
 
     glDeleteTextures(1, &volumeTex);
 
+    glDeleteProgram(shaderQuad.ID);
     glDeleteProgram(shaderVolume.ID);
     glDeleteProgram(shaderFrame.ID);
     glDeleteProgram(shaderTfColor.ID);
@@ -656,6 +709,7 @@ void mouse_button_cb(GLFWwindow* window, int button, int action, int mods)
 {
     double mouseX = 0.0, mouseY = 0.0;
     glm::vec2 temp = glm::vec2(0.f);
+    GLint prevFBO = 0;
 
     if ((button == GLFW_MOUSE_BUTTON_LEFT) && (action == GLFW_RELEASE))
     {
@@ -665,6 +719,9 @@ void mouse_button_cb(GLFWwindow* window, int button, int action, int mods)
             // the user might try to select a control point in the transfer
             // function editor
             glfwGetCursorPos(window, &mouseX, &mouseY);
+
+            // store the previously bound framebuffer
+            glGetIntegerv(GL_FRAMEBUFFER_BINDING, &prevFBO);
 
             // bind FBO-object and the color-attachment which contains
             // the unique picking ID
@@ -687,7 +744,7 @@ void mouse_button_cb(GLFWwindow* window, int button, int action, int mods)
             if (temp.g > 0.f)
                 _selected_cp_pos = temp.r;
 
-            glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+            glBindFramebuffer(GL_READ_FRAMEBUFFER, prevFBO);
         }
     }
     // chain ImGui callback
@@ -740,6 +797,11 @@ void framebuffer_size_cb(
 {
     win_w = width;
     win_h = height;
+
+    glDeleteFramebuffers(1, &_defaultFBO);
+    glDeleteTextures(2, _defaultTexIDs);
+
+    createDefaultFBO(_defaultFBO, _defaultTexIDs, win_w, win_h);
 }
 
 void error_cb(int error, const char* description)
@@ -792,7 +854,30 @@ void applyProgramOptions(int argc, char *argv[])
         std::cout << "Invalid program options!" << std::endl;
         exit(EXIT_FAILURE);
     }
+}
 
+void createDefaultFBO(
+    GLuint &fbo,
+    GLuint texIDs[],
+    unsigned int win_w,
+    unsigned int win_h)
+{
+    GLenum attachments[2] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
+    GLint  internalFormats[2] = { GL_RGBA, GL_RGBA32UI };
+    GLenum formats[2] = { GL_RGBA, GL_RGBA_INTEGER };
+    GLenum datatypes[2] = { GL_FLOAT, GL_UNSIGNED_INT };
+    GLint  filters[2] = { GL_LINEAR, GL_NEAREST };
+
+    fbo = util::createFrameBufferObject(
+            win_w,
+            win_h,
+            texIDs,
+            2,
+            attachments,
+            internalFormats,
+            formats,
+            datatypes,
+            filters);
 }
 
 GLFWwindow* createWindow(
@@ -1701,8 +1786,13 @@ static void drawTfColor(
     unsigned int width,
     unsigned int height)
 {
+    GLint prevFBO = 0;
+
     if (!glIsFramebuffer(fboID))
         return;
+
+    // store the previously bound framebuffer
+    glGetIntegerv(GL_FRAMEBUFFER_BINDING, &prevFBO);
 
     // activate the framebuffer object as current framebuffer
     glViewport(0, 0, width, height);
@@ -1736,8 +1826,8 @@ static void drawTfColor(
     glDrawElements(GL_TRIANGLE_FAN, 4, GL_UNSIGNED_INT, 0);
     glBindVertexArray(0);
 
-    // reset framebuffer to default
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    // reset framebuffer to the one previously bound
+    glBindFramebuffer(GL_FRAMEBUFFER, prevFBO);
 }
 /**
  * \brief draws the alpha value from the transfer function to an fbo object
@@ -1752,13 +1842,10 @@ static void drawTfFunc(
     unsigned int height)
 {
     bool enableBlend = false;
+    GLint prevFBO = 0;
 
     if (!glIsFramebuffer(fboID))
         return;
-
-    // activate the framebuffer object as current framebuffer
-    glViewport(0, 0, width, height);
-    glBindFramebuffer(GL_FRAMEBUFFER, fboID);
 
     // disable alpha blending to prevent discarding of fragments
     if (glIsEnabled(GL_BLEND))
@@ -1766,6 +1853,13 @@ static void drawTfFunc(
         glDisable(GL_BLEND);
         enableBlend = true;
     }
+
+    // store the previously bound framebuffer
+    glGetIntegerv(GL_FRAMEBUFFER_BINDING, &prevFBO);
+
+    // activate the framebuffer object as current framebuffer
+    glViewport(0, 0, width, height);
+    glBindFramebuffer(GL_FRAMEBUFFER, fboID);
 
     // select color attachments as render targets
     static const GLenum buf[2] =
@@ -1796,7 +1890,6 @@ static void drawTfFunc(
 
     glBindVertexArray(quadVAO);
     glDrawElements(GL_TRIANGLE_FAN, 4, GL_UNSIGNED_INT, 0);
-    //glBindVertexArray(0);
 
     // draw the control points
     glClear(GL_DEPTH_BUFFER_BIT);
@@ -1822,7 +1915,7 @@ static void drawTfFunc(
     if (enableBlend)
         glEnable(GL_BLEND);
 
-    // reset framebuffer to default
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    // reset framebuffer to the one previously bound
+    glBindFramebuffer(GL_FRAMEBUFFER, prevFBO);
 
 }
