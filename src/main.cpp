@@ -66,7 +66,7 @@ glm::vec3 camPos = glm::vec3(1.2f, 0.75f, 1.f);
 
 #define MAX_FILEPATH_LENGTH 200
 
-#define DEFAULT_VOLUME_JSON_FILE "/mnt/data/steffen/jet.json"
+#define DEFAULT_VOLUME_JSON_FILE "example/bucky.json"
 
 #define CONTROL_POINT_LIST false
 

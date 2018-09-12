@@ -1,0 +1,9 @@
+{
+    "VOLUME_FILE_DIR" : "./",
+    "VOLUME_FILE_REGEX" : "bucky.raw",
+    "VOLUME_DIM" : [32, 32, 32],
+    "VOLUME_DATA_TYPE" : "UCHAR",
+    "VOXEL_SIZE" : [1, 1, 1],
+    "VOLUME_NUM_TIMESTEPS" : 1
+}
+
