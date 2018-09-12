@@ -598,7 +598,23 @@ void main()
                 color.rgb += vec3(value * dx);
                 color.a = 1.f;
                 if (color.r > 0.99f)
+                {
+                    if(ambientOcclusion)
+                    {
+                        pTexCoord = (pos - bbMin) / (bbMax - bbMin);
+                        n = -gradient(volumeTex, pTexCoord, dx, gradMethod);
+                        aoFactor = calcAmbientOcclussionFactor(
+                            volumeTex,
+                            pTexCoord,
+                            n,
+                            aoRadius,
+                            aoSamples,
+                            value);
+                        color.rgb = mix(
+                            color.rgb, aoFactor * color.rgb, aoProportion);
+                    }
                     terminateEarly = true;
+                }
                 break;
 
             // maximum-intensity projection
@@ -609,7 +625,23 @@ void main()
                     color.rgb = vec3(value);
                     color.a = 1.f;
                     if (color.r > 0.99f)
+                    {
+                        if(ambientOcclusion)
+                        {
+                            pTexCoord = (pos - bbMin) / (bbMax - bbMin);
+                            n = -gradient(volumeTex, pTexCoord, dx, gradMethod);
+                            aoFactor = calcAmbientOcclussionFactor(
+                                volumeTex,
+                                pTexCoord,
+                                n,
+                                aoRadius,
+                                aoSamples,
+                                value);
+                            color.rgb = mix(
+                                color.rgb, aoFactor * color.rgb, aoProportion);
+                        }
                         terminateEarly = true;
+                    }
                 }
                 break;
 
@@ -670,7 +702,23 @@ void main()
                     color,
                     tfColor.rgb, tfColor.a, stepSizeVoxel);
                 if (color.a > 0.99f)
+                {
+                    if(ambientOcclusion)
+                    {
+                        pTexCoord = (pos - bbMin) / (bbMax - bbMin);
+                        n = -gradient(volumeTex, pTexCoord, dx, gradMethod);
+                        aoFactor = calcAmbientOcclussionFactor(
+                            volumeTex,
+                            pTexCoord,
+                            n,
+                            aoRadius,
+                            aoSamples,
+                            value);
+                        color.rgb = mix(
+                            color.rgb, aoFactor * color.rgb, aoProportion);
+                    }
                     terminateEarly = true;
+                }
                 break;
         }
 
