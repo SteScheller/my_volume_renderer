@@ -18,11 +18,7 @@ My implementation of a volume renderer with OpenGL.
 - shader convenience class from https://github.com/JoeyDeVries/LearnOpenGL
 
 ## Other Dependencies
-
 - GLFW (tested  with 3.2.1)
 - Boost (tested with 1.64.0)
 - GPU and driver that support OpenGL >= 3.3
 - C++14 compiler (tested with g++ 7.3.1)
-
-Needs a GPU and driver that support OpenGL >= 3.3.
-
