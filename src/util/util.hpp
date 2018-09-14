@@ -44,8 +44,7 @@ namespace util
         GLenum format[],
         GLenum datatype[],
         GLint filter[]);
-    void initialize2dHybridTausTexture(
-        const GLint texID,
+    GLuint create2dHybridTausTexture(
         GLsizei width,
         GLsizei height);
 

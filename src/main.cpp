@@ -42,6 +42,11 @@ enum class Gradient : int
     central_differences = 0,
     sobel_operators
 };
+enum class Output : int
+{
+    volume_rendering = 0,
+    random_number_generator
+};
 
 //-----------------------------------------------------------------------------
 // global parameters
@@ -74,6 +79,8 @@ glm::vec3 camPos = glm::vec3(1.2f, 0.75f, 1.f);
 // gui parameters
 //-----------------------------------------------------------------------------
 int gui_mode = static_cast<int>(Mode::line_of_sight);
+
+int gui_tex_select = static_cast<int>(Output::volume_rendering);
 
 char gui_volume_desc_file[MAX_FILEPATH_LENGTH]; // init from program options
 
@@ -217,8 +224,11 @@ static bool _flag_reload_shaders = false;
 static bool _flag_show_menues = true;
 
 // default fbo for storing different rendering results and helpers
-static GLuint _defaultFBO = 0;
-static GLuint _defaultTexIDs[2] = { 0, 0 };
+static GLuint _defaultFBO[2] = { 0, 0 };
+static GLuint _defaultTexIDs[2][2] = {{ 0, 0 }, { 0, 0 }};
+
+// flag for seeding the random generator in the fragment shader
+static GLuint _rngTex = 0;
 
 // for picking of control points in transfer function editor
 static float _selected_cp_pos = 0.f;
@@ -332,7 +342,8 @@ int main(int argc, char *argv[])
     // ------------------------------------------------------------------------
     // framebuffer objects
     // ------------------------------------------------------------------------
-    createDefaultFBO(_defaultFBO, _defaultTexIDs, win_w, win_h);
+    createDefaultFBO(_defaultFBO[0], &(_defaultTexIDs[0][0]), win_w, win_h);
+    createDefaultFBO(_defaultFBO[1], &(_defaultTexIDs[1][0]), win_w, win_h);
 
     GLuint tfColorFBO = 0;
     GLuint tfColorTexIDs[1] = { 0 };
@@ -436,14 +447,21 @@ int main(int argc, char *argv[])
 
     // projection matrix for the window filling quad
     glm::mat4 projMXquad = glm::ortho(0.f, 1.f, 0.f, 1.f);
+
+    // seed texture for fragment shader random number generator
+    _rngTex = util::create2dHybridTausTexture(win_w, win_h);
+
     // ------------------------------------------------------------------------
     // render loop
     // ------------------------------------------------------------------------
+    static unsigned int ping = 0, pong = 1;
     while (!glfwWindowShouldClose(window))
     {
+        // swap fbo objects in each render pass
+        std::swap(ping, pong);
         glfwPollEvents();
 
-                // check if shader programs shall be reloaded
+        // check if shader programs shall be reloaded
         if (_flag_reload_shaders)
         {
             _flag_reload_shaders = false;
@@ -475,7 +493,7 @@ int main(int argc, char *argv[])
 
         // activate the framebuffer object as current framebuffer
         glViewport(0, 0, win_w, win_h);
-        glBindFramebuffer(GL_FRAMEBUFFER, _defaultFBO);
+        glBindFramebuffer(GL_FRAMEBUFFER, _defaultFBO[ping]);
 
         // select color attachments as render targets
         static const GLenum buf[2] = {
@@ -532,9 +550,17 @@ int main(int argc, char *argv[])
         shaderVolume.setInt("transferfunctionTex", 1);
 
         glActiveTexture(GL_TEXTURE2);
-        glBindTexture(GL_TEXTURE_2D, _defaultTexIDs[1]);
-        shaderVolume.setInt("stateIn", 2);
+        glBindTexture(GL_TEXTURE_2D, _rngTex);
+        shaderVolume.setInt("seed", 2);
+        shaderVolume.setBool("useSeed", true);
 
+        glActiveTexture(GL_TEXTURE3);
+        glBindTexture(GL_TEXTURE_2D, _defaultTexIDs[pong][1]);
+        shaderVolume.setInt("stateIn", 3);
+
+        shaderVolume.setInt("winWidth", win_w);
+        shaderVolume.setInt("winHeight", win_h);
+        shaderVolume.setInt("mode", gui_mode);
         shaderVolume.setMat4("modelMX", modelMX);
         shaderVolume.setMat4("pvmMX", projMX * viewMX * modelMX);
         shaderVolume.setVec3("eyePos", camPos);
@@ -592,6 +618,32 @@ int main(int argc, char *argv[])
         glDrawElements(GL_TRIANGLES, 3*2*6, GL_UNSIGNED_INT, 0);
         glBindVertexArray(0);
 
+        // --------------------------------------------------------------------
+        // show the rendering result as window filling quad in the default
+        // framebuffer
+        // --------------------------------------------------------------------
+        glViewport(0, 0, win_w, win_h);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
+
+        shaderQuad.use();
+
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, _defaultTexIDs[ping][0]);
+        shaderQuad.setInt("renderTex", 0);
+
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, _defaultTexIDs[ping][1]);
+        //glBindTexture(GL_TEXTURE_2D, _rngTex);
+        shaderQuad.setInt("rngTex", 1);
+
+        shaderQuad.setMat4("projMX", projMXquad);
+        shaderQuad.setInt("texSelect", gui_tex_select);
+
+        glBindVertexArray(quadVAO);
+        glDrawElements(GL_TRIANGLE_FAN, 4, GL_UNSIGNED_INT, 0);
+        glBindVertexArray(0);
+
         // draw ImGui windows
         if(_flag_show_menues)
         {
@@ -628,25 +680,6 @@ int main(int argc, char *argv[])
             ImGui::Render();
             ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         }
-        // --------------------------------------------------------------------
-        // show the rendering result as window filling quad in the default
-        // framebuffer
-        // --------------------------------------------------------------------
-        glViewport(0, 0, win_w, win_h);
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
-
-        shaderQuad.use();
-
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, _defaultTexIDs[0]);
-        shaderQuad.setInt("tex", 0);
-
-        shaderQuad.setMat4("projMX", projMXquad);
-
-        glBindVertexArray(quadVAO);
-        glDrawElements(GL_TRIANGLE_FAN, 4, GL_UNSIGNED_INT, 0);
-        glBindVertexArray(0);
 
         glfwSwapBuffers(window);
     }
@@ -659,8 +692,10 @@ int main(int argc, char *argv[])
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
 
-    glDeleteFramebuffers(1, &_defaultFBO);
-    glDeleteTextures(2, _defaultTexIDs);
+    glDeleteFramebuffers(2, _defaultFBO);
+    glDeleteTextures(2, &(_defaultTexIDs[0][0]));
+    glDeleteTextures(2, &(_defaultTexIDs[1][0]));
+    glDeleteTextures(1, &_rngTex);
     glDeleteFramebuffers(1, &tfColorFBO);
     glDeleteTextures(1, tfColorTexIDs);
     glDeleteFramebuffers(1, &tfFuncFBO);
@@ -809,10 +844,14 @@ void framebuffer_size_cb(
     win_w = width;
     win_h = height;
 
-    glDeleteFramebuffers(1, &_defaultFBO);
-    glDeleteTextures(2, _defaultTexIDs);
+    glDeleteFramebuffers(2, _defaultFBO);
+    glDeleteTextures(2, &(_defaultTexIDs[0][0]));
+    glDeleteTextures(2, &(_defaultTexIDs[1][0]));
+    glDeleteTextures(1, &_rngTex);
 
-    createDefaultFBO(_defaultFBO, _defaultTexIDs, win_w, win_h);
+    createDefaultFBO(_defaultFBO[0], &(_defaultTexIDs[0][0]), win_w, win_h);
+    createDefaultFBO(_defaultFBO[1], &(_defaultTexIDs[1][0]), win_w, win_h);
+    _rngTex = util::create2dHybridTausTexture(win_w, win_h);
 }
 
 void error_cb(int error, const char* description)
@@ -889,7 +928,6 @@ void createDefaultFBO(
             formats,
             datatypes,
             filters);
-    util::initialize2dHybridTausTexture(texIDs[1], win_w, win_h);
 }
 
 GLFWwindow* createWindow(
@@ -1307,6 +1345,17 @@ static void showSettingsWindow(
             ImGui::SliderFloat("proportion", &gui_ambient_occlusion_proportion, 0.f, 1.f);
             ImGui::SliderFloat("halfdome radius", &gui_ambient_occlusion_radius, 0.01f, 10.f);
             ImGui::SliderInt("number of samples", &gui_ambient_occlusion_samples, 1, 100);
+
+            ImGui::Spacing();
+
+            ImGui::RadioButton(
+                "volume rendering",
+                &gui_tex_select,
+                static_cast<int>(Output::volume_rendering));
+            ImGui::RadioButton(
+                "random number generator",
+                &gui_tex_select,
+                static_cast<int>(Output::random_number_generator));
         }
 
         ImGui::Separator();

@@ -8,14 +8,16 @@ in vec3 vWorldCoord;        //!< texture coordinates
 uniform sampler3D volumeTex;            //!< 3D texture handle
 uniform sampler2D transferfunctionTex;  //!< 3D texture handle
 
+uniform bool useSeed;           //!< flag if the seed texture shall be used
+uniform usampler2D seed;        //!< seed texture for random number generator
 uniform usampler2D stateIn;     //!< state of random number generator
 
 uniform vec3 eyePos;            //!< camera / eye position in world coordinates
 uniform vec3 bbMin;             //!< axes aligned bounding box min. corner
 uniform vec3 bbMax;             //!< axes aligned bounding box max. corner
 
-uniform uint winWidth;          //!< width of the window in pixels
-uniform uint winHeight;         //!< height of the window in pixels
+uniform int winWidth;           //!< width of the window in pixels
+uniform int winHeight;          //!< height of the window in pixels
 
 // rendering method:
 //   0: line-of-sight
@@ -88,13 +90,25 @@ void initRNG()
 {
     uvec4 stateVec = uvec4(0U);
 
-    stateVec = texture(
-        stateIn, vec2(gl_FragCoord.x / winWidth, gl_FragCoord.y / winHeight));
+    if (useSeed)
+    {
+        stateVec = texture(
+            seed,
+            vec2(gl_FragCoord.x / winWidth, gl_FragCoord.y / winHeight));
+    }
+    else
+    {
+        stateVec = texture(
+            stateIn,
+            vec2(gl_FragCoord.x / winWidth, gl_FragCoord.y / winHeight));
+    }
 
     z1 = stateVec.x;
     z2 = stateVec.y;
     z3 = stateVec.z;
     z4 = stateVec.w;
+
+    stateOut = stateVec;
 }
 
 uint tausStep(uint z, int S1, int S2, int S3, uint M)
@@ -538,6 +552,9 @@ void main()
 
     // transfer function
     vec4 tfColor = vec4(0.f);       //!< color value from the transferfunction
+
+    // initialize random number generator
+    initRNG();
 
     // intersect with bounding box and handle special case when we are inside
     // the box. In this case the ray marching starts directly at the origin.
