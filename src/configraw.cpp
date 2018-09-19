@@ -94,6 +94,9 @@ namespace cr
         if (0 == value.compare("UCHAR"))
             ret_value = Datatype::unsigned_byte;
 
+        if (0 == value.compare("FLOAT"))
+            ret_value = Datatype::single_precision_float;
+
         return ret_value;
     }
 
