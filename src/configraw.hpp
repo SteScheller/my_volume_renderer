@@ -159,9 +159,7 @@ namespace cr
     void loadRaw(
         std::string path, T *buffer, std::size_t size, bool swap = false)
     {
-        std::ifstream fs;
-
-        fs.open(path.c_str(), std::ofstream::in | std::ofstream::binary);
+        std::ifstream fs (path.c_str(), std::ios::in | std::ios::binary);
 
         if (!fs.is_open())
         {
@@ -169,19 +167,16 @@ namespace cr
             return;
         }
 
-        T value;
-        for (std::size_t i = 0; i < size; i++)
-        {
-            if (fs.good())
-            {
-                fs.read(reinterpret_cast<char*>(&value), sizeof(T));
-                if (swap) value = swapByteOrder(value);
-                buffer[i] = value;
-            }
-            else
-                std::cerr << "Error while loading data: read failed!\n";
-        }
+        fs.read(reinterpret_cast<char*>(buffer), size * sizeof(T));
         fs.close();
+
+        if (swap)
+        {
+            for (std::size_t i = 0; i < size; ++i)
+            {
+                buffer[i] = swapByteOrder(buffer[i]);
+            }
+        }
     }
 }
 #endif

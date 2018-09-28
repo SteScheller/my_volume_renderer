@@ -1,3 +1,5 @@
+//#include <cstdio>
+//#include <fstream>
 #include <random>
 
 #include <GL/gl3w.h>
@@ -25,6 +27,14 @@ GLuint util::create3dTexFromScalar(
 {
     GLuint volumeTex;
 
+    /*for (size_t z = 0; z < res_z; ++z)
+    for (size_t y = 0; y < res_y; ++y)
+    for (size_t x = 0; x < res_x; ++x)
+    {
+        reinterpret_cast<unsigned char*>(buf)[x + y * res_x + z * (res_x * res_y)] =
+            0xFF * (x > 45);
+    }*/
+
     glGenTextures(1, &volumeTex);
     glBindTexture(GL_TEXTURE_3D, volumeTex);
     glTexImage3D(
@@ -40,11 +50,22 @@ GLuint util::create3dTexFromScalar(
         buf);
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_BORDER);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+    printOpenGLError();
+    /*printf("Resolution: %i, %i, %i \n", res_x, res_y, res_z);
+    
+    std::ofstream fs ("./texture", std::ios::out | std::ios::binary);
+
+    if (fs.is_open())
+    {
+        fs.write(reinterpret_cast<const char*>(buf), res_x * res_y * res_z);
+        fs.close();
+    }
+
     float borderColor[] = {0.f, 0.f, 0.f, 1.f};
-    glTexParameterfv(GL_TEXTURE_3D, GL_TEXTURE_BORDER_COLOR, borderColor);
+    glTexParameterfv(GL_TEXTURE_3D, GL_TEXTURE_BORDER_COLOR, borderColor);*/
 
     return volumeTex;
 }

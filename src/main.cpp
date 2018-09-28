@@ -45,7 +45,8 @@ enum class Gradient : int
 enum class Output : int
 {
     volume_rendering = 0,
-    random_number_generator
+    random_number_generator,
+    volume_data_slice
 };
 
 //-----------------------------------------------------------------------------
@@ -81,6 +82,7 @@ glm::vec3 camPos = glm::vec3(1.2f, 0.75f, 1.f);
 int gui_mode = static_cast<int>(Mode::line_of_sight);
 
 int gui_tex_select = static_cast<int>(Output::volume_rendering);
+float gui_volume_z = 0.f;
 
 char gui_volume_desc_file[MAX_FILEPATH_LENGTH]; // init from program options
 
@@ -634,8 +636,12 @@ int main(int argc, char *argv[])
 
         glActiveTexture(GL_TEXTURE1);
         glBindTexture(GL_TEXTURE_2D, _defaultTexIDs[ping][1]);
-        //glBindTexture(GL_TEXTURE_2D, _rngTex);
         shaderQuad.setInt("rngTex", 1);
+
+        glActiveTexture(GL_TEXTURE2);
+        glBindTexture(GL_TEXTURE_3D, volumeTex);
+        shaderQuad.setInt("volumeTex", 2);
+        shaderQuad.setFloat("volumeZ", gui_volume_z);
 
         shaderQuad.setMat4("projMX", projMXquad);
         shaderQuad.setInt("texSelect", gui_tex_select);
@@ -1356,6 +1362,11 @@ static void showSettingsWindow(
                 "random number generator",
                 &gui_tex_select,
                 static_cast<int>(Output::random_number_generator));
+            ImGui::RadioButton(
+                "volume data slice",
+                &gui_tex_select,
+                static_cast<int>(Output::volume_data_slice));
+            ImGui::SliderFloat("volume z coordinate", &gui_volume_z, 0.f, 1.f);
         }
 
         ImGui::Separator();
