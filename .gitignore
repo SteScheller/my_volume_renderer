@@ -39,4 +39,5 @@ mvr
 imgui.ini
 my_session.vim
 .gdb_history
+ignored/*
 
