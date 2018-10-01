@@ -9,4 +9,7 @@ refactoring:
 new features:
 - panning of the volume in the output window
 - orthographic projection option
+- screenshot functionality
+- size of rendered volume image independent of window size (allow for high
+resolution screenshots)
 
