@@ -8,6 +8,10 @@
 #include <vector>
 #include <cstdint>
 
+#include <GL/gl3w.h>
+
+#include "util/util.hpp"
+
 typedef uint8_t unsigned_byte_t;
 typedef int8_t signed_byte_t;
 typedef uint16_t unsigned_halfword_t;
@@ -51,6 +55,13 @@ namespace cr
     void *loadScalarVolumeDataTimestep(
         VolumeConfig vConf, unsigned int n, bool swap);
     void deleteVolumeData(VolumeConfig vConf, void *volumeData);
+    GLuint loadScalarVolumeTex(VolumeConfig vConf, void* volumeData);
+    std::vector<util::bin_t > *bucketVolumeData(
+        VolumeConfig vConf,
+        void* values,
+        size_t numBins,
+        float min,
+        float max);
 
     // ------------------------------------------------------------------------
     // classes
@@ -58,19 +69,19 @@ namespace cr
     class VolumeConfig
     {
         private:
-        unsigned int _num_timesteps;    //!< length of the time series
-        std::array<size_t, 3> _volume_dim; //!< number of cells/ nodes in
-                                                 //!< the spatial dimensions of
-                                                 //!< the volume
+        unsigned int _num_timesteps;        //!< length of the time series
+        std::array<size_t, 3> _volume_dim;  //!< number of cells/ nodes in
+                                            //!< the spatial dimensions of
+                                            //!< the volume
         size_t _voxel_count;            //!< total number of voxels
         Datatype _voxel_type;           //!< type information of voxel values
-        std::array<size_t, 3> _voxel_dim; //!< dimensionality of a voxel
-        size_t _voxel_sizeof;     //!< size of a voxel in byte
-        std::string _raw_file_dir;      //!< path to raw files
-        std::string _raw_file_exp;      //!< filter regex for raw files
+        std::array<size_t, 3> _voxel_dim;   //!< dimensionality of a voxel
+        size_t _voxel_sizeof;               //!< size of a voxel in byte
+        std::string _raw_file_dir;          //!< path to raw files
+        std::string _raw_file_exp;          //!< filter regex for raw files
         std::vector<std::string> _raw_files;    //!< vector of file paths to
                                                 //!< the raw data
-        bool _valid;                    //!< health flag
+        bool _valid;                        //!< health flag
 
         public:
         VolumeConfig();                         //!< default constructor

@@ -191,9 +191,6 @@ static void showTransferFunctionWindow(
     GLuint tfFuncFBO,
     GLuint *tfFuncTexIDs,
     GLuint quadVAO);
-std::vector<util::bin_t> *loadHistogramBins(
-    cr::VolumeConfig vConf, void* values, size_t numBins, float min, float max);
-GLuint loadScalarVolumeTex(cr::VolumeConfig vConf, void* volumeData);
 static void reloadStuff(
     cr::VolumeConfig vConf,
     void *&volumeData,
@@ -1427,7 +1424,7 @@ static void showHistogramWindow(
     if(ImGui::Button("Regenerate Histogram"))
     {
         delete histogramBins;
-        histogramBins = loadHistogramBins(
+        histogramBins = bucketVolumeData(
             vConf, volumeData, gui_num_bins, gui_x_min, gui_x_max);
     }
     ImGui::End();
@@ -1629,202 +1626,6 @@ static void showTransferFunctionWindow(
 }
 
 /**
- * \brief Bins the volume data according to its data type
- *
- * \param vConf configuration object for the dataset
- * \param values pointer to the volume data
- * \param numBins number of histogram bins
- * \param min lower histogram x axis limit
- * \param max upper histogram x axis limit
- *
- * \returns an vector of bin objects
- *
- * Note: vector of bins has to be deleted by the calling function
-*/
-std::vector<util::bin_t > *loadHistogramBins(
-    cr::VolumeConfig vConf, void* values, size_t numBins, float min, float max)
-{
-    std::vector<util::bin_t> *bins = nullptr;
-
-    switch(vConf.getVoxelType())
-    {
-        case cr::Datatype::unsigned_byte:
-            bins = util::binData<unsigned_byte_t>(
-                numBins,
-                static_cast<unsigned_byte_t>(min),
-                static_cast<unsigned_byte_t>(max),
-                reinterpret_cast<unsigned_byte_t*>(values),
-                vConf.getVoxelCount());
-            break;
-
-        case cr::Datatype::signed_byte:
-            bins = util::binData<signed_byte_t>(
-                numBins,
-                static_cast<signed_byte_t>(min),
-                static_cast<signed_byte_t>(max),
-                reinterpret_cast<signed_byte_t*>(values),
-                vConf.getVoxelCount());
-            break;
-
-        case cr::Datatype::unsigned_halfword:
-            bins = util::binData<unsigned_halfword_t>(
-                numBins,
-                static_cast<unsigned_halfword_t>(min),
-                static_cast<unsigned_halfword_t>(max),
-                reinterpret_cast<unsigned_halfword_t*>(values),
-                vConf.getVoxelCount());
-            break;
-
-        case cr::Datatype::signed_halfword:
-            bins = util::binData<signed_halfword_t>(
-                numBins,
-                static_cast<signed_halfword_t>(min),
-                static_cast<signed_halfword_t>(max),
-                reinterpret_cast<signed_halfword_t*>(values),
-                vConf.getVoxelCount());
-            break;
-
-        case cr::Datatype::unsigned_word:
-            bins = util::binData<unsigned_word_t>(
-                numBins,
-                static_cast<unsigned_word_t>(min),
-                static_cast<unsigned_word_t>(max),
-                reinterpret_cast<unsigned_word_t*>(values),
-                vConf.getVoxelCount());
-            break;
-
-        case cr::Datatype::signed_word:
-            bins = util::binData<signed_word_t>(
-                numBins,
-                static_cast<signed_word_t>(min),
-                static_cast<signed_word_t>(max),
-                reinterpret_cast<signed_word_t*>(values),
-                vConf.getVoxelCount());
-            break;
-
-        case cr::Datatype::unsigned_longword:
-            bins = util::binData<unsigned_longword_t>(
-                numBins,
-                static_cast<unsigned_longword_t>(min),
-                static_cast<unsigned_longword_t>(max),
-                reinterpret_cast<unsigned_longword_t*>(values),
-                vConf.getVoxelCount());
-            break;
-
-        case cr::Datatype::signed_longword:
-            bins = util::binData<signed_longword_t>(
-                numBins,
-                static_cast<signed_longword_t>(min),
-                static_cast<signed_longword_t>(max),
-                reinterpret_cast<signed_longword_t*>(values),
-                vConf.getVoxelCount());
-            break;
-
-        case cr::Datatype::single_precision_float:
-            bins = util::binData<single_precision_float_t>(
-                numBins,
-                static_cast<single_precision_float_t>(min),
-                static_cast<single_precision_float_t>(max),
-                reinterpret_cast<single_precision_float_t*>(values),
-                vConf.getVoxelCount());
-            break;
-
-        case cr::Datatype::double_precision_float:
-            bins = util::binData<double_precision_float_t>(
-                numBins,
-                static_cast<double_precision_float_t>(min),
-                static_cast<double_precision_float_t>(max),
-                reinterpret_cast<double_precision_float_t*>(values),
-                vConf.getVoxelCount());
-            break;
-
-        default:
-            break;
-    }
-
-    return bins;
-}
-
-GLuint loadScalarVolumeTex(cr::VolumeConfig vConf, void* volumeData)
-{
-    GLuint tex = 0;
-
-    switch(vConf.getVoxelType())
-    {
-        case cr::Datatype::unsigned_byte:
-            tex = util::create3dTexFromScalar(
-                volumeData,
-                GL_UNSIGNED_BYTE,
-                vConf.getVolumeDim()[0],
-                vConf.getVolumeDim()[1],
-                vConf.getVolumeDim()[2]);
-            break;
-
-        case cr::Datatype::signed_byte:
-            tex = util::create3dTexFromScalar(
-                volumeData,
-                GL_BYTE,
-                vConf.getVolumeDim()[0],
-                vConf.getVolumeDim()[1],
-                vConf.getVolumeDim()[2]);
-            break;
-
-        case cr::Datatype::unsigned_halfword:
-            tex = util::create3dTexFromScalar(
-                volumeData,
-                GL_UNSIGNED_SHORT,
-                vConf.getVolumeDim()[0],
-                vConf.getVolumeDim()[1],
-                vConf.getVolumeDim()[2]);
-            break;
-
-        case cr::Datatype::signed_halfword:
-            tex = util::create3dTexFromScalar(
-                volumeData,
-                GL_SHORT,
-                vConf.getVolumeDim()[0],
-                vConf.getVolumeDim()[1],
-                vConf.getVolumeDim()[2]);
-            break;
-
-        case cr::Datatype::unsigned_word:
-            tex = util::create3dTexFromScalar(
-                volumeData,
-                GL_UNSIGNED_INT,
-                vConf.getVolumeDim()[0],
-                vConf.getVolumeDim()[1],
-                vConf.getVolumeDim()[2]);
-            break;
-
-        case cr::Datatype::signed_word:
-            tex = util::create3dTexFromScalar(
-                volumeData,
-                GL_INT,
-                vConf.getVolumeDim()[0],
-                vConf.getVolumeDim()[1],
-                vConf.getVolumeDim()[2]);
-            break;
-
-        case cr::Datatype::single_precision_float:
-            tex = util::create3dTexFromScalar(
-                volumeData,
-                GL_FLOAT,
-                vConf.getVolumeDim()[0],
-                vConf.getVolumeDim()[1],
-                vConf.getVolumeDim()[2]);
-            break;
-
-        case cr::Datatype::double_precision_float:
-        case cr::Datatype::unsigned_longword:
-        case cr::Datatype::signed_longword:
-        default:
-            break;
-    }
-
-    return tex;
-}
-
-/**
  * \brief updates the volume data, texture, histogram information...
 */
 static void reloadStuff(
@@ -1849,9 +1650,9 @@ static void reloadStuff(
             static_cast<float>(vConf.getVolumeDim()[0]),
             static_cast<float>(vConf.getVolumeDim()[1]),
             static_cast<float>(vConf.getVolumeDim()[2]))));
-    histogramBins = loadHistogramBins(
+    histogramBins = bucketVolumeData(
         vConf, volumeData, num_bins, x_min, x_max);
-    volumeTex = loadScalarVolumeTex(vConf, volumeData);
+    volumeTex = cr::loadScalarVolumeTex(vConf, volumeData);
 }
 
 /**
