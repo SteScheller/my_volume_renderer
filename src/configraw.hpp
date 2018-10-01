@@ -73,14 +73,14 @@ namespace cr
         std::array<size_t, 3> _volume_dim;  //!< number of cells/ nodes in
                                             //!< the spatial dimensions of
                                             //!< the volume
-        size_t _voxel_count;            //!< total number of voxels
-        Datatype _voxel_type;           //!< type information of voxel values
+        size_t _voxel_count;                //!< total number of voxels
+        Datatype _voxel_type;               //!< voxel type information
         std::array<size_t, 3> _voxel_dim;   //!< dimensionality of a voxel
         size_t _voxel_sizeof;               //!< size of a voxel in byte
         std::string _raw_file_dir;          //!< path to raw files
         std::string _raw_file_exp;          //!< filter regex for raw files
-        std::vector<std::string> _raw_files;    //!< vector of file paths to
-                                                //!< the raw data
+        std::vector<std::string> _raw_files;//!< vector of file paths to
+                                            //!< the raw data
         bool _valid;                        //!< health flag
 
         public:
@@ -184,6 +184,43 @@ namespace cr
         if (swap)
         {
             for (std::size_t i = 0; i < size; ++i)
+            {
+                buffer[i] = swapByteOrder(buffer[i]);
+            }
+        }
+    }
+
+    /**
+     * \brief loads a subset of 3d volume data from a linear array
+     * \param path Destination of the file to be read
+     * \param buffer Pointer to an array where the read values are stored
+     * \param swap True if the byte order of the read values shall be swapped
+     *
+     * Loads subset of a cuboid volume dataset that is layed out in a flat
+     * array. The subset itself is a cuboid volume dataset that is embedded
+     * in the complete volume dataset.
+    */
+    template<typename T>
+    void loadSubset3dCuboid(
+        std::string path, T *buffer,
+        std::array<size_t, 3> volumeDim,
+        std::array<size_t, 3> subsetMin,
+        std::array<size_t, 3> subsetMax,
+        bool swap = false)
+    {
+        std::ifsteam fs (path.c_str(), std::ios::in | std::ios::binary);
+
+        if (!fs.is_open())
+        {
+            std::cerr <<
+                "Error while loading data subset: cannot open file!\n";
+            return;
+        }
+
+
+        if (swap)
+        {
+            for (std::size_t i = 0; i < ...; ++i)
             {
                 buffer[i] = swapByteOrder(buffer[i]);
             }
