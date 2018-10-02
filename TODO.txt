@@ -1,5 +1,7 @@
 bugfixes:
 - flickering when watching the volume from below
+- check scaling and application of transferfunction when it is extrapolated below or above the limit control points
+- check loading of floats
 
 refactoring:
 - make volume data a class of its own and encapsulate the void pointer stuff
