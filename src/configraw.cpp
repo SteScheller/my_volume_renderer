@@ -135,7 +135,28 @@ namespace cr
             fs >> json_config;
 
             _num_timesteps = json_config["VOLUME_NUM_TIMESTEPS"];
-            _volume_dim = json_config["VOLUME_DIM"];
+            if (
+                    json_config["SUBSET_MIN"].is_array() &&
+                    json_config["SUBSET_MAX"].is_array())
+            {
+                _subset = true;
+                _orig_volume_dim = json_config["VOLUME_DIM"];
+                _subset_min = json_config["SUBSET_MIN"];
+                _subset_max = json_config["SUBSET_MAX"];
+                _volume_dim[0] = (_subset_max[0] - _subset_min[0] + 1);
+                _volume_dim[1] = (_subset_max[1] - _subset_min[1] + 1);
+                _volume_dim[2] = (_subset_max[2] - _subset_min[2] + 1);
+            }
+            else
+            {
+                _subset = false;
+                _volume_dim = json_config["VOLUME_DIM"];
+                _orig_volume_dim = _volume_dim;
+                _subset_min[0] = 0; _subset_min[1] = 0; _subset_min[2] = 0;
+                _subset_max[0] = _volume_dim[0] - 1;
+                _subset_max[1] = _volume_dim[1] - 1;
+                _subset_max[2] = _volume_dim[2] - 1;
+            }
             _voxel_count = _volume_dim[0] * _volume_dim[1] * _volume_dim[2];
             _voxel_type = dotconfigValToDatatype(
                 json_config["VOLUME_DATA_TYPE"]);
@@ -200,110 +221,243 @@ namespace cr
     {
         void *volumeData = nullptr;
 
-        switch(vConf.getVoxelType())
+        if (!vConf.getSubset())
         {
-            case Datatype::unsigned_byte:
-                volumeData = reinterpret_cast<void *>(
-                    new unsigned_byte_t[vConf.getVoxelCount()]);
-                loadRaw<unsigned_byte_t>(
-                    vConf.getTimestepFile(n),
-                    reinterpret_cast<unsigned_byte_t*>(volumeData),
-                    vConf.getVoxelCount(),
-                    swap);
-                break;
+            // the volume shall be loaded completely
+            switch(vConf.getVoxelType())
+            {
+                case Datatype::unsigned_byte:
+                    volumeData = reinterpret_cast<void *>(
+                        new unsigned_byte_t[vConf.getVoxelCount()]);
+                    loadRaw<unsigned_byte_t>(
+                        vConf.getTimestepFile(n),
+                        reinterpret_cast<unsigned_byte_t*>(volumeData),
+                        vConf.getVoxelCount(),
+                        swap);
+                    break;
 
-            case Datatype::signed_byte:
-                volumeData = reinterpret_cast<void *>(
-                    new signed_byte_t[vConf.getVoxelCount()]);
-                loadRaw<signed_byte_t>(
-                    vConf.getTimestepFile(n),
-                    reinterpret_cast<signed_byte_t*>(volumeData),
-                    vConf.getVoxelCount(),
-                    swap);
-                break;
+                case Datatype::signed_byte:
+                    volumeData = reinterpret_cast<void *>(
+                        new signed_byte_t[vConf.getVoxelCount()]);
+                    loadRaw<signed_byte_t>(
+                        vConf.getTimestepFile(n),
+                        reinterpret_cast<signed_byte_t*>(volumeData),
+                        vConf.getVoxelCount(),
+                        swap);
+                    break;
 
-            case Datatype::unsigned_halfword:
-                volumeData = reinterpret_cast<void *>(
-                    new unsigned_halfword_t[vConf.getVoxelCount()]);
-                loadRaw<unsigned_halfword_t>(
-                    vConf.getTimestepFile(n),
-                    reinterpret_cast<unsigned_halfword_t*>(volumeData),
-                    vConf.getVoxelCount(),
-                    swap);
-                break;
+                case Datatype::unsigned_halfword:
+                    volumeData = reinterpret_cast<void *>(
+                        new unsigned_halfword_t[vConf.getVoxelCount()]);
+                    loadRaw<unsigned_halfword_t>(
+                        vConf.getTimestepFile(n),
+                        reinterpret_cast<unsigned_halfword_t*>(volumeData),
+                        vConf.getVoxelCount(),
+                        swap);
+                    break;
 
-            case Datatype::signed_halfword:
-                volumeData = reinterpret_cast<void *>(
-                    new signed_halfword_t[vConf.getVoxelCount()]);
-                loadRaw<signed_halfword_t>(
-                    vConf.getTimestepFile(n),
-                    reinterpret_cast<signed_halfword_t*>(volumeData),
-                    vConf.getVoxelCount(),
-                    swap);
-                break;
+                case Datatype::signed_halfword:
+                    volumeData = reinterpret_cast<void *>(
+                        new signed_halfword_t[vConf.getVoxelCount()]);
+                    loadRaw<signed_halfword_t>(
+                        vConf.getTimestepFile(n),
+                        reinterpret_cast<signed_halfword_t*>(volumeData),
+                        vConf.getVoxelCount(),
+                        swap);
+                    break;
 
-            case Datatype::unsigned_word:
-                volumeData = reinterpret_cast<void *>(
-                    new unsigned_word_t[vConf.getVoxelCount()]);
-                loadRaw<unsigned_word_t>(
-                    vConf.getTimestepFile(n),
-                    reinterpret_cast<unsigned_word_t*>(volumeData),
-                    vConf.getVoxelCount(),
-                    swap);
-                break;
+                case Datatype::unsigned_word:
+                    volumeData = reinterpret_cast<void *>(
+                        new unsigned_word_t[vConf.getVoxelCount()]);
+                    loadRaw<unsigned_word_t>(
+                        vConf.getTimestepFile(n),
+                        reinterpret_cast<unsigned_word_t*>(volumeData),
+                        vConf.getVoxelCount(),
+                        swap);
+                    break;
 
-            case Datatype::signed_word:
-                volumeData = reinterpret_cast<void *>(
-                    new signed_word_t[vConf.getVoxelCount()]);
-                loadRaw<signed_word_t>(
-                    vConf.getTimestepFile(n),
-                    reinterpret_cast<signed_word_t*>(volumeData),
-                    vConf.getVoxelCount(),
-                    swap);
-                break;
+                case Datatype::signed_word:
+                    volumeData = reinterpret_cast<void *>(
+                        new signed_word_t[vConf.getVoxelCount()]);
+                    loadRaw<signed_word_t>(
+                        vConf.getTimestepFile(n),
+                        reinterpret_cast<signed_word_t*>(volumeData),
+                        vConf.getVoxelCount(),
+                        swap);
+                    break;
 
-            case Datatype::unsigned_longword:
-                volumeData = reinterpret_cast<void *>(
-                    new unsigned_longword_t[vConf.getVoxelCount()]);
-                loadRaw<unsigned_longword_t>(
-                    vConf.getTimestepFile(n),
-                    reinterpret_cast<unsigned_longword_t*>(volumeData),
-                    vConf.getVoxelCount(),
-                    swap);
-                break;
+                case Datatype::unsigned_longword:
+                    volumeData = reinterpret_cast<void *>(
+                        new unsigned_longword_t[vConf.getVoxelCount()]);
+                    loadRaw<unsigned_longword_t>(
+                        vConf.getTimestepFile(n),
+                        reinterpret_cast<unsigned_longword_t*>(volumeData),
+                        vConf.getVoxelCount(),
+                        swap);
+                    break;
 
-            case Datatype::signed_longword:
-                volumeData = reinterpret_cast<void *>(
-                    new signed_longword_t[vConf.getVoxelCount()]);
-                loadRaw<signed_longword_t>(
-                    vConf.getTimestepFile(n),
-                    reinterpret_cast<signed_longword_t*>(volumeData),
-                    vConf.getVoxelCount(),
-                    swap);
-                break;
+                case Datatype::signed_longword:
+                    volumeData = reinterpret_cast<void *>(
+                        new signed_longword_t[vConf.getVoxelCount()]);
+                    loadRaw<signed_longword_t>(
+                        vConf.getTimestepFile(n),
+                        reinterpret_cast<signed_longword_t*>(volumeData),
+                        vConf.getVoxelCount(),
+                        swap);
+                    break;
 
-            case Datatype::single_precision_float:
-                volumeData = reinterpret_cast<void *>(
-                    new single_precision_float_t[vConf.getVoxelCount()]);
-                loadRaw<single_precision_float_t>(
-                    vConf.getTimestepFile(n),
-                    reinterpret_cast<single_precision_float_t*>(volumeData),
-                    vConf.getVoxelCount(),
-                    swap);
-                break;
+                case Datatype::single_precision_float:
+                    volumeData = reinterpret_cast<void *>(
+                        new single_precision_float_t[vConf.getVoxelCount()]);
+                    loadRaw<single_precision_float_t>(
+                        vConf.getTimestepFile(n),
+                        reinterpret_cast<single_precision_float_t*>(volumeData),
+                        vConf.getVoxelCount(),
+                        swap);
+                    break;
 
-            case Datatype::double_precision_float:
-                volumeData = reinterpret_cast<void *>(
-                    new double_precision_float_t[vConf.getVoxelCount()]);
-                loadRaw<double_precision_float_t>(
-                    vConf.getTimestepFile(n),
-                    reinterpret_cast<double_precision_float_t*>(volumeData),
-                    vConf.getVoxelCount(),
-                    swap);
-                break;
+                case Datatype::double_precision_float:
+                    volumeData = reinterpret_cast<void *>(
+                        new double_precision_float_t[vConf.getVoxelCount()]);
+                    loadRaw<double_precision_float_t>(
+                        vConf.getTimestepFile(n),
+                        reinterpret_cast<double_precision_float_t*>(volumeData),
+                        vConf.getVoxelCount(),
+                        swap);
+                    break;
 
-            default:
-                break;
+                default:
+                    break;
+            }
+        }
+        else
+        {
+            // only a subset of the volume shall be loaded
+            switch(vConf.getVoxelType())
+            {
+                case Datatype::unsigned_byte:
+                    volumeData = reinterpret_cast<void *>(
+                        new unsigned_byte_t[vConf.getVoxelCount()]);
+                    loadSubset3dCuboid<unsigned_byte_t>(
+                        vConf.getTimestepFile(n),
+                        reinterpret_cast<unsigned_byte_t*>(volumeData),
+                        vConf.getOrigVolumeDim(),
+                        vConf.getSubsetMin(),
+                        vConf.getSubsetMax(),
+                        swap);
+                    break;
+
+                case Datatype::signed_byte:
+                    volumeData = reinterpret_cast<void *>(
+                        new signed_byte_t[vConf.getVoxelCount()]);
+                    loadSubset3dCuboid<signed_byte_t>(
+                        vConf.getTimestepFile(n),
+                        reinterpret_cast<signed_byte_t*>(volumeData),
+                        vConf.getOrigVolumeDim(),
+                        vConf.getSubsetMin(),
+                        vConf.getSubsetMax(),
+                        swap);
+                    break;
+
+                case Datatype::unsigned_halfword:
+                    volumeData = reinterpret_cast<void *>(
+                        new unsigned_halfword_t[vConf.getVoxelCount()]);
+                    loadSubset3dCuboid<unsigned_halfword_t>(
+                        vConf.getTimestepFile(n),
+                        reinterpret_cast<unsigned_halfword_t*>(volumeData),
+                        vConf.getOrigVolumeDim(),
+                        vConf.getSubsetMin(),
+                        vConf.getSubsetMax(),
+                        swap);
+                    break;
+
+                case Datatype::signed_halfword:
+                    volumeData = reinterpret_cast<void *>(
+                        new signed_halfword_t[vConf.getVoxelCount()]);
+                    loadSubset3dCuboid<signed_halfword_t>(
+                        vConf.getTimestepFile(n),
+                        reinterpret_cast<signed_halfword_t*>(volumeData),
+                        vConf.getOrigVolumeDim(),
+                        vConf.getSubsetMin(),
+                        vConf.getSubsetMax(),
+                        swap);
+                    break;
+
+                case Datatype::unsigned_word:
+                    volumeData = reinterpret_cast<void *>(
+                        new unsigned_word_t[vConf.getVoxelCount()]);
+                    loadSubset3dCuboid<unsigned_word_t>(
+                        vConf.getTimestepFile(n),
+                        reinterpret_cast<unsigned_word_t*>(volumeData),
+                        vConf.getOrigVolumeDim(),
+                        vConf.getSubsetMin(),
+                        vConf.getSubsetMax(),
+                        swap);
+                    break;
+
+                case Datatype::signed_word:
+                    volumeData = reinterpret_cast<void *>(
+                        new signed_word_t[vConf.getVoxelCount()]);
+                    loadSubset3dCuboid<signed_word_t>(
+                        vConf.getTimestepFile(n),
+                        reinterpret_cast<signed_word_t*>(volumeData),
+                        vConf.getOrigVolumeDim(),
+                        vConf.getSubsetMin(),
+                        vConf.getSubsetMax(),
+                        swap);
+                    break;
+
+                case Datatype::unsigned_longword:
+                    volumeData = reinterpret_cast<void *>(
+                        new unsigned_longword_t[vConf.getVoxelCount()]);
+                    loadSubset3dCuboid<unsigned_longword_t>(
+                        vConf.getTimestepFile(n),
+                        reinterpret_cast<unsigned_longword_t*>(volumeData),
+                        vConf.getOrigVolumeDim(),
+                        vConf.getSubsetMin(),
+                        vConf.getSubsetMax(),
+                        swap);
+                    break;
+
+                case Datatype::signed_longword:
+                    volumeData = reinterpret_cast<void *>(
+                        new signed_longword_t[vConf.getVoxelCount()]);
+                    loadSubset3dCuboid<signed_longword_t>(
+                        vConf.getTimestepFile(n),
+                        reinterpret_cast<signed_longword_t*>(volumeData),
+                        vConf.getOrigVolumeDim(),
+                        vConf.getSubsetMin(),
+                        vConf.getSubsetMax(),
+                        swap);
+                    break;
+
+                case Datatype::single_precision_float:
+                    volumeData = reinterpret_cast<void *>(
+                        new single_precision_float_t[vConf.getVoxelCount()]);
+                    loadSubset3dCuboid<single_precision_float_t>(
+                        vConf.getTimestepFile(n),
+                        reinterpret_cast<single_precision_float_t*>(volumeData),
+                        vConf.getOrigVolumeDim(),
+                        vConf.getSubsetMin(),
+                        vConf.getSubsetMax(),
+                        swap);
+                    break;
+
+                case Datatype::double_precision_float:
+                    volumeData = reinterpret_cast<void *>(
+                        new double_precision_float_t[vConf.getVoxelCount()]);
+                    loadSubset3dCuboid<double_precision_float_t>(
+                        vConf.getTimestepFile(n),
+                        reinterpret_cast<double_precision_float_t*>(volumeData),
+                        vConf.getOrigVolumeDim(),
+                        vConf.getSubsetMin(),
+                        vConf.getSubsetMax(),
+                        swap);
+                    break;
+
+                default:
+                    break;
+            }
         }
 
         return volumeData;

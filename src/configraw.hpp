@@ -72,8 +72,20 @@ namespace cr
         unsigned int _num_timesteps;        //!< length of the time series
         std::array<size_t, 3> _volume_dim;  //!< number of cells/ nodes in
                                             //!< the spatial dimensions of
-                                            //!< the volume
-        size_t _voxel_count;                //!< total number of voxels
+                                            //!< the loaded volume
+        std::array<size_t, 3> _orig_volume_dim;
+                                            //!< number of cells/ nodes in
+                                            //!< the spatial dimensions of
+                                            //!< the whole volume
+        bool _subset;                       //!< indicator if only a subset
+                                            //!< of the available volume data
+                                            //!< shall be loaded
+        std::array<size_t, 3> _subset_min;  //!< index of lower left voxel
+                                            //!< of loaded volume (sub-)cuboid
+        std::array<size_t, 3> _subset_max;  //!< index of upper right voxel
+                                            //!< of loaded volume (sub-)cuboid
+        size_t _voxel_count;                //!< total number of voxels in the
+                                            //!< loaded volume
         Datatype _voxel_type;               //!< voxel type information
         std::array<size_t, 3> _voxel_dim;   //!< dimensionality of a voxel
         size_t _voxel_sizeof;               //!< size of a voxel in byte
@@ -104,6 +116,10 @@ namespace cr
         // getter and setter
         unsigned int getNumTimesteps(){ return _num_timesteps; }
         std::array<size_t, 3> getVolumeDim(){ return _volume_dim; }
+        std::array<size_t, 3> getOrigVolumeDim(){ return _orig_volume_dim; }
+        bool getSubset(){ return _subset; }
+        std::array<size_t, 3> getSubsetMin(){ return _subset_min; }
+        std::array<size_t, 3> getSubsetMax(){ return _subset_max; }
         size_t getVoxelCount(){ return _voxel_count; }
         Datatype getVoxelType(){ return _voxel_type; }
         std::array<size_t, 3> getVoxelDim(){ return _voxel_dim; }
@@ -194,6 +210,9 @@ namespace cr
      * \brief loads a subset of 3d volume data from a linear array
      * \param path Destination of the file to be read
      * \param buffer Pointer to an array where the read values are stored
+     * \param origVolumeDim dimensions of the whole volume
+     * \param subsetMin index of the lower left voxel of the loaded cuboid
+     * \param subsetMax index of the upper right voxel of the loaded cuboid
      * \param swap True if the byte order of the read values shall be swapped
      *
      * Loads subset of a cuboid volume dataset that is layed out in a flat
@@ -202,13 +221,14 @@ namespace cr
     */
     template<typename T>
     void loadSubset3dCuboid(
-        std::string path, T *buffer,
-        std::array<size_t, 3> volumeDim,
+        std::string path,
+        T *buffer,
+        std::array<size_t, 3> origVolumeDim,
         std::array<size_t, 3> subsetMin,
         std::array<size_t, 3> subsetMax,
         bool swap = false)
     {
-        std::ifsteam fs (path.c_str(), std::ios::in | std::ios::binary);
+        std::ifstream fs (path.c_str(), std::ios::in | std::ios::binary);
 
         if (!fs.is_open())
         {
@@ -217,10 +237,34 @@ namespace cr
             return;
         }
 
+        // load the data in chunks along the x axis
+        size_t volumeIdx = 0, bufferIdx = 0;
+        size_t chunkSize = subsetMax[0] - subsetMin[0] + 1;
+
+        for (size_t z = subsetMin[2]; z <= subsetMax[2]; ++z)
+        for (size_t y = subsetMin[1]; y <= subsetMax[1]; ++y)
+        {
+            volumeIdx = sizeof(T) * (
+                subsetMin[0] +
+                y * origVolumeDim[0] +
+                z * origVolumeDim[0] * origVolumeDim[1]);
+
+            fs.seekg(volumeIdx);
+            fs.read(
+                reinterpret_cast<char*>(&buffer[bufferIdx]),
+                sizeof(T) * chunkSize);
+
+            bufferIdx += chunkSize;
+        }
 
         if (swap)
         {
-            for (std::size_t i = 0; i < ...; ++i)
+            size_t count = (
+                (subsetMax[0] - subsetMin[0] + 1) *
+                (subsetMax[1] - subsetMin[1] + 1) *
+                (subsetMax[2] - subsetMin[2] + 1));
+
+            for (std::size_t i = 0; i < count; ++i)
             {
                 buffer[i] = swapByteOrder(buffer[i]);
             }
