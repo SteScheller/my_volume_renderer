@@ -55,6 +55,9 @@ enum class Output : int
 unsigned int win_w = 1600;
 unsigned int win_h = 900;
 
+unsigned int render_w = 1920;
+unsigned int render_h = 1080;
+
 unsigned int tf_func_img_w = 384;
 unsigned int tf_func_img_h = 96;
 
@@ -149,13 +152,13 @@ void char_cb(GLFWwindow* window, unsigned int c);
 void framebuffer_size_cb(GLFWwindow* window, int width, int height);
 void error_cb(int error, const char* description);
 GLFWwindow* createWindow(
-    unsigned int win_w, unsigned int win_h, const char* title);
+    unsigned int width, unsigned int height, const char* title);
 void applyProgramOptions(int argc, char *argv[]);
-void createDefaultFBO(
+void createPingPongFBO(
     GLuint &fbo,
     GLuint texIDs[2],
-    unsigned int win_w,
-    unsigned int win_h);
+    unsigned int width,
+    unsigned int height);
 void initializeGl3w();
 void initializeImGui(GLFWwindow* window);
 static GLuint createFrameVAO(
@@ -170,6 +173,7 @@ static GLuint createQuadVAO(
         const float vertices[2 * 4],
         const unsigned int indices[4],
         const float texCoords[2 * 4]);
+void resizeRenderResult(int width, int height);
 static void showHelpMarker(const char* desc);
 static void showSettingsWindow(
     cr::VolumeConfig &vConf,
@@ -223,8 +227,8 @@ static bool _flag_reload_shaders = false;
 static bool _flag_show_menues = true;
 
 // default fbo for storing different rendering results and helpers
-static GLuint _defaultFBO[2] = { 0, 0 };
-static GLuint _defaultTexIDs[2][2] = {{ 0, 0 }, { 0, 0 }};
+static GLuint _ppFBOs[2] = { 0, 0 };
+static GLuint _ppTexIDs[2][2] = {{ 0, 0 }, { 0, 0 }};
 
 // flag for seeding the random generator in the fragment shader
 static GLuint _rngTex = 0;
@@ -341,8 +345,8 @@ int main(int argc, char *argv[])
     // ------------------------------------------------------------------------
     // framebuffer objects
     // ------------------------------------------------------------------------
-    createDefaultFBO(_defaultFBO[0], &(_defaultTexIDs[0][0]), win_w, win_h);
-    createDefaultFBO(_defaultFBO[1], &(_defaultTexIDs[1][0]), win_w, win_h);
+    createPingPongFBO(_ppFBOs[0], &(_ppTexIDs[0][0]), render_w, render_h);
+    createPingPongFBO(_ppFBOs[1], &(_ppTexIDs[1][0]), render_w, render_h);
 
     GLuint tfColorFBO = 0;
     GLuint tfColorTexIDs[1] = { 0 };
@@ -401,7 +405,7 @@ int main(int argc, char *argv[])
 
     glm::mat4 projMX = glm::perspective(
         glm::radians(fovY),
-        static_cast<float>(win_w)/static_cast<float>(win_h),
+        static_cast<float>(render_w)/static_cast<float>(render_h),
         0.1f,
         50.0f);
 
@@ -448,7 +452,7 @@ int main(int argc, char *argv[])
     glm::mat4 projMXquad = glm::ortho(0.f, 1.f, 0.f, 1.f);
 
     // seed texture for fragment shader random number generator
-    _rngTex = util::create2dHybridTausTexture(win_w, win_h);
+    _rngTex = util::create2dHybridTausTexture(render_w, render_h);
 
     // ------------------------------------------------------------------------
     // render loop
@@ -491,8 +495,8 @@ int main(int argc, char *argv[])
         // --------------------------------------------------------------------
 
         // activate the framebuffer object as current framebuffer
-        glViewport(0, 0, win_w, win_h);
-        glBindFramebuffer(GL_FRAMEBUFFER, _defaultFBO[ping]);
+        glViewport(0, 0, render_w, render_h);
+        glBindFramebuffer(GL_FRAMEBUFFER, _ppFBOs[ping]);
 
         // select color attachments as render targets
         static const GLenum buf[2] = {
@@ -508,7 +512,7 @@ int main(int argc, char *argv[])
         viewMX = glm::lookAt(camPos, glm::vec3(0.f), up);
         projMX = glm::perspective(
             glm::radians(fovY),
-            static_cast<float>(win_w)/static_cast<float>(win_h),
+            static_cast<float>(render_w)/static_cast<float>(render_h),
             zNear,
             zFar);
 
@@ -554,11 +558,11 @@ int main(int argc, char *argv[])
         shaderVolume.setBool("useSeed", true);
 
         glActiveTexture(GL_TEXTURE3);
-        glBindTexture(GL_TEXTURE_2D, _defaultTexIDs[pong][1]);
+        glBindTexture(GL_TEXTURE_2D, _ppTexIDs[pong][1]);
         shaderVolume.setInt("stateIn", 3);
 
-        shaderVolume.setInt("winWidth", win_w);
-        shaderVolume.setInt("winHeight", win_h);
+        shaderVolume.setInt("winWidth", render_w);
+        shaderVolume.setInt("winHeight", render_h);
         shaderVolume.setInt("mode", gui_mode);
         shaderVolume.setMat4("modelMX", modelMX);
         shaderVolume.setMat4("pvmMX", projMX * viewMX * modelMX);
@@ -628,11 +632,11 @@ int main(int argc, char *argv[])
         shaderQuad.use();
 
         glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, _defaultTexIDs[ping][0]);
+        glBindTexture(GL_TEXTURE_2D, _ppTexIDs[ping][0]);
         shaderQuad.setInt("renderTex", 0);
 
         glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, _defaultTexIDs[ping][1]);
+        glBindTexture(GL_TEXTURE_2D, _ppTexIDs[ping][1]);
         shaderQuad.setInt("rngTex", 1);
 
         glActiveTexture(GL_TEXTURE2);
@@ -695,9 +699,9 @@ int main(int argc, char *argv[])
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
 
-    glDeleteFramebuffers(2, _defaultFBO);
-    glDeleteTextures(2, &(_defaultTexIDs[0][0]));
-    glDeleteTextures(2, &(_defaultTexIDs[1][0]));
+    glDeleteFramebuffers(2, _ppFBOs);
+    glDeleteTextures(2, &(_ppTexIDs[0][0]));
+    glDeleteTextures(2, &(_ppTexIDs[1][0]));
     glDeleteTextures(1, &_rngTex);
     glDeleteFramebuffers(1, &tfColorFBO);
     glDeleteTextures(1, tfColorTexIDs);
@@ -846,15 +850,6 @@ void framebuffer_size_cb(
 {
     win_w = width;
     win_h = height;
-
-    glDeleteFramebuffers(2, _defaultFBO);
-    glDeleteTextures(2, &(_defaultTexIDs[0][0]));
-    glDeleteTextures(2, &(_defaultTexIDs[1][0]));
-    glDeleteTextures(1, &_rngTex);
-
-    createDefaultFBO(_defaultFBO[0], &(_defaultTexIDs[0][0]), win_w, win_h);
-    createDefaultFBO(_defaultFBO[1], &(_defaultTexIDs[1][0]), win_w, win_h);
-    _rngTex = util::create2dHybridTausTexture(win_w, win_h);
 }
 
 void error_cb(int error, const char* description)
@@ -909,11 +904,11 @@ void applyProgramOptions(int argc, char *argv[])
     }
 }
 
-void createDefaultFBO(
+void createPingPongFBO(
     GLuint &fbo,
     GLuint texIDs[2],
-    unsigned int win_w,
-    unsigned int win_h)
+    unsigned int width,
+    unsigned int height)
 {
     GLenum attachments[2] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
     GLint  internalFormats[2] = { GL_RGBA, GL_RGBA32UI };
@@ -922,8 +917,8 @@ void createDefaultFBO(
     GLint  filters[2] = { GL_LINEAR, GL_NEAREST };
 
     fbo = util::createFrameBufferObject(
-            win_w,
-            win_h,
+            width,
+            height,
             texIDs,
             2,
             attachments,
@@ -934,7 +929,7 @@ void createDefaultFBO(
 }
 
 GLFWwindow* createWindow(
-    unsigned int win_w, unsigned int win_h, const char* title)
+    unsigned int width, unsigned int height, const char* title)
 {
     glfwSetErrorCallback(error_cb);
     if (!glfwInit()) exit(EXIT_FAILURE);
@@ -946,7 +941,7 @@ GLFWwindow* createWindow(
 #endif
 
     GLFWwindow* window = glfwCreateWindow(
-        win_w, win_h, title, nullptr, nullptr);
+        width, height, title, nullptr, nullptr);
     glfwMakeContextCurrent(window);
     glfwSwapInterval(1);
 
@@ -1134,6 +1129,23 @@ static GLuint createQuadVAO(
     glDeleteBuffers(1, &ebo);
 
     return quadVAO;
+}
+
+void resizeRenderResult(
+    int width,
+    int height)
+{
+    render_w = width;
+    render_h = height;
+
+    glDeleteFramebuffers(2, _ppFBOs);
+    glDeleteTextures(2, &(_ppTexIDs[0][0]));
+    glDeleteTextures(2, &(_ppTexIDs[1][0]));
+    glDeleteTextures(1, &_rngTex);
+
+    createPingPongFBO(_ppFBOs[0], &(_ppTexIDs[0][0]), render_w, render_h);
+    createPingPongFBO(_ppFBOs[1], &(_ppTexIDs[1][0]), render_w, render_h);
+    _rngTex = util::create2dHybridTausTexture(render_w, render_h);
 }
 
 // from imgui_demo.cpp
