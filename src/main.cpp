@@ -84,6 +84,10 @@ glm::vec3 camPos = glm::vec3(1.2f, 0.75f, 1.f);
 //-----------------------------------------------------------------------------
 int gui_mode = static_cast<int>(Mode::line_of_sight);
 
+int gui_render_resolution[2] = {
+    static_cast<int>(render_w),
+    static_cast<int>(render_h)};
+
 int gui_tex_select = static_cast<int>(Output::volume_rendering);
 float gui_volume_z = 0.f;
 
@@ -1328,7 +1332,7 @@ static void showSettingsWindow(
             showHelpMarker(
                 "Hold the middle mouse button and move the mouse to pan "
                 "the camera");
-           glm::vec3 polar = util::cartesianToPolar<glm::vec3>(camPos);
+            glm::vec3 polar = util::cartesianToPolar<glm::vec3>(camPos);
             ImGui::Text("phi: %.3f", polar.y);
             ImGui::Text("theta: %.3f", polar.z);
             ImGui::Text("radius: %.3f", polar.x);
@@ -1339,14 +1343,33 @@ static void showSettingsWindow(
 
         if (ImGui::CollapsingHeader("General"))
         {
-            ImGui::Checkbox("draw frame", &gui_frame); ImGui::SameLine();
-            ImGui::Checkbox("wireframe", &gui_wireframe);
+            ImGui::DragInt2(
+                    "Rendering Resolution",
+                    gui_render_resolution,
+                    1.0f,
+                    240,
+                    8192);
+            if (ImGui::Button("Change Resolution"))
+                resizeRenderResult(
+                        gui_render_resolution[0], gui_render_resolution[1]);
+
+            ImGui::Separator();
+
             ImGui::Checkbox(
                 "show ImGui demo window", &gui_show_demo_window);
+
+            ImGui::Separator();
+
+            ImGui::Checkbox("draw frame", &gui_frame); ImGui::SameLine();
+            ImGui::Checkbox("wireframe", &gui_wireframe);
+
+            ImGui::Separator();
+
             ImGui::Checkbox("invert colors", &gui_invert_colors);
+            ImGui::SameLine();
             ImGui::Checkbox("invert alpha", &gui_invert_alpha);
 
-            ImGui::Spacing();
+            ImGui::Separator();
 
             ImGui::Checkbox("slice volume", &gui_slice_volume);
             ImGui::SliderFloat3(
@@ -1354,14 +1377,14 @@ static void showSettingsWindow(
             ImGui::SliderFloat3(
                 "slicing plane base", gui_slice_plane_base, -1.f, 1.f);
 
-            ImGui::Spacing();
+            ImGui::Separator();
 
             ImGui::Checkbox("ambient occlusion", &gui_ambient_occlusion);
             ImGui::SliderFloat("proportion", &gui_ambient_occlusion_proportion, 0.f, 1.f);
             ImGui::SliderFloat("halfdome radius", &gui_ambient_occlusion_radius, 0.01f, 10.f);
             ImGui::SliderInt("number of samples", &gui_ambient_occlusion_samples, 1, 100);
 
-            ImGui::Spacing();
+            ImGui::Separator();
 
             ImGui::RadioButton(
                 "volume rendering",
