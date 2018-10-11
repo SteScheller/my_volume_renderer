@@ -2,15 +2,15 @@
 My implementation of a volume renderer with OpenGL.
 
 ## Screenshots
-![Screenshot](https://github.com/SteScheller/my_volume_renderer/blob/master/screenshots/jet_t76.png)
+![Screenshot](https://github.com/SteScheller/my_volume_renderer/blob/master/screenshots/examples/jet_t76.png)
 
-![Screenshot](https://github.com/SteScheller/my_volume_renderer/blob/master/screenshots/hydrogenAtom_tf.png)
+![Screenshot](https://github.com/SteScheller/my_volume_renderer/blob/master/screenshots/examples/hydrogenAtom_tf.png)
 
-![Screenshot](https://github.com/SteScheller/my_volume_renderer/blob/master/screenshots/beethoven_tf.png)
+![Screenshot](https://github.com/SteScheller/my_volume_renderer/blob/master/screenshots/examples/beethoven_tf.png)
 
-![Screenshot](https://github.com/SteScheller/my_volume_renderer/blob/master/screenshots/engine_iso.png)
+![Screenshot](https://github.com/SteScheller/my_volume_renderer/blob/master/screenshots/examples/engine_iso.png)
 
-![Screenshot](https://github.com/SteScheller/my_volume_renderer/blob/master/screenshots/bonsai_tf.png)
+![Screenshot](https://github.com/SteScheller/my_volume_renderer/blob/master/screenshots/examples/bonsai_tf.png)
 
 ## Included Libraries
 - https://github.com/ocornut/imgui
