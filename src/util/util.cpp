@@ -1,6 +1,7 @@
 #include <iostream>
 #include <string>
 #include <GL/gl3w.h>
+#include <FreeImage.h>
 
 #include "util.hpp"
 
@@ -111,5 +112,39 @@ GLuint util::createFrameBufferObject(
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     return fboID;
+}
+
+/**
+ *  \brief Outputs OpenGL errors at the current code position
+ *
+ *  \param file name of the current code file (__FILE__)
+ *  \param line number in the current code file (__LINE__)
+ *
+ *  \return true if an error occured, false otherwise
+ */
+void util::makeScreenshot(const char *file, int line)
+{
+    // Make the BYTE array, factor of 3 because it's RBG.
+    GLubyte pixels = new GLubyte[3 * width * height];
+
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, pixels);
+
+    // Convert to FreeImage format & save to file
+    FIBITMAP* image = FreeImage_ConvertFromRawBits(
+            pixels,
+            width,
+            height,
+            3 * width,
+            24,
+            0x0000FF,
+            0xFF0000,
+            0x00FF00,
+            false);
+    FreeImage_Save(FIF_BMP, image, "C:/test.bmp", 0);
+
+    // Free resources
+    FreeImage_Unload(image);
+    delete[] pixels;
 }
 
