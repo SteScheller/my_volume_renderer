@@ -6,9 +6,16 @@ import sys
 
 DIR_OF_THIS_SCRIPT = os.path.abspath(os.path.dirname( __file__ ))
 
-INCLUDE = 'src include libs/gl3w libs/imgui'
+INCLUDE = 'src include libs/gl3w libs/imgui libs/nlohmann'
 FLAGS = ['`pkg-config --cflags glfw3`', '-Wall', '-Wextra']
-LIBS = ['-lGL', '`pkg-config --static --libs glfw3`']
+LIBS = [
+        '-lGL',
+        '`pkg-config --static --libs glfw3`',
+        '-lboost_system',
+        '-lboost_filesystem',
+        '-lboost_regex',
+        '-lboost_program_options',
+        '-lfreeimage']
 
 # for debugging
 log = None
