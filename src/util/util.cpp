@@ -84,8 +84,8 @@ GLuint util::createFrameBufferObject(
 {
     GLuint fboID = 0;
 
-	glGenFramebuffers(1, &fboID);
-	glBindFramebuffer(GL_FRAMEBUFFER, fboID);
+    glGenFramebuffers(1, &fboID);
+    glBindFramebuffer(GL_FRAMEBUFFER, fboID);
 
     for (unsigned int i = 0; i < numAttachments; ++i)
     {
@@ -106,27 +106,35 @@ GLuint util::createFrameBufferObject(
     }
 
     printOpenGLError();
-	if (!(GL_FRAMEBUFFER_COMPLETE == glCheckFramebufferStatus(GL_FRAMEBUFFER)))
-		std::cout << "Error: frame buffer object incomplete!\n" << std::endl;
+    if (!(GL_FRAMEBUFFER_COMPLETE == glCheckFramebufferStatus(GL_FRAMEBUFFER)))
+        std::cout << "Error: frame buffer object incomplete!\n" << std::endl;
 
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     return fboID;
 }
 
 /**
- *  \brief Outputs OpenGL errors at the current code position
+ *  \brief Grabs the RGB values from the given FBO and writes them to an image
+ *         file.
  *
- *  \param file name of the current code file (__FILE__)
- *  \param line number in the current code file (__LINE__)
- *
- *  \return true if an error occured, false otherwise
+ *  \param fbo object from which the pixel shall be read
+ *  \param width horizontal size of the fbo object in pixel
+ *  \param height vertical size of the fbo object in pixel
+ *  \param file name and path of the target bmp screenshot file
+ *  \param type FreeImage Image type (FIF_BMP, FIF_TIFF, ...)
  */
-void util::makeScreenshot(const char *file, int line)
+void util::makeScreenshot(
+        GLuint fbo,
+        unsigned int width,
+        unsigned int height,
+        const char *file,
+        FREE_IMAGE_FORMAT type)
 {
     // Make the BYTE array, factor of 3 because it's RBG.
-    GLubyte pixels = new GLubyte[3 * width * height];
+    GLubyte* pixels = new GLubyte[3 * width * height];
 
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, pixels);
 
@@ -141,7 +149,7 @@ void util::makeScreenshot(const char *file, int line)
             0xFF0000,
             0x00FF00,
             false);
-    FreeImage_Save(FIF_BMP, image, "C:/test.bmp", 0);
+    FreeImage_Save(type, image, file, 0);
 
     // Free resources
     FreeImage_Unload(image);

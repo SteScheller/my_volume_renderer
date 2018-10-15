@@ -6,6 +6,7 @@
 #include <string>
 #include <exception>
 #include <algorithm>
+#include <ctime>
 
 #include <GL/gl3w.h>
 #include <GLFW/glfw3.h>
@@ -21,6 +22,8 @@ namespace po = boost::program_options;
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
+
+#include <FreeImage.h>
 
 #include "shader.hpp"
 #include "util/util.hpp"
@@ -828,6 +831,7 @@ void scroll_cb(GLFWwindow *window, double xoffset, double yoffset)
 
 void key_cb(GLFWwindow* window, int key, int scancode , int action, int mods)
 {
+
     if((key == GLFW_KEY_ESCAPE) && (action == GLFW_PRESS))
         glfwSetWindowShouldClose(window, true);
 
@@ -837,6 +841,21 @@ void key_cb(GLFWwindow* window, int key, int scancode , int action, int mods)
     if((key == GLFW_KEY_F10) && (action == GLFW_PRESS))
         _flag_show_menues = !_flag_show_menues;
 
+    if((key == GLFW_KEY_F9) && (action == GLFW_PRESS))
+    {
+        std::time_t t = std::time(nullptr);
+        std::tm* tm = std::localtime(&t);
+        char filename_buffer[80];
+
+        strftime(
+                filename_buffer,
+                sizeof(filename_buffer),
+                "./screenshots/%F_%T.tiff",
+                tm);
+
+        util::makeScreenshot(
+                _ppFBOs[0], render_w, render_h, filename_buffer, FIF_TIFF);
+    }
     // chain ImGui callback
     ImGui_ImplGlfw_KeyCallback(window, key, scancode, action, mods);
 }

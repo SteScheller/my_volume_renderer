@@ -9,6 +9,8 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/constants.hpp>
 
+#include <GL/gl3w.h>
+#include <FreeImage.h>
 //-----------------------------------------------------------------------------
 // Macros
 //-----------------------------------------------------------------------------
@@ -47,6 +49,12 @@ namespace util
     GLuint create2dHybridTausTexture(
         GLsizei width,
         GLsizei height);
+    void makeScreenshot(
+        GLuint fbo,
+        unsigned int width,
+        unsigned int height,
+        const char *file,
+        FREE_IMAGE_FORMAT type);
 
     //-------------------------------------------------------------------------
     // Type definitions
