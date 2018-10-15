@@ -131,12 +131,11 @@ void util::makeScreenshot(
         const char *file,
         FREE_IMAGE_FORMAT type)
 {
-    // Make the BYTE array, factor of 3 because it's RBG.
     GLubyte* pixels = new GLubyte[3 * width * height];
 
     glBindFramebuffer(GL_FRAMEBUFFER, fbo);
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-    glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, pixels);
+    glReadPixels(0, 0, width, height, GL_BGR, GL_UNSIGNED_BYTE, pixels);
 
     // Convert to FreeImage format & save to file
     FIBITMAP* image = FreeImage_ConvertFromRawBits(
@@ -146,8 +145,8 @@ void util::makeScreenshot(
             3 * width,
             24,
             0x0000FF,
-            0xFF0000,
             0x00FF00,
+            0xFF0000,
             false);
     FreeImage_Save(type, image, file, 0);
 
