@@ -9,6 +9,5 @@ refactoring:
     - see if binning (histograms) can also be added to that class
 
 new features:
-- panning of the volume in the output window
-- orthographic projection option
+- batch mode image creation
 

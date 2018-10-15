@@ -72,7 +72,7 @@ unsigned int tf_func_img_h = 96;
 unsigned int tf_color_img_w = 384;
 unsigned int tf_color_img_h = 16;
 
-float fovY = 90.f;
+float fovY = 80.f;
 float zNear = 0.000001f;
 float zFar = 30.f;
 
@@ -483,7 +483,7 @@ int main(int argc, char *argv[])
         if (_flag_reload_shaders)
         {
             _flag_reload_shaders = false;
-            std::cout << "reloading shaders..." << std::endl;
+            std::cout << "Reloading shaders..." << std::endl;
 
             glDeleteProgram(shaderQuad.ID);
             glDeleteProgram(shaderFrame.ID);
@@ -888,6 +888,7 @@ void key_cb(GLFWwindow* window, int key, int scancode , int action, int mods)
 
         util::makeScreenshot(
                 _ppFBOs[0], render_w, render_h, filename_buffer, FIF_TIFF);
+        std::cout << "Saved screenshot " << filename_buffer << std::endl;
     }
     // chain ImGui callback
     ImGui_ImplGlfw_KeyCallback(window, key, scancode, action, mods);
@@ -1407,6 +1408,12 @@ static void showSettingsWindow(
             ImGui::Text(
                 "Camera look at: x=%.3f, y=%.3f, z=%.3f",
                 camLookAt.x, camLookAt.y, camLookAt.z);
+
+            ImGui::Separator();
+
+            ImGui::SliderFloat(
+                "vertical field of view",
+                &fovY, 10.f, 160.f);
 
             ImGui::Separator();
 
