@@ -51,6 +51,11 @@ enum class Output : int
     random_number_generator,
     volume_data_slice
 };
+enum class Projection : int
+{
+    perspective = 0,
+    orthographic
+};
 
 //-----------------------------------------------------------------------------
 // global parameters
@@ -72,6 +77,7 @@ float zNear = 0.000001f;
 float zFar = 30.f;
 
 glm::vec3 camPos = glm::vec3(1.2f, 0.75f, 1.f);
+glm::vec3 camLookAt = glm::vec3(0.f);
 
 #define REQUIRED_OGL_VERSION_MAJOR 3
 #define REQUIRED_OGL_VERSION_MINOR 3
@@ -106,6 +112,7 @@ float gui_brightness = 1.f;
 
 float gui_cam_zoom_speed = 0.1f;
 float gui_cam_rot_speed = 0.2f;
+float gui_cam_trans_speed = 0.002f;
 
 float gui_isovalue = 0.1f;
 bool gui_iso_denoise = true;
@@ -134,6 +141,7 @@ bool gui_frame = true;
 bool gui_wireframe = false;
 bool gui_invert_colors = false;
 bool gui_invert_alpha = false;
+int gui_projection = 0;
 
 bool gui_slice_volume = false;
 float gui_slice_plane_normal[3] = {0.f, 0.f, 1.f};
@@ -408,7 +416,7 @@ int main(int argc, char *argv[])
     glm::vec3 right = glm::normalize(
         glm::cross(-camPos, glm::vec3(0.f, 1.f, 0.f)));
     glm::vec3 up = glm::normalize(glm::cross(right, -camPos));
-    glm::mat4 viewMX = glm::lookAt(camPos, glm::vec3(0.f), up);
+    glm::mat4 viewMX = glm::lookAt(camPos, camLookAt, up);
 
     glm::mat4 projMX = glm::perspective(
         glm::radians(fovY),
@@ -516,12 +524,25 @@ int main(int argc, char *argv[])
         // update model, view and projection matrix
         right = glm::normalize(glm::cross(-camPos, glm::vec3(0.f, 1.f, 0.f)));
         up = glm::normalize(glm::cross(right, -camPos));
-        viewMX = glm::lookAt(camPos, glm::vec3(0.f), up);
-        projMX = glm::perspective(
-            glm::radians(fovY),
-            static_cast<float>(render_w)/static_cast<float>(render_h),
-            zNear,
-            zFar);
+        viewMX = glm::lookAt(camPos, camLookAt, up);
+        if (gui_projection == static_cast<int>(Projection::perspective))
+        {
+            projMX = glm::perspective(
+                glm::radians(fovY),
+                static_cast<float>(render_w)/static_cast<float>(render_h),
+                zNear,
+                zFar);
+        }
+        else
+        {
+            projMX = glm::orthoRH(
+                    -0.5f,
+                    0.5f,
+                    -0.5f,
+                    0.5f,
+                    zNear,
+                    zFar);
+        }
 
         // calculate the diagonal of a voxel
         voxel_diag = glm::length(glm::vec3(
@@ -762,6 +783,18 @@ void cursor_position_cb(GLFWwindow *window, double xpos, double ypos)
             polar.z = 0.999f * half_pi;
 
         camPos = util::polarToCartesian<glm::vec3>(polar);
+    }
+    else if (GLFW_PRESS == glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT))
+    {
+        glm::vec3 horizontal = glm::normalize(
+                glm::cross(-camPos, glm::vec3(0.f, 1.f, 0.f)));
+        glm::vec3 vertical = glm::vec3(0.f, 1.f, 0.f);
+        camPos +=
+            static_cast<float>(dx * gui_cam_trans_speed) * horizontal +
+            static_cast<float>(dy * gui_cam_trans_speed) * vertical;
+        camLookAt +=
+            static_cast<float>(dx * gui_cam_trans_speed) * horizontal +
+            static_cast<float>(dy * gui_cam_trans_speed) * vertical;
     }
 }
 
@@ -1341,6 +1374,18 @@ static void showSettingsWindow(
             ImGui::SameLine();
             showHelpMarker(
                 "Scroll up or down while holding CTRL to zoom.");
+
+            ImGui::InputFloat(
+                "camera translation speed",
+                &gui_cam_trans_speed,
+                0.0001f,
+                0.1f,
+                "%.3f");
+            ImGui::SameLine();
+            showHelpMarker(
+                "Hold the right mouse button and move the mouse to translate "
+                "the camera");
+
             ImGui::InputFloat(
                 "camera rotation speed",
                 &gui_cam_rot_speed,
@@ -1349,8 +1394,9 @@ static void showSettingsWindow(
                 "%.3f");
             ImGui::SameLine();
             showHelpMarker(
-                "Hold the middle mouse button and move the mouse to pan "
+                "Hold the middle mouse button and move the mouse to rotate "
                 "the camera");
+
             glm::vec3 polar = util::cartesianToPolar<glm::vec3>(camPos);
             ImGui::Text("phi: %.3f", polar.y);
             ImGui::Text("theta: %.3f", polar.z);
@@ -1358,6 +1404,20 @@ static void showSettingsWindow(
             ImGui::Text(
                 "Camera position: x=%.3f, y=%.3f, z=%.3f",
                 camPos.x, camPos.y, camPos.z);
+            ImGui::Text(
+                "Camera look at: x=%.3f, y=%.3f, z=%.3f",
+                camLookAt.x, camLookAt.y, camLookAt.z);
+
+            ImGui::Separator();
+
+            ImGui::RadioButton(
+                "perspective",
+                &gui_projection,
+                static_cast<int>(Projection::perspective)); ImGui::SameLine();
+            ImGui::RadioButton(
+                "orthographic",
+                &gui_projection,
+                static_cast<int>(Projection::orthographic));
         }
 
         if (ImGui::CollapsingHeader("General"))
