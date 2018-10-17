@@ -76,8 +76,10 @@ float fovY = 80.f;
 float zNear = 0.000001f;
 float zFar = 30.f;
 
-glm::vec3 camPos = glm::vec3(1.2f, 0.75f, 1.f);
-glm::vec3 camLookAt = glm::vec3(0.f);
+#define DEFAULT_CAMPOS glm::vec3(1.2f, 0.75f, 1.f);
+#define DEFAULT_LOOKAT glm::vec3(0.f);
+glm::vec3 camPos = DEFAULT_CAMPOS;
+glm::vec3 camLookAt = DEFAULT_LOOKAT;
 
 #define REQUIRED_OGL_VERSION_MAJOR 3
 #define REQUIRED_OGL_VERSION_MINOR 3
@@ -127,6 +129,7 @@ float gui_k_diff = 0.3f;
 float gui_k_spec = 0.5f;
 float gui_k_exp = 10.0f;
 
+bool gui_show_tf_window = true;
 bool gui_show_histogram_window = true;
 bool gui_hist_semilog = false;
 int gui_num_bins = 255;
@@ -134,8 +137,7 @@ int gui_y_limit = 100000;
 float gui_x_min = 0.f;
 float gui_x_max = 255.f;
 
-bool gui_show_tf_window = true;
-
+float gui_clear_color[3] = {0.f, 0.f, 0.f};
 bool gui_show_demo_window = false;
 bool gui_frame = true;
 bool gui_wireframe = false;
@@ -268,7 +270,6 @@ int main(int argc, char *argv[])
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glClearColor(0.f, 0.f, 0.f, 1.f);
 
     glPointSize(13.f);
 
@@ -506,7 +507,7 @@ int main(int argc, char *argv[])
                 "src/shader/tfPoint.vert", "src/shader/tfPoint.frag");
         }
         // --------------------------------------------------------------------
-        // draw the volume, frame and menues into a frame buffer object
+        // draw the volume, frame etc. into a frame buffer object
         // --------------------------------------------------------------------
 
         // activate the framebuffer object as current framebuffer
@@ -519,6 +520,11 @@ int main(int argc, char *argv[])
         glDrawBuffers(2, buf);
 
         // clear old buffer content
+        glClearColor(
+                gui_clear_color[0],
+                gui_clear_color[1],
+                gui_clear_color[2],
+                0.f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // update model, view and projection matrix
@@ -1409,6 +1415,12 @@ static void showSettingsWindow(
                 "Camera look at: x=%.3f, y=%.3f, z=%.3f",
                 camLookAt.x, camLookAt.y, camLookAt.z);
 
+            if(ImGui::Button("reset camera position"))
+            {
+                camPos = DEFAULT_CAMPOS;
+                camLookAt = DEFAULT_LOOKAT;
+            }
+
             ImGui::Separator();
 
             ImGui::SliderFloat(
@@ -1438,6 +1450,10 @@ static void showSettingsWindow(
             if (ImGui::Button("Change Resolution"))
                 resizeRenderResult(
                         gui_render_resolution[0], gui_render_resolution[1]);
+
+            ImGui::Separator();
+
+            ImGui::ColorEdit3("background color", gui_clear_color);
 
             ImGui::Separator();
 
@@ -1804,6 +1820,7 @@ static void drawTfColor(
     glDrawBuffers(1, &buf);
 
     // clear old buffer content
+    glClearColor(0.f, 0.f, 0.f, 1.f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     // set up the projection matrix
@@ -1868,6 +1885,7 @@ static void drawTfFunc(
     glDrawBuffers(2, buf);
 
     // clear old buffer content
+    glClearColor(0.f, 0.f, 0.f, 1.f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     // set up the projection matrix
