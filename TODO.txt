@@ -1,12 +1,12 @@
 bugfixes:
 - flickering when watching the volume from below
 - check scaling and application of transferfunction when it is extrapolated below or above the limit control points
-- check loading of floats
 
 refactoring:
 - make volume data a class of its own and encapsulate the void pointer stuff
  and free memory automatically with destructor
     - see if binning (histograms) can also be added to that class
+- encapsulate volume renderer into its own class
 
 new features:
 - batch mode image creation
