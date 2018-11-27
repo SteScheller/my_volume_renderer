@@ -1,5 +1,4 @@
-#ifndef __UTIL_HPP
-#define __UTIL_HPP
+#pragma once
 
 #include <tuple>
 #include <vector>
@@ -23,6 +22,8 @@ namespace util
     // Declarations
     //-------------------------------------------------------------------------
     bool printOglError(const char *file, int line);
+
+    // texture.cpp
     GLuint create3dTexFromScalar(
         const GLvoid *buf,
         GLenum type,
@@ -36,6 +37,11 @@ namespace util
         GLint filter,
         GLsizei width,
         GLsizei height);
+
+    // geometry.cpp
+    // ...
+
+    // util.cpp
     GLuint createFrameBufferObject(
         GLsizei width,
         GLsizei height,
@@ -195,4 +201,3 @@ namespace util
     }
 }
 
-#endif

@@ -1,3 +1,5 @@
+#pragma once
+
 /*
  * Utility class for building and handling shader programs.
  *
@@ -10,8 +12,6 @@
  * https://creativecommons.org/licenses/by-nc/4.0/legalcode
  *
  * */
-#ifndef SHADER_H
-#define SHADER_H
 
 #include <GL/gl3w.h>
 
@@ -209,4 +209,4 @@ private:
         }
     }
 };
-#endif
+

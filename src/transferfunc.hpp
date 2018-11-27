@@ -1,5 +1,4 @@
-#ifndef __TRANSFERFUNC_HPP
-#define __TRANSFERFUNC_HPP
+#pragma once
 
 #include <set>
 #include <utility>
@@ -216,4 +215,3 @@ namespace tf
     };
 }
 
-#endif

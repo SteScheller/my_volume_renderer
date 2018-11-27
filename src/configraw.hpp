@@ -1,5 +1,4 @@
-#ifndef __CONFIGRAW_HPP
-#define __CONFIGRAW_HPP
+#pragma once
 
 #include <iostream>
 #include <string>
@@ -271,5 +270,4 @@ namespace cr
         }
     }
 }
-#endif
 
