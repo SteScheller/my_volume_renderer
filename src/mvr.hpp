@@ -251,27 +251,6 @@ namespace mvr
                 unsigned int height,
                 const char* title);
 
-        void createPingPongFBO(
-            GLuint &fbo,
-            GLuint texIDs[2],
-            unsigned int width,
-            unsigned int height);
-
-        static GLuint createFrameVAO(
-            const float vertices[4 * 8],
-            const unsigned int indices[2 * 12],
-            const float texCoords[3 * 8]);
-
-        static GLuint createVolumeVAO(
-            const float vertices[4 * 8],
-            const unsigned int indices[3 * 2 * 6],
-            const float texCoords[3 * 8]);
-
-        static GLuint createQuadVAO(
-                const float vertices[2 * 4],
-                const unsigned int indices[4],
-                const float texCoords[2 * 4]);
-
         void resizeRenderResult(int width, int height);
 
         void createHelpMarker(const char* desc);

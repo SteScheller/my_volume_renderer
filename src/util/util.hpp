@@ -4,12 +4,16 @@
 #include <vector>
 #include <cstddef>
 
+#include <GL/gl3w.h>
+
 #define GLM_FORCE_SWIZZLE
 #include <glm/glm.hpp>
 #include <glm/gtc/constants.hpp>
 
-#include <GL/gl3w.h>
 #include <FreeImage.h>
+
+#include "geometry.hpp"
+
 //-----------------------------------------------------------------------------
 // Macros
 //-----------------------------------------------------------------------------
@@ -30,6 +34,7 @@ namespace util
         GLsizei res_x,
         GLsizei res_y,
         GLsizei res_z);
+
     GLuint create2dTextureObject(
         const GLenum internalFormat,
         const GLenum format,
@@ -39,7 +44,7 @@ namespace util
         GLsizei height);
 
     // geometry.cpp
-    // ...
+    // see shape classes in geometry.hpp
 
     // util.cpp
     GLuint createFrameBufferObject(
@@ -52,9 +57,17 @@ namespace util
         GLenum format[],
         GLenum datatype[],
         GLint filter[]);
+
+    void createPingPongFBO(
+        GLuint &fbo,
+        GLuint texIDs[2],
+        unsigned int width,
+        unsigned int height);
+
     GLuint create2dHybridTausTexture(
         GLsizei width,
         GLsizei height);
+
     void makeScreenshot(
         GLuint fbo,
         unsigned int width,

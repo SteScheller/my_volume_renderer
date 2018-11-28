@@ -115,6 +115,33 @@ GLuint util::createFrameBufferObject(
 }
 
 /**
+ *  \brief Creates a two framebuffer objects for usage as ping pong render
+ *         targets
+ */
+void util::createPingPongFBO(
+    GLuint &fbo,
+    GLuint texIDs[2],
+    unsigned int width,
+    unsigned int height)
+{
+    GLenum attachments[2] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
+    GLint  internalFormats[2] = { GL_RGBA, GL_RGBA32UI };
+    GLenum formats[2] = { GL_RGBA, GL_RGBA_INTEGER };
+    GLenum datatypes[2] = { GL_FLOAT, GL_UNSIGNED_INT };
+    GLint  filters[2] = { GL_LINEAR, GL_NEAREST };
+
+    fbo = util::createFrameBufferObject(
+            width,
+            height,
+            texIDs,
+            2,
+            attachments,
+            internalFormats,
+            formats,
+            datatypes,
+            filters);
+}
+/**
  *  \brief Grabs the RGB values from the given FBO and writes them to an image
  *         file.
  *
@@ -154,4 +181,6 @@ void util::makeScreenshot(
     FreeImage_Unload(image);
     delete[] pixels;
 }
+
+
 

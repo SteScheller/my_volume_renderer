@@ -179,7 +179,7 @@ int mvr::Renderer::run()
     glm::vec4 bbMax = glm::vec4(
         verticesCube[24], verticesCube[25],verticesCube[26], verticesCube[27]);
 
-    float texCoordsCube[] = {
+    /*float texCoordsCube[] = {
         0.f, 0.f, 1.f,
         1.f, 0.f, 1.f,
         1.f, 1.f, 1.f,
@@ -188,11 +188,11 @@ int mvr::Renderer::run()
         1.f, 0.f, 0.f,
         1.f, 1.f, 0.f,
         0.f, 1.f, 0.f
-    };
+    };*/
 
     // quad for rendering to textures
     // ------------------------------
-    float verticesQuad[] = {
+    /*float verticesQuad[] = {
         0.f,    0.f,
         1.f,    0.f,
         1.f,    1.f,
@@ -200,7 +200,7 @@ int mvr::Renderer::run()
     };
     unsigned int quadIndices[] = {
         0, 1, 2, 3
-    };
+    };*/
 
     // ------------------------------------------------------------------------
     // vertex array objects
@@ -1395,174 +1395,6 @@ GLFWwindow* createWindow(
     glfwSetFramebufferSizeCallback(window, framebuffer_size_cb);
 
     return window;
-}
-
-void createPingPongFBO(
-    GLuint &fbo,
-    GLuint texIDs[2],
-    unsigned int width,
-    unsigned int height)
-{
-    GLenum attachments[2] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
-    GLint  internalFormats[2] = { GL_RGBA, GL_RGBA32UI };
-    GLenum formats[2] = { GL_RGBA, GL_RGBA_INTEGER };
-    GLenum datatypes[2] = { GL_FLOAT, GL_UNSIGNED_INT };
-    GLint  filters[2] = { GL_LINEAR, GL_NEAREST };
-
-    fbo = util::createFrameBufferObject(
-            width,
-            height,
-            texIDs,
-            2,
-            attachments,
-            internalFormats,
-            formats,
-            datatypes,
-            filters);
-}
-
-static GLuint createFrameVAO(
-        const float vertices[4 * 8],
-        const unsigned int indices[2 * 12],
-        const float texCoords[3 * 8])
-{
-    GLuint frameVAO = 0;
-    GLuint ebo = 0;
-    GLuint vbo[2] = {0, 0};
-
-    // create buffers
-    glGenVertexArrays(1, &frameVAO);
-    glGenBuffers(2, vbo);
-    glGenBuffers(1, &ebo);
-
-    glBindVertexArray(frameVAO);
-
-    // vertex coordinates
-    glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
-    glBufferData(
-        GL_ARRAY_BUFFER, 32 * sizeof(float), vertices, GL_STATIC_DRAW);
-    glVertexAttribPointer(
-        0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*) 0);
-    glEnableVertexAttribArray(0);
-
-    // vertex indices
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-    glBufferData(
-        GL_ELEMENT_ARRAY_BUFFER,
-        24 * sizeof(unsigned int),
-        indices,
-        GL_STATIC_DRAW);
-
-    // texture coordinates
-    glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);
-    glBufferData(
-        GL_ARRAY_BUFFER, 24 * sizeof(float), texCoords, GL_STATIC_DRAW);
-    glVertexAttribPointer(
-        1, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*) 0);
-    glEnableVertexAttribArray(1);
-
-    // unbind vao and delete buffers that are not need anymore
-    glBindVertexArray(0);
-    glDeleteBuffers(2, vbo);
-    glDeleteBuffers(1, &ebo);
-
-    return frameVAO;
-}
-
-static GLuint createVolumeVAO(
-        const float vertices[4 * 8],
-        const unsigned int indices[3 * 2 * 6],
-        const float texCoords[3 * 8])
-{
-    GLuint volumeVAO = 0;
-    GLuint ebo = 0;
-    GLuint vbo[2] = {0, 0};
-
-    // create buffers
-    glGenVertexArrays(1, &volumeVAO);
-    glGenBuffers(2, vbo);
-    glGenBuffers(1, &ebo);
-
-    glBindVertexArray(volumeVAO);
-
-    // vertex coordinates
-    glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
-    glBufferData(
-        GL_ARRAY_BUFFER, 32 * sizeof(float), vertices, GL_STATIC_DRAW);
-    glVertexAttribPointer(
-        0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*) 0);
-    glEnableVertexAttribArray(0);
-
-    // vertex indices
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-    glBufferData(
-        GL_ELEMENT_ARRAY_BUFFER,
-        36 * sizeof(unsigned int),
-        indices,
-        GL_STATIC_DRAW);
-
-    // texture coordinates
-    glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);
-    glBufferData(
-        GL_ARRAY_BUFFER, 24 * sizeof(float), texCoords, GL_STATIC_DRAW);
-    glVertexAttribPointer(
-        1, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*) 0);
-    glEnableVertexAttribArray(1);
-
-    // unbind vao and delete buffers that are not need anymore
-    glBindVertexArray(0);
-    glDeleteBuffers(2, vbo);
-    glDeleteBuffers(1, &ebo);
-
-    return volumeVAO;
-}
-
-static GLuint createQuadVAO(
-        const float vertices[2 * 4],
-        const unsigned int indices[4],
-        const float texCoords[2 * 4])
-{
-    GLuint quadVAO = 0;
-    GLuint ebo = 0;
-    GLuint vbo[2] = {0, 0};
-
-    // create buffers
-    glGenVertexArrays(1, &quadVAO);
-    glGenBuffers(2, vbo);
-    glGenBuffers(1, &ebo);
-
-    glBindVertexArray(quadVAO);
-
-    // vertex coordinates
-    glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
-    glBufferData(
-        GL_ARRAY_BUFFER, 8 * sizeof(float), vertices, GL_STATIC_DRAW);
-    glVertexAttribPointer(
-        0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*) 0);
-    glEnableVertexAttribArray(0);
-
-    // vertex indices
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-    glBufferData(
-        GL_ELEMENT_ARRAY_BUFFER,
-        4 * sizeof(unsigned int),
-        indices,
-        GL_STATIC_DRAW);
-
-    // texture coordinates
-    glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);
-    glBufferData(
-        GL_ARRAY_BUFFER, 8 * sizeof(float), texCoords, GL_STATIC_DRAW);
-    glVertexAttribPointer(
-        1, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*) 0);
-    glEnableVertexAttribArray(1);
-
-    // unbind vao and delete buffers that are not need anymore
-    glBindVertexArray(0);
-    glDeleteBuffers(2, vbo);
-    glDeleteBuffers(1, &ebo);
-
-    return quadVAO;
 }
 
 void resizeRenderResult(
