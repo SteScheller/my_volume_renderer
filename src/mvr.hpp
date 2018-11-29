@@ -8,7 +8,10 @@
 #define GLM_FORCE_SWIZZLE
 #include <glm/glm.hpp>
 
+#include "shader.hpp"
 #include "configraw.hpp"
+#include "transferfunc.hpp"
+
 
 namespace mvr
 {
@@ -77,10 +80,10 @@ namespace mvr
 
         static const size_t MAX_FILEPATH_LENGTH = 200;
 
-        static const std::string DEFAULT_VOLUME_FILE("example/bucky.json");
+        static const std::string DEFAULT_VOLUME_FILE;
 
-        static const glm::vec3 DEFAULT_CAMERA_POSITION(1.2f, 0.75f, 1.f);
-        static const glm::vec3 DEFAULT_CAMERA_LOOKAT(0.f);
+        static const glm::vec3 DEFAULT_CAMERA_POSITION;
+        static const glm::vec3 DEFAULT_CAMERA_LOOKAT;
 
         private:
         //---------------------------------------------------------------------
@@ -162,9 +165,18 @@ namespace mvr
         //float gui_tf_cp_color_rgb[3] = {0.f, 0.f, 0.0f};
         //float gui_tf_cp_color_a = 0.f;
 
-        //-------------------------------------------------------------------------
+        //---------------------------------------------------------------------
         // internals
-        //-------------------------------------------------------------------------
+        //---------------------------------------------------------------------
+        GLFWwindow* m_window;
+
+        Shader m_shaderQuad;
+        Shader m_shaderFrame;
+        Shader m_shaderVolume;
+        Shader m_shaderTfColor;
+        Shader m_shaderTfFunc;
+        Shader m_shaderTfPoint;
+
         //bool m_isInitialized;
         /*static bool _flag_reload_shaders = false;
         static bool _flag_show_menues = true;
@@ -184,6 +196,7 @@ namespace mvr
         //---------------------------------------------------------------------
         // subroutines
         //---------------------------------------------------------------------
+        int Initialize();
         void showSettingsWindow(
             cr::VolumeConfig &vConf,
             void *&volumeData,
@@ -242,9 +255,9 @@ namespace mvr
         //---------------------------------------------------------------------
         // helper functions
         //---------------------------------------------------------------------
-        void initializeGl3w();
+        int initializeGl3w();
 
-        void initializeImGui(GLFWwindow* window);
+        int initializeImGui();
 
         GLFWwindow* createWindow(
                 unsigned int width,
@@ -295,5 +308,15 @@ namespace mvr
                 const char* description);
 
     };
+
+    const std::string Renderer::DEFAULT_VOLUME_FILE =
+        std::string("example/bucky.json");
+
+    const glm::vec3 Renderer::DEFAULT_CAMERA_POSITION =
+        glm::vec3(1.2f, 0.75f, 1.f);
+
+    const glm::vec3 Renderer::DEFAULT_CAMERA_LOOKAT =
+        glm::vec3(0.f);
+
 }
 

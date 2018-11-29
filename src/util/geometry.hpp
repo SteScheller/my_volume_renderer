@@ -9,43 +9,43 @@ namespace util
         class Shape
         {
             public:
-                Shape();
-                ~Shape();
+            Shape();
+            ~Shape();
 
-                virtual void draw() const;
+            virtual void draw() const;
 
-            private:
-                GLuint m_vertexArrayObject;
+            protected:
+            GLuint m_vertexArrayObject;
 
-                void bind() const;
-                void unbind() const;
-        }
+            void bind() const;
+            void unbind() const;
+        };
 
         class CubeFrame : Shape
         {
             public:
-                CubeFrame();
-                ~CubeFrame();
+            CubeFrame();
+            ~CubeFrame();
 
-                void draw() const;
-        }
+            void draw() const;
+        };
 
         class Cube : Shape
         {
             public:
-                Cube();
-                ~Cube();
+            Cube();
+            ~Cube();
 
-                void draw() const;
-        }
+            void draw() const;
+        };
 
         class Quad : Shape
         {
             public:
-                Quad();
-                ~Quad();
+            Quad();
+            ~Quad();
 
-                void draw() const;
-        }
+            void draw() const;
+        };
     }
 }

@@ -9,6 +9,7 @@
 #include <exception>
 #include <algorithm>
 #include <ctime>
+#include <utility>
 
 #include <GL/gl3w.h>
 #include <GLFW/glfw3.h>
@@ -34,10 +35,10 @@
 //-----------------------------------------------------------------------------
 mvr::Renderer::Renderer() :
     // window and gui size
-    m_windowDimensions = {1600, 900},
-    m_renderingDimensions = {1920, 1080},
-    m_tfFuncWidgetDimensions = {384, 96},
-    m_tfColorWidgetDimensions = {384, 16},
+    m_windowDimensions{ {1600, 900} },
+    m_renderingDimensions{ {1920, 1080} },
+    m_tfFuncWidgetDimensions{ {384, 96} },
+    m_tfColorWidgetDimensions{ {384, 16} },
     // output mode
     m_renderMode(mvr::Mode::line_of_sight),
     m_outputSelect(mvr::Output::volume_rendering),
@@ -54,7 +55,7 @@ mvr::Renderer::Renderer() :
     m_xLimitsMax(255.f),
     m_invertColors(false),
     m_invertAlpha(false),
-    m_clearColor(0.f),
+    m_clearColor{ {0.f} },
     // data selection
     m_volumeDescriptionFile(mvr::Renderer::DEFAULT_VOLUME_FILE),
     m_timestep(0),
@@ -77,31 +78,70 @@ mvr::Renderer::Renderer() :
     m_isovalueDenoisingRadius(0.1f),
     // lighting
     m_brightness(1.f),
-    m_lightDirection = {0.3f, 1.f, -0.3f},
-    m_ambientColor = {0.2f, 0.2f, 0.2f},
-    m_diffuseColor = {1.f, 1.f, 1.f},
-    m_specularColor = {1.f, 1.f, 1.f},
+    m_lightDirection{ {0.3f, 1.f, -0.3f} },
+    m_ambientColor{ {0.2f, 0.2f, 0.2f} },
+    m_diffuseColor{ {1.f, 1.f, 1.f} },
+    m_specularColor{ {1.f, 1.f, 1.f} },
     m_ambientFactor(0.2f),
     m_diffuceFactor(0.3f),
     m_specularFactor(0.5f),
     m_specularExponent(10.0f),
     // slicing plane functionality
     m_slicingPlane(false),
-    m_slicingPlaneNormal = {0.f, 0.f, 1.f},
-    m_slicingPlaneBase = {0.f, 0.f, 0.f},
+    m_slicingPlaneNormal{ {0.f, 0.f, 1.f} },
+    m_slicingPlaneBase{ {0.f, 0.f, 0.f} },
     // ambient occlussion functionality
     m_ambientOcclusion(false),
     m_ambientOcclusionRadius(0.2f),
     m_ambientOcclusionProportion(0.5f),
-    m_ambientOcclusionNumSamples(10)
+    m_ambientOcclusionNumSamples(10),
+    m_window(nullptr),
+    m_shaderQuad(),
+    m_shaderFrame(),
+    m_shaderVolume(),
+    m_shaderTfColor(),
+    m_shaderTfFunc(),
+    m_shaderTfPoint()
 {
     m_volumeDescriptionFile.resize(mvr::Renderer::MAX_FILEPATH_LENGTH, '\0');
-
 }
 
 mvr::Renderer::~Renderer()
 {
+}
 
+int mvr::Renderer::Initialize()
+{
+    int ret = EXIT_SUCCESS;
+
+    m_window = createWindow(
+        m_windowDimensions[0], m_windowDimensions[1], "MVR");
+
+    ret = initializeImGui();
+    if (EXIT_SUCCESS != ret) return ret;
+
+    ret = initializeImGui();
+    if (EXIT_SUCCESS != ret) return ret;
+
+    glEnable(GL_DEPTH_TEST);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glPointSize(13.f);
+
+    m_shaderQuad = std::move(Shader(
+        "src/shader/quad.vert", "src/shader/quad.frag"));
+    m_shaderFrame = std::move(Shader(
+        "src/shader/frame.vert", "src/shader/frame.frag"));
+    m_shaderVolume = std::move(Shader(
+        "src/shader/volume.vert", "src/shader/volume.frag"));
+    m_shaderTfColor = std::move(Shader(
+        "src/shader/tfColor.vert", "src/shader/tfColor.frag"));
+    m_shaderTfFunc = std::move(Shader(
+        "src/shader/tfFunc.vert", "src/shader/tfFunc.frag"));
+    m_shaderTfPoint = std::move(Shader(
+        "src/shader/tfPoint.vert", "src/shader/tfPoint.frag"));
+
+    return ret;
 }
 
 int mvr::Renderer::setConfig()
@@ -115,101 +155,18 @@ int mvr::Renderer::setConfig()
 
 int mvr::Renderer::run()
 {
-    GLFWwindow* window = createWindow(win_w, win_h, "MVR");
-
-    initializeGl3w();
-    initializeImGui(window);
-
-    glEnable(GL_DEPTH_TEST);
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-    glPointSize(13.f);
-
-    Shader shaderQuad("src/shader/quad.vert", "src/shader/quad.frag");
-    Shader shaderFrame("src/shader/frame.vert", "src/shader/frame.frag");
-    Shader shaderVolume("src/shader/volume.vert", "src/shader/volume.frag");
-    Shader shaderTfColor("src/shader/tfColor.vert", "src/shader/tfColor.frag");
-    Shader shaderTfFunc("src/shader/tfFunc.vert", "src/shader/tfFunc.frag");
-    Shader shaderTfPoint("src/shader/tfPoint.vert", "src/shader/tfPoint.frag");
-
-    // bounding box and volume geometry
-    // --------------------------------
-    float verticesCube[] = {
-        -0.5f,  -0.5f,  -0.5f,  1.f,
-        0.5f,   -0.5f,  -0.5f,  1.f,
-        0.5f,   0.5f,   -0.5f,  1.f,
-        -0.5f,  0.5f,   -0.5f,  1.f,
-        -0.5f,  -0.5f,  0.5f,   1.f,
-        0.5f,   -0.5f,  0.5f,   1.f,
-        0.5f,   0.5f,   0.5f,   1.f,
-        -0.5f,  0.5f,   0.5f,   1.f
-    };
-    unsigned int frameIndices[] = {
-        0, 1,
-        1, 2,
-        2, 3,
-        3, 0,
-        4, 5,
-        5, 6,
-        6, 7,
-        7, 4,
-        0, 4,
-        1, 5,
-        2, 6,
-        3, 7
-    };
-    unsigned int volumeIndices[] = {
-        2, 1, 0,
-        0, 3, 2,
-        6, 5, 1,
-        1, 2, 6,
-        7, 4, 5,
-        5, 6, 7,
-        3, 0, 4,
-        4, 7, 3,
-        3, 7, 6,
-        6, 2, 3,
-        4, 0, 1,
-        1, 5, 4
-    };
-    // bounding box
-    glm::vec4 bbMin = glm::vec4(
-        verticesCube[0], verticesCube[1],verticesCube[2], verticesCube[3]);
-    glm::vec4 bbMax = glm::vec4(
-        verticesCube[24], verticesCube[25],verticesCube[26], verticesCube[27]);
-
-    /*float texCoordsCube[] = {
-        0.f, 0.f, 1.f,
-        1.f, 0.f, 1.f,
-        1.f, 1.f, 1.f,
-        0.f, 1.f, 1.f,
-        0.f, 0.f, 0.f,
-        1.f, 0.f, 0.f,
-        1.f, 1.f, 0.f,
-        0.f, 1.f, 0.f
-    };*/
-
-    // quad for rendering to textures
-    // ------------------------------
-    /*float verticesQuad[] = {
-        0.f,    0.f,
-        1.f,    0.f,
-        1.f,    1.f,
-        0.f,    1.f
-    };
-    unsigned int quadIndices[] = {
-        0, 1, 2, 3
-    };*/
 
     // ------------------------------------------------------------------------
-    // vertex array objects
+    // geometry
     // ------------------------------------------------------------------------
-    GLuint frameVAO = 0, volumeVAO = 0, quadVAO = 0;
+    // shapes
+    util::geometry::CubeFrame frame;
+    util::geometry::Cube volume;
+    util::geometry::Quad quad;
 
-    frameVAO = createFrameVAO(verticesCube, frameIndices, texCoordsCube);
-    volumeVAO = createVolumeVAO(verticesCube, volumeIndices, texCoordsCube);
-    quadVAO = createQuadVAO(verticesQuad, quadIndices, verticesQuad);
+    // bounding box limits
+    glm::vec4 bbMin(glm::vec3(-0.5f), 1.f);
+    glm::vec4 bbMax(glm::vec3(0.5f), 1.f);
 
     // ------------------------------------------------------------------------
     // framebuffer objects
@@ -597,18 +554,7 @@ int mvr::Renderer::run()
 
     glDeleteTextures(1, &volumeTex);
 
-    glDeleteProgram(shaderQuad.ID);
-    glDeleteProgram(shaderVolume.ID);
-    glDeleteProgram(shaderFrame.ID);
-    glDeleteProgram(shaderTfColor.ID);
-    glDeleteProgram(shaderTfFunc.ID);
-    glDeleteProgram(shaderTfPoint.ID);
-
-    glDeleteVertexArrays(1, &frameVAO);
-    glDeleteVertexArrays(1, &volumeVAO);
-    glDeleteVertexArrays(1, &quadVAO);
-
-    glfwDestroyWindow(window);
+    glfwDestroyWindow(m_window);
     glfwTerminate();
 
     if (volumeData != nullptr) cr::deleteVolumeData(vConf, volumeData);
@@ -1340,36 +1286,40 @@ void mvr::Renderer::reloadStuff(
 //-----------------------------------------------------------------------------
 // helper functions
 //-----------------------------------------------------------------------------
-void initializeGl3w()
+int initializeGl3w()
 {
     if (gl3wInit())
     {
         std::cerr << "Failed to initialize OpenGL" << std::endl;
         glfwTerminate();
-        exit(EXIT_FAILURE);
+        return EXIT_FAILURE;
     }
     if (!gl3wIsSupported(
             REQUIRED_OGL_VERSION_MAJOR, REQUIRED_OGL_VERSION_MINOR))
     {
         std::cerr << "OpenGL " << REQUIRED_OGL_VERSION_MAJOR << "." <<
             REQUIRED_OGL_VERSION_MINOR << " not supported" << std::endl;
-        exit(EXIT_FAILURE);
+        return EXIT_FAILURE;
     }
     std::cout << "OpenGL " << glGetString(GL_VERSION) << ", GLSL " <<
         glGetString(GL_SHADING_LANGUAGE_VERSION) << std::endl;
+
+    return EXIT_SUCCESS;
 }
 
-void initializeImGui(GLFWwindow* window)
+int initializeImGui()
 {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 
-    ImGui_ImplGlfw_InitForOpenGL(window, false);
+    ImGui_ImplGlfw_InitForOpenGL(m_window, false);
     ImGui_ImplOpenGL3_Init();
 
     ImGui::StyleColorsDark();
+
+    return EXIT_SUCCESS;
 }
 
 GLFWwindow* createWindow(

@@ -26,59 +26,19 @@ GLuint util::createFrameVAO(
 util::geometry::Shape::Shape()
     : m_vertexArrayObject(0)
 {
-    GLuint ebo = 0;
-    GLuint vbo[2] = {0, 0};
-
-    // create buffers
-    glGenVertexArrays(1, &frameVAO);
-    glGenBuffers(2, vbo);
-    glGenBuffers(1, &ebo);
-
-    this->bind();
-
-    // vertex coordinates
-    glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
-    glBufferData(
-        GL_ARRAY_BUFFER, 32 * sizeof(float), vertices, GL_STATIC_DRAW);
-    glVertexAttribPointer(
-        0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*) 0);
-    glEnableVertexAttribArray(0);
-
-    // vertex indices
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-    glBufferData(
-        GL_ELEMENT_ARRAY_BUFFER,
-        24 * sizeof(unsigned int),
-        indices,
-        GL_STATIC_DRAW);
-
-    // texture coordinates
-    glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);
-    glBufferData(
-        GL_ARRAY_BUFFER, 24 * sizeof(float), texCoords, GL_STATIC_DRAW);
-    glVertexAttribPointer(
-        1, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*) 0);
-    glEnableVertexAttribArray(1);
-
-    // unbind vao and delete buffers that are not need anymore
-    glBindVertexArray(0);
-    glDeleteBuffers(2, vbo);
-    glDeleteBuffers(1, &ebo);
-
-    return frameVAO;
 }
 
 util::geometry::Shape::~Shape()
 {
-    glDeleteVertexArrays(m_vertexArrayObject);
+    glDeleteVertexArrays(1, &m_vertexArrayObject);
 }
 
-util::geometry::Shape::bind()
+void util::geometry::Shape::bind() const
 {
     glBindVertexArray(m_vertexArrayObject);
 }
 
-util::geometry::Shape::unbind()
+void util::geometry::Shape::unbind() const
 {
     glBindVertexArray(0);
 }
@@ -125,46 +85,58 @@ util::geometry::CubeFrame::CubeFrame()
         3, 7
     };
 
-    // TODO: continue here and check cube again!!!
-    //
-    //
     GLuint ebo = 0;
-    GLuint vbo[2] = {0, 0};
+    std::array<GLuint, 2> vbo = {0, 0};
 
     // create buffers
-    glGenVertexArrays(1, &frameVAO);
-    glGenBuffers(2, vbo);
+    glGenVertexArrays(1, &m_vertexArrayObject);
+    glGenBuffers(2, vbo.data());
     glGenBuffers(1, &ebo);
 
-    glBindVertexArray(frameVAO);
+    this->bind();
 
     // vertex coordinates
     glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
     glBufferData(
-        GL_ARRAY_BUFFER, 32 * sizeof(float), vertices, GL_STATIC_DRAW);
+        GL_ARRAY_BUFFER,
+        vertices.size() * sizeof(float),
+        vertices.data(),
+        GL_STATIC_DRAW);
     glVertexAttribPointer(
-        0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*) 0);
+        0,
+        4,
+        GL_FLOAT,
+        GL_FALSE,
+        4 * sizeof(float),
+        (void*) 0);
     glEnableVertexAttribArray(0);
 
     // vertex indices
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
     glBufferData(
         GL_ELEMENT_ARRAY_BUFFER,
-        24 * sizeof(unsigned int),
-        indices,
+        indices.size() * sizeof(unsigned int),
+        indices.data(),
         GL_STATIC_DRAW);
 
     // texture coordinates
     glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);
     glBufferData(
-        GL_ARRAY_BUFFER, 24 * sizeof(float), texCoords, GL_STATIC_DRAW);
+        GL_ARRAY_BUFFER,
+        coordinates.size() * sizeof(float),
+        coordinates.data(),
+        GL_STATIC_DRAW);
     glVertexAttribPointer(
-        1, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*) 0);
+        1,
+        3,
+        GL_FLOAT,
+        GL_FALSE,
+        3 * sizeof(float),
+        (void*) 0);
     glEnableVertexAttribArray(1);
 
-    // unbind vao and delete buffers that are not need anymore
-    glBindVertexArray(0);
-    glDeleteBuffers(2, vbo);
+    this->unbind();
+    glDeleteBuffers(2, vbo.data());
     glDeleteBuffers(1, &ebo);
 
  }
@@ -173,7 +145,7 @@ util::geometry::CubeFrame::~CubeFrame()
 {
 }
 
-util::geometry::CubeFrame::draw()
+void util::geometry::CubeFrame::draw() const
 {
     this->bind();
     glDrawElements(GL_LINES, 2*12, GL_UNSIGNED_INT, 0);
@@ -274,7 +246,7 @@ util::geometry::Cube::Cube()
 
     this->unbind();
     glBindVertexArray(0);
-    glDeleteBuffers(2, vbo);
+    glDeleteBuffers(2, vbo.data());
     glDeleteBuffers(1, &ebo);
 }
 
@@ -282,7 +254,7 @@ util::geometry::Cube::~Cube()
 {
 }
 
-util::geometry::Cube::draw()
+void util::geometry::Cube::draw() const
 {
     this->bind();
     glDrawElements(GL_TRIANGLES, 3 * 2 * 6, GL_UNSIGNED_INT, 0);
@@ -368,7 +340,7 @@ util::geometry::Quad::~Quad()
 {
 }
 
-util::geometry::Quad::draw()
+void util::geometry::Quad::draw() const
 {
     this->bind();
     glDrawElements(GL_TRIANGLE_FAN, 4, GL_UNSIGNED_INT, 0);

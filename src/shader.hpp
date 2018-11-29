@@ -25,9 +25,8 @@
 
 class Shader
 {
-public:
-    unsigned int ID;
-
+    public:
+    Shader() : ID(0){};
     Shader(
         const char* vertexPath,
         const char* fragmentPath,
@@ -40,9 +39,9 @@ public:
         std::ifstream fShaderFile;
         std::ifstream gShaderFile;
         // ensure ifstream objects can throw exceptions:
-        vShaderFile.exceptions (std::ifstream::failbit | std::ifstream::badbit);
-        fShaderFile.exceptions (std::ifstream::failbit | std::ifstream::badbit);
-        gShaderFile.exceptions (std::ifstream::failbit | std::ifstream::badbit);
+        vShaderFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+        fShaderFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+        gShaderFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
         try
         {
             // open files
@@ -70,7 +69,8 @@ public:
         }
         catch (std::ifstream::failure &e)
         {
-            std::cout << "ERROR::SHADER::FILE_NOT_SUCCESFULLY_READ" << std::endl;
+            std::cerr << "ERROR::SHADER::FILE_NOT_SUCCESFULLY_READ" <<
+                std::endl;
         }
         const char* vShaderCode = vertexCode.c_str();
         const char * fShaderCode = fragmentCode.c_str();
@@ -112,6 +112,23 @@ public:
         if(geometryPath != nullptr)
             glDeleteShader(geometry);
     }
+    Shader(const Shader& other) = delete;
+    Shader(Shader&& other) : ID(other.ID) {other.ID = 0;}
+    Shader& operator=(const Shader& other) = delete;
+    Shader& operator=(Shader&& other)
+    {
+        this->ID = other.ID;
+        other.ID = 0;
+        return *this;
+    }
+
+    // delete shader program
+    // ------------------------------------------------------------------------
+    ~Shader()
+    {
+        glDeleteShader(ID);
+    }
+    unsigned int getID(){return ID;}
     // activate the shader
     // ------------------------------------------------------------------------
     void use()
@@ -164,20 +181,25 @@ public:
     // ------------------------------------------------------------------------
     void setMat2(const std::string &name, const glm::mat2 &mat) const
     {
-        glUniformMatrix2fv(glGetUniformLocation(ID, name.c_str()), 1, GL_FALSE, &mat[0][0]);
+        glUniformMatrix2fv(
+            glGetUniformLocation(ID, name.c_str()), 1, GL_FALSE, &mat[0][0]);
     }
     // ------------------------------------------------------------------------
     void setMat3(const std::string &name, const glm::mat3 &mat) const
     {
-        glUniformMatrix3fv(glGetUniformLocation(ID, name.c_str()), 1, GL_FALSE, &mat[0][0]);
+        glUniformMatrix3fv(
+            glGetUniformLocation(ID, name.c_str()), 1, GL_FALSE, &mat[0][0]);
     }
     // ------------------------------------------------------------------------
     void setMat4(const std::string &name, const glm::mat4 &mat) const
     {
-        glUniformMatrix4fv(glGetUniformLocation(ID, name.c_str()), 1, GL_FALSE, &mat[0][0]);
+        glUniformMatrix4fv(
+            glGetUniformLocation(ID, name.c_str()), 1, GL_FALSE, &mat[0][0]);
     }
 
-private:
+    private:
+    unsigned int ID;
+
     // utility function for checking shader compilation/linking errors.
     // ------------------------------------------------------------------------
     void checkCompileErrors(GLuint shader, std::string type)
@@ -191,7 +213,7 @@ private:
             if(!success)
             {
                 glGetShaderInfoLog(shader, 1024, nullptr, infoLog);
-                std::cout << "ERROR::SHADER_COMPILATION_ERROR of type: " <<
+                std::cerr << "ERROR::SHADER_COMPILATION_ERROR of type: " <<
                     type << std::endl << infoLog << std::endl <<
                     std::string(79, '-') << std::endl;
             }
@@ -202,7 +224,7 @@ private:
             if(!success)
             {
                 glGetProgramInfoLog(shader, 1024, nullptr, infoLog);
-                std::cout << "ERROR::PROGRAM_LINKING_ERROR of type: " <<
+                std::cerr << "ERROR::PROGRAM_LINKING_ERROR of type: " <<
                     type << std::endl << infoLog << std::endl <<
                     std::string(79, '-') << std::endl;
             }
