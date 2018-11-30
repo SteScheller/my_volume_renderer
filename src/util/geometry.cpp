@@ -1,18 +1,10 @@
+#include "util.hpp"
+#include "geometry.hpp"
+
 #include <array>
 
 #include <GL/gl3w.h>
 
-#include "util.hpp"
-
-//-----------------------------------------------------------------------------
-// convenience functions
-//-----------------------------------------------------------------------------
-GLuint util::createFrameVAO(
-        const float vertices[4 * 8],
-        const unsigned int indices[2 * 12],
-        const float texCoords[3 * 8])
-{
-}
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
@@ -28,6 +20,7 @@ util::geometry::Shape::Shape()
 {
 }
 
+util::geometry::Shape::operator(util::geometry::Shape&& other)
 util::geometry::Shape::~Shape()
 {
     glDeleteVertexArrays(1, &m_vertexArrayObject);

@@ -4,7 +4,7 @@
 #include <vector>
 #include <cstddef>
 
-#include <GL/gl3w.h>
+#include "GL/gl3w.h"
 
 #define GLM_FORCE_SWIZZLE
 #include <glm/glm.hpp>
@@ -13,6 +13,7 @@
 #include <FreeImage.h>
 
 #include "geometry.hpp"
+#include "texture.hpp"
 
 //-----------------------------------------------------------------------------
 // Macros
@@ -28,23 +29,10 @@ namespace util
     bool printOglError(const char *file, int line);
 
     // texture.cpp
-    GLuint create3dTexFromScalar(
-        const GLvoid *buf,
-        GLenum type,
-        GLsizei res_x,
-        GLsizei res_y,
-        GLsizei res_z);
-
-    GLuint create2dTextureObject(
-        const GLenum internalFormat,
-        const GLenum format,
-        const GLenum type,
-        GLint filter,
-        GLsizei width,
-        GLsizei height);
+    // see texture classes and functions in texture.hpp
 
     // geometry.cpp
-    // see shape classes in geometry.hpp
+    // see shape classes and functions in geometry.hpp
 
     // util.cpp
     GLuint createFrameBufferObject(
@@ -58,17 +46,7 @@ namespace util
         GLenum datatype[],
         GLint filter[]);
 
-    void createPingPongFBO(
-        GLuint &fbo,
-        GLuint texIDs[2],
-        unsigned int width,
-        unsigned int height);
-
-    GLuint create2dHybridTausTexture(
-        GLsizei width,
-        GLsizei height);
-
-    void makeScreenshot(
+       void makeScreenshot(
         GLuint fbo,
         unsigned int width,
         unsigned int height,
@@ -78,9 +56,36 @@ namespace util
     //-------------------------------------------------------------------------
     // Type definitions
     //-------------------------------------------------------------------------
-    typedef std::tuple<float, float, unsigned int> bin_t;
+    class FrameBufferObject
+    {
+        public:
+        FrameBufferObject();
+        FramebufferObject::FrameBufferObject(
+            const std::vector<util::texture::Texture2D&> &textures,
+            const std::vector<GLenum> &attachments);
+        FrameBufferObject(const FrameBufferObject& other) = delete;
+        FrameBufferObject(FrameBufferObject&& other);
+        FrameBufferObject& operator=(const FrameBufferObject& other) = delete;
+        FrameBufferObject& operator=(FrameBufferObject&& other);
+
+        void bind() const;
+        void bindRead() const;
+        void unbind() const;
+
+        std::vector<util::texture::Texture2D&>& getTextures()
+        {
+            return m_textures;
+        }
+
+        private:
+        GLuint m_ID;
+        std::vector<util::texture::Texture2D&> &m_textures;
+
+    };
+
+    using bin_t = std::tuple<float, float, unsigned int>;
     //-------------------------------------------------------------------------
-    // Templates
+    // Templated functions
     //-------------------------------------------------------------------------
     /*! \brief Transforms cartesian into polar coordinates.
      *  \return A vector where with components (r, phi, theta)

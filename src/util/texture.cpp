@@ -1,132 +1,222 @@
-//#include <cstdio>
-//#include <fstream>
 #include <random>
 
 #include <GL/gl3w.h>
 
 #include "util.hpp"
+#include "texture.hpp"
 
-/**
- * \brief creates a 3D texture filled with the given values
- *
- * \param buf array containing the volume data in linear order
- * \param internalFormat OGL Define that determines the number of color
- *        componenents and their type
- * \param res_x Number of values in the first dimension
- * \param res_y Number of values in the second dimension
- * \param res_z Number of values in the third dimension
- *
- * \return OpenGL ID of the texture object
- */
-GLuint util::create3dTexFromScalar(
-    const GLvoid *buf,
-    GLenum type,
-    GLsizei res_x,
-    GLsizei res_y,
-    GLsizei res_z)
+//-----------------------------------------------------------------------------
+// texture class implementations
+//-----------------------------------------------------------------------------
+util::texture::Texture() :
+    m_ID(0)
 {
-    GLuint volumeTex;
-
-    /*for (size_t z = 0; z < res_z; ++z)
-    for (size_t y = 0; y < res_y; ++y)
-    for (size_t x = 0; x < res_x; ++x)
-    {
-        reinterpret_cast<unsigned char*>(buf)[x + y * res_x + z * (res_x * res_y)] =
-            0xFF * (x > 45);
-    }*/
-
-    glGenTextures(1, &volumeTex);
-    glBindTexture(GL_TEXTURE_3D, volumeTex);
-    glTexImage3D(
-        GL_TEXTURE_3D,
-        0,
-        GL_RED,
-        res_x,
-        res_y,
-        res_z,
-        0,
-        GL_RED,
-        type,
-        buf);
-    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-    printOpenGLError();
-    /*printf("Resolution: %i, %i, %i \n", res_x, res_y, res_z);
-    
-    std::ofstream fs ("./texture", std::ios::out | std::ios::binary);
-
-    if (fs.is_open())
-    {
-        fs.write(reinterpret_cast<const char*>(buf), res_x * res_y * res_z);
-        fs.close();
-    }
-
-    float borderColor[] = {0.f, 0.f, 0.f, 1.f};
-    glTexParameterfv(GL_TEXTURE_3D, GL_TEXTURE_BORDER_COLOR, borderColor);*/
-
-    return volumeTex;
 }
+
+util::texture::Texture(util::texture::Texture&& other) :
+    m_ID(other.ID)
+{
+    other.ID = 0;
+}
+
+util::texture::Texture& util::texture::Texture::operator=(
+        util::texture::Texture&& other)
+{
+    this->m_ID = other.m_ID;
+    other.m_ID = 0;
+
+    return *this;
+}
+
+util::texture::~Texture()
+{
+    glDeleteTextures(1, &m_ID);
+}
+
+//-----------------------------------------------------------------------------
+util::texture::Texture2D::Texture2D ()
+{
+}
+
 /**
- * \brief Creates a 2D texture object which can be used as render target
- * \param internalFormat   internal format of the texture
- * \param format           format of the data: GL_RGB,...
- * \param type             data type: GL_UNSIGNED_BYTE, GL_FLOAT,...
- * \param filter           texture filter: GL_LINEAR or GL_NEAREST
- * \param width            texture width
- * \param height           texture height
+ * \brief Creates a 2D texture object which also can be used as render target
+ * \param internalFormat internal format of the texture
+ * \param format         format of the data: GL_RGB,...
+ * \param level          level of detail number: 0 for base level
+ * \param type           data type: GL_UNSIGNED_BYTE, GL_FLOAT,...
+ * \param filter         texture filter: GL_LINEAR or GL_NEAREST
+ * \param wrap           texture wrap: GL_CLAMP_TO_EDGE, ...
+ * \param width          horizontal resolution
+ * \param height         vertical resolution
+ * \param buf            array containing data for initializing the texture
  *
  * \return OpenGL ID of the texture Object
  */
-GLuint util::create2dTextureObject(
-    const GLenum internalFormat,
-    const GLenum format,
-    const GLenum type,
+util::texture::Texture2D::Texture2D(
+    GLenum internalFormat,
+    GLenum format,
+    GLint level,
+    GLenum type,
     GLint filter,
+    GLint wrap,
     GLsizei width,
-    GLsizei height)
+    GLsizei height,
+    const GLvoid * data,
+    std::array<float, 4> borderColor)
 {
-    GLuint texID = 0;
+    glGenTextures(1, &m_ID);
 
-    glGenTextures(1, &texID);
-
-    glBindTexture(GL_TEXTURE_2D, texID);
+    this->bind();
 
     glTexImage2D(
         GL_TEXTURE_2D,
-        0,
+        level,
         internalFormat,
         width,
         height,
         0,
         format,
         type,
-        NULL);
+        data);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-    float borderColor[] = { 0.f, 0.f, 0.f, 1.f };
-    glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrap);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrap);
+    glTexParameterfv(
+        GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor.data());
 
-    return texID;
+    this->unbind();
 }
 
+util::texture::Texture2D::Texture2D(
+        util::texture::Texture2D&& other) :
+    Texture(other)
+{
+}
+
+util::texture::Texture2D& util::texture::Texture2D::operator=(
+        util::texture::Texture2D&& other)
+{
+    Texture::operator=(other);
+
+    return *this;
+}
+
+util::texture::Texture2D::~Texture2D()
+{
+}
+
+void util::texture::Texture2D::bind() const
+{
+    glBindTexture(GL_TEXTURE_2D, m_ID);
+}
+
+void util::texture::Texture2D::unbind() const
+{
+    glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+//-----------------------------------------------------------------------------
+util::texture::Texture3D::Texture3D ()
+{
+}
+
+/**
+ * \brief Creates a 2D texture object which also can be used as render target
+ * \param internalFormat internal format of the texture
+ * \param format         format of the data: GL_RGB,...
+ * \param level          level of detail number: 0 for base level
+ * \param type           data type: GL_UNSIGNED_BYTE, GL_FLOAT,...
+ * \param filter         texture filter: GL_LINEAR or GL_NEAREST
+ * \param wrap           texture wrap: GL_CLAMP_TO_EDGE, ...
+ * \param width          horizontal resolution
+ * \param height         vertical resolution
+ * \param depth          z dimension resolution
+ * \param data           array containing data for initializing the texture
+ *
+ * \return OpenGL ID of the texture Object
+ */
+util::texture::Texture3D::Texture3D(
+    GLenum internalFormat,
+    GLenum format,
+    GLint level,
+    GLenum type,
+    GLint filter,
+    GLint wrap,
+    GLsizei width,
+    GLsizei height,
+    GLsizei depth,
+    const GLvoid * data,
+    std::array<float, 4> borderColor)
+{
+    glGenTextures(1, &m_ID);
+
+    this->bind();
+
+    glTexImage3D(
+        GL_TEXTURE_3D,
+        level,
+        internalFormat,
+        width,
+        height,
+        depth,
+        0,
+        format,
+        type,
+        data);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, filter);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, filter);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, wrap);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, wrap);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, wrap);
+    glTexParameterfv(
+        GL_TEXTURE_3D, GL_TEXTURE_BORDER_COLOR, borderColor.data());
+
+    this->unbind();
+}
+
+util::texture::Texture3D::Texture3D(
+        util::texture::Texture3D&& other) :
+    Texture(other)
+{
+}
+
+util::texture::Texture3D& util::texture::Texture3D::operator=(
+        util::texture::Texture3D&& other)
+{
+    Texture::operator=(other);
+
+    return *this;
+}
+
+util::texture::Texture3D::~Texture3D()
+{
+}
+
+void util::texture::Texture3D::bind() const
+{
+    glBindTexture(GL_TEXTURE_3D, m_ID);
+}
+
+void util::texture::Texture3D::unbind() const
+{
+    glBindTexture(GL_TEXTURE_3D, 0);
+}
+//-----------------------------------------------------------------------------
+// convenience functions
+//-----------------------------------------------------------------------------
 /**
  * \brief intializes a texture use with the HybridTaus random generator
  *
  * \param width            texture width
  * \param height           texture height
  */
-GLuint util::create2dHybridTausTexture(
+util::texture::Texture2D& util::texture::create2dHybridTausTexture(
         GLsizei width,
         GLsizei height)
 {
     uint32_t *buf = new uint32_t[4 * width * height];
     uint32_t r1 = 0, r2 = 0, r3 = 0, r4 = 0;
-    GLuint texID = 0;
 
     std::random_device rd;  // for getting one non-deterministic random number
                             // and seeding the mersenne twister
@@ -146,28 +236,19 @@ GLuint util::create2dHybridTausTexture(
         buf[i * 4 + 3] = r4 + static_cast<uint32_t>((1 + i) << 10);
     }
 
-    glGenTextures(1, &texID);
-    glBindTexture(GL_TEXTURE_2D, texID);
-
-    glTexImage2D(
-        GL_TEXTURE_2D,
-        0,
+   util::texture::Texture2D htTex(
         GL_RGBA32UI,
+        GL_RGBA_INTEGER,
+        0,
+        GL_UNSIGNED_INT,
+        GL_NEAREST,
+        GL_REPEAT,
         width,
         height,
-        0,
-        GL_RGBA_INTEGER,
-        GL_UNSIGNED_INT,
         buf);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-
-    glBindTexture(GL_TEXTURE_2D, 0);
 
     delete[] buf;
 
-    return texID;
+    return htTex;
 }
 

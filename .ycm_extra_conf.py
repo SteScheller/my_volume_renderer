@@ -6,7 +6,7 @@ import sys
 
 DIR_OF_THIS_SCRIPT = os.path.abspath(os.path.dirname( __file__ ))
 
-INCLUDE = 'src include libs/gl3w libs/imgui libs/nlohmann'
+INCLUDE = 'src src/util include libs/gl3w libs/imgui libs/nlohmann'
 FLAGS = ['`pkg-config --cflags glfw3`', '-Wall', '-Wextra']
 LIBS = [
         '-lGL',

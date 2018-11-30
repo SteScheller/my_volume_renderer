@@ -8,6 +8,7 @@
 #define GLM_FORCE_SWIZZLE
 #include <glm/glm.hpp>
 
+#include "util/util.hpp"
 #include "shader.hpp"
 #include "configraw.hpp"
 #include "transferfunc.hpp"
@@ -68,8 +69,9 @@ namespace mvr
         Renderer();
         ~Renderer();
 
-        int setConfig();
+        int Initialize();
         int run();
+        int setConfig();
         int renderImage();
 
         //---------------------------------------------------------------------
@@ -168,6 +170,7 @@ namespace mvr
         //---------------------------------------------------------------------
         // internals
         //---------------------------------------------------------------------
+        bool m_isInitialized;
         GLFWwindow* m_window;
 
         Shader m_shaderQuad;
@@ -177,26 +180,33 @@ namespace mvr
         Shader m_shaderTfFunc;
         Shader m_shaderTfPoint;
 
-        //bool m_isInitialized;
+        glm::mat4 m_volumeModelMX;
+
+        std::array<util::FrameBufferObject, 2> m_framebuffers;
+        std::array<std::vector<util::texture::Texture2D>, 2>
+            m_framebufferTextures;
+
+        util::FrameBufferObject m_tfColorWidgetFBO;
+        util::FrameBufferObject m_tfFuncWidgetFBO;
+
+        std::vector<util::bin_t> m_histogramBins;
+        util::texture::Texture3D m_volumeTex;
+
+        cr::VolumeData m_volumeData;
+
         /*static bool _flag_reload_shaders = false;
         static bool _flag_show_menues = true;
-
-        // default fbo for storing different rendering results and helpers
-        static GLuint _ppFBOs[2] = { 0, 0 };
-        static GLuint _ppTexIDs[2][2] = {{ 0, 0 }, { 0, 0 }};
 
         // flag for seeding the random generator in the fragment shader
         static GLuint _rngTex = 0;
 
         // for picking of control points in transfer function editor
         static float _selected_cp_pos = 0.f;
-        static GLuint _selected_cp_fbo = 0.f;
         static ImVec2 _tf_screen_pos = ImVec2();*/
 
         //---------------------------------------------------------------------
         // subroutines
         //---------------------------------------------------------------------
-        int Initialize();
         void showSettingsWindow(
             cr::VolumeConfig &vConf,
             void *&volumeData,
@@ -240,17 +250,7 @@ namespace mvr
         /**
          * \brief updates the volume data, texture, histogram information...
         */
-        void reloadStuff(
-            cr::VolumeConfig vConf,
-            void *&volumeData,
-            GLuint &volumeTex,
-            unsigned int timestep,
-            glm::mat4 &modelMX,
-            std::vector<util::bin_t> *&histogramBins,
-            size_t num_bins,
-            float x_min,
-            float x_max);
-
+        void loadVolume(cr::VolumeConfig volumeConfig);
 
         //---------------------------------------------------------------------
         // helper functions
@@ -265,6 +265,12 @@ namespace mvr
                 const char* title);
 
         void resizeRenderResult(int width, int height);
+
+        void createPingPongFBO(
+            GLuint &fbo,
+            GLuint texIDs[2],
+            unsigned int width,
+            unsigned int height);
 
         void createHelpMarker(const char* desc);
 

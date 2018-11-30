@@ -95,13 +95,20 @@ mvr::Renderer::Renderer() :
     m_ambientOcclusionRadius(0.2f),
     m_ambientOcclusionProportion(0.5f),
     m_ambientOcclusionNumSamples(10),
+    // internal member variables
+    m_isInitialized(false),
     m_window(nullptr),
     m_shaderQuad(),
     m_shaderFrame(),
     m_shaderVolume(),
     m_shaderTfColor(),
     m_shaderTfFunc(),
-    m_shaderTfPoint()
+    m_shaderTfPoint(),
+    m_volumeModelMX(1.f),
+    m_tfColorWidgetFBO(),
+    m_tfFuncWidgetFBO(),
+    m_histogramBins(0),
+    m_volumeTex()
 {
     m_volumeDescriptionFile.resize(mvr::Renderer::MAX_FILEPATH_LENGTH, '\0');
 }
@@ -141,11 +148,79 @@ int mvr::Renderer::Initialize()
     m_shaderTfPoint = std::move(Shader(
         "src/shader/tfPoint.vert", "src/shader/tfPoint.frag"));
 
+    m_framebufferTextures[0][0] = std::move(
+        util::texture::Texture2D(
+            GL_RGBA,
+            GL_RGBA,
+            0,
+            GL_FLOAT,
+            GL_LINEAR,
+            GL_CLAMP_TO_BORDER,
+            m_renderingDimensions[0],
+            m_renderingDimensions[1]));
+
+    m_framebufferTextures[0][1] = std::move(
+        util::texture::Texture2D(
+            GL_RGBA32UI,
+            GL_RGBA_INTEGER,
+            0,
+            GL_UNSIGNED_INT,
+            GL_NEAREST,
+            GL_CLAMP_TO_BORDER,
+            m_renderingDimensions[0],
+            m_renderingDimensions[1]));
+
+    m_framebufferTextures[1][0] = std::move(
+        util::texture::Texture2D(
+            GL_RGBA,
+            GL_RGBA,
+            0,
+            GL_FLOAT,
+            GL_LINEAR,
+            GL_CLAMP_TO_BORDER,
+            m_renderingDimensions[0],
+            m_renderingDimensions[1]));
+
+    m_framebufferTextures[1][1] = std::move(
+        util::texture::Texture2D(
+            GL_RGBA32UI,
+            GL_RGBA_INTEGER,
+            0,
+            GL_UNSIGNED_INT,
+            GL_NEAREST,
+            GL_CLAMP_TO_BORDER,
+            m_renderingDimensions[0],
+            m_renderingDimensions[1]));
+
+    std::vector<GLenum> attachments {
+        GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1};
+
+    std::vector<util::texture::Texture2D&> secondFboTextures{
+        m_framebufferTextures[0][0], m_framebufferTextures[0][1]};
+
+    std::vector<util::texture::Texture2D&> firstFboTextures{
+        m_framebufferTextures[1][0], m_framebufferTextures[1][1]};
+
+    m_framebuffers[0] = std::move(
+            util::FramebufferObject(firstFboTextures, attachments);
+    m_framebuffers[1] = std::move(
+            util::FramebufferObject(secondFboTextures, attachments);
+
+    if (EXIT_SUCCESS == ret) m_isInitialized = true;
+
     return ret;
 }
 
 int mvr::Renderer::setConfig()
 {
+    if (false == m_isInitialized)
+    {
+        std::cerr << "Error: Renderer::Initialize() must be called "
+            "successfully before Renderer::setConfig() can be used!" <<
+            std::endl;
+        return EXIT_FAILURE;
+    }
+
     // TODO
     // Method that sweeps through a json config and applies the according
     // settings to the class
@@ -155,6 +230,8 @@ int mvr::Renderer::setConfig()
 
 int mvr::Renderer::run()
 {
+    int ret = Initialize();
+    if (EXIT_SUCCESS != ret) return ret;
 
     // ------------------------------------------------------------------------
     // geometry
@@ -171,59 +248,57 @@ int mvr::Renderer::run()
     // ------------------------------------------------------------------------
     // framebuffer objects
     // ------------------------------------------------------------------------
-    createPingPongFBO(_ppFBOs[0], &(_ppTexIDs[0][0]), render_w, render_h);
-    createPingPongFBO(_ppFBOs[1], &(_ppTexIDs[1][0]), render_w, render_h);
+    // window filling frame bufferobjects constructed in Initialize() method
 
-    GLuint tfColorFBO = 0;
-    GLuint tfColorTexIDs[1] = { 0 };
-    {
-        GLenum attachments[1] = { GL_COLOR_ATTACHMENT0 };
-        GLint  internalFormats[1] = { GL_RGBA };
-        GLenum formats[1] = { GL_RGBA };
-        GLenum datatypes[1] = { GL_FLOAT };
-        GLint  filters[1] = { GL_LINEAR };
+    // render target for widget that shows resulting transfer function colors
+    util::texture::Texture2D tfColorWidgetTex(
+        GL_RGBA,
+        GL_RGBA,
+        0,
+        GL_FLOAT,
+        GL_LINEAR,
+        GL_CLAMP_TO_EDGE,
+        m_tfColorWidgetDimensions[0],
+        m_tfColorWidgetDimensions[1]);
+    std::vector<util:texture:Texture2D&> tfColorWidgetFboTextures =
+        { tfColorWidgetTex };
+    std::vector<GLenum> tfColorWidgetFboAttachments = { GL_COLOR_ATTACHMENT0 };
+    m_tfColorWidgetFBO = std::move(
+            util::FrameBufferObject(
+                tfColorWidgetFboTextures, tfColorWidgetFboAttachments));
 
-        tfColorFBO = util::createFrameBufferObject(
-                tf_color_img_w,
-                tf_color_img_h,
-                tfColorTexIDs,
-                1,
-                attachments,
-                internalFormats,
-                formats,
-                datatypes,
-                filters);
-    }
-
-    GLuint tfFuncFBO = 0;
-    GLuint tfFuncTexIDs[2] = {0, 0};
-
-    {
-        GLenum attachments[2] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
-        GLint  internalFormats[2] = { GL_RGBA, GL_RG32F};
-        GLenum formats[2] = { GL_RGBA, GL_RG};
-        GLenum datatypes[2] = { GL_FLOAT, GL_FLOAT };
-        GLint  filters[2] = { GL_LINEAR, GL_NEAREST };
-
-        tfFuncFBO = util::createFrameBufferObject(
-                tf_func_img_w,
-                tf_func_img_h,
-                tfFuncTexIDs,
-                2,
-                attachments,
-                internalFormats,
-                formats,
-                datatypes,
-                filters);
-    }
-    _selected_cp_fbo = tfFuncFBO;
+    // render target that shows transfer function line plot
+    std::array<util::texture::Texture2D, 2> tfFuncWidgetTextures;
+    tfFuncWidgetTextures[0] = std::move(
+        util::Texture::Texture2D(
+            GL_RGBA,
+            GL_RGBA,
+            0,
+            GL_FLOAT,
+            GL_LINEAR,
+            GL_CLAMP_TO_EDGE,
+            m_tfFuncWidgetDimensions[0],
+            m_tfFuncWidgetDimensions[1]));
+    tfFuncWidgetTextures[1] = std::move(
+        util::Texture::Texture2D(
+            GL_RG32F,
+            GL_RG,
+            0,
+            GL_FLOAT,
+            GL_NEAREST,
+            GL_CLAMP_TO_BORDER,
+            m_tfFuncWidgetDimensions[0],
+            m_tfFuncWidgetDimensions[1]));
+    std::vector<GLenum> tfFuncWidgetFboAttachments =
+        { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
+    m_tfFuncWidgetFBO = std::move(
+            m_util::FrameBufferObject(
+                tfFuncWidgetTextures, tfFuncWidgetFboAttachments));
 
     // ------------------------------------------------------------------------
     // volume
-    // initialize model, view and projection matrices
+    // initialize view and projection matrices
     // ------------------------------------------------------------------------
-    glm::mat4 modelMX = glm::mat4(1.f);
-
     glm::vec3 right = glm::normalize(
         glm::cross(-camPos, glm::vec3(0.f, 1.f, 0.f)));
     glm::vec3 up = glm::normalize(glm::cross(right, -camPos));
@@ -236,34 +311,13 @@ int mvr::Renderer::run()
         50.0f);
 
     // Diagonal of a voxel
-    float voxel_diag = 1.f;
+    float voxelDiagonal = 1.f;
 
-    // load the data, create a model matrix, bins and a texture
-    std::vector<util::bin_t> *histogramBins = nullptr;
-    void *volumeData = nullptr;
-    GLuint volumeTex = 0;
-
-    cr::VolumeConfig vConf = cr::VolumeConfig(gui_volume_desc_file);
+    // load the data, adjust the model matrix, prepare a histogram of the data
+    // and a texture object
+    cr::VolumeConfig volumeConfig = cr::VolumeConfig(m_volumeDescriptionFile);
     if(vConf.isValid())
-    {
-        reloadStuff(
-            vConf,
-            volumeData,
-            volumeTex,
-            gui_timestep,
-            modelMX,
-            histogramBins,
-            gui_num_bins,
-            gui_x_min,
-            gui_x_max);
-    }
-    else
-    {
-        modelMX = glm::mat4(1.f);
-        histogramBins = nullptr;
-        volumeData = nullptr;
-        volumeTex = 0;
-    }
+    //TODO:    loadVolume(volumeConfgg);
 
     // ------------------------------------------------------------------------
     // misc. stuff
@@ -571,6 +625,34 @@ int mvr::Renderer::renderImage()
 //-----------------------------------------------------------------------------
 // subroutines
 //-----------------------------------------------------------------------------
+/**
+ *  \brief Creates a two framebuffer objects for usage as ping pong render
+ *         targets
+ */
+void util::createPingPongFBO(
+    GLuint &fbo,
+    GLuint texIDs[2],
+    unsigned int width,
+    unsigned int height)
+{
+    GLenum attachments[2] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
+    GLint  internalFormats[2] = { GL_RGBA, GL_RGBA32UI };
+    GLenum formats[2] = { GL_RGBA, GL_RGBA_INTEGER };
+    GLenum datatypes[2] = { GL_FLOAT, GL_UNSIGNED_INT };
+    GLint  filters[2] = { GL_LINEAR, GL_NEAREST };
+
+    fbo = util::createFrameBufferObject(
+            width,
+            height,
+            texIDs,
+            2,
+            attachments,
+            internalFormats,
+            formats,
+            datatypes,
+            filters);
+}
+
 static void showSettingsWindow(
     cr::VolumeConfig &vConf,
     void *&volumeData,
@@ -1257,28 +1339,20 @@ static void drawTfFunc(
 
 }
 
-void mvr::Renderer::reloadStuff(
-    cr::VolumeConfig vConf,
-    void *&volumeData,
-    GLuint &volumeTex,
-    unsigned int timestep,
-    glm::mat4 &modelMX,
-    std::vector<util::bin_t> *&histogramBins,
-    size_t num_bins,
-    float x_min,
-    float x_max)
+void mvr::Renderer::loadVolume(cr::VolumeConfig volumeConfig)
 {
+    // TODO: adapt this to our new classes
     glDeleteTextures(1, &volumeTex);
     if (volumeData != nullptr) cr::deleteVolumeData(vConf, volumeData);
     if (histogramBins != nullptr) delete histogramBins;
 
     volumeData = cr::loadScalarVolumeDataTimestep(vConf, timestep, false);
-    modelMX = glm::scale(
+    m_volumeModelMX = glm::scale(
         glm::mat4(1.f),
         glm::normalize(glm::vec3(
-            static_cast<float>(vConf.getVolumeDim()[0]),
-            static_cast<float>(vConf.getVolumeDim()[1]),
-            static_cast<float>(vConf.getVolumeDim()[2]))));
+            static_cast<float>(volumeConfig.getVolumeDim()[0]),
+            static_cast<float>(volumeConfig.getVolumeDim()[1]),
+            static_cast<float>(volumeConfig.getVolumeDim()[2]))));
     histogramBins = bucketVolumeData(
         vConf, volumeData, num_bins, x_min, x_max);
     volumeTex = cr::loadScalarVolumeTex(vConf, volumeData);

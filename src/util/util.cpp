@@ -1,10 +1,95 @@
 #include <iostream>
 #include <string>
+#include <vector>
 #include <GL/gl3w.h>
+
 #include <FreeImage.h>
 
 #include "util.hpp"
 
+//-----------------------------------------------------------------------------
+// Framebuffer Class Implementations
+//-----------------------------------------------------------------------------
+util::FrameBufferObject::FrameBufferObject() :
+    m_ID(0),
+    m_textures()
+{
+}
+
+util::FramebufferObject::FrameBufferObject(
+        const std::vector<util::texture::Texture2D&> &textures,
+        const std::vector<GLenum> &attachments) :
+    FramebufferObject()
+{
+    if ((textures.size() < 0) || (textures.size() != attachments.size()))
+            return;
+
+    glGenFramebuffers(1, &m_ID);
+    m_textures = textures;
+
+    this->bind()
+
+    for (size_t i = 0; i < textures.size(); ++i)
+    {
+        glFramebufferTexture2D(
+            GL_FRAMEBUFFER,
+            attachments[i],
+            GL_TEXTURE_2D,
+            texures[i].getID(),
+            0);
+
+    }
+
+    printOpenGLError();
+
+    if (!(GL_FRAMEBUFFER_COMPLETE == glCheckFramebufferStatus(GL_FRAMEBUFFER)))
+        std::cerr << "Error: frame buffer object incomplete!\n" << std::endl;
+
+    this->unbind();
+}
+
+util::FrameBufferObject::FrameBufferObject(util::FrameBufferObject&& other)
+{
+    this->m_ID = other.m_ID;
+    this->m_textures = std::move(other.m_textures);
+    other.m_ID = 0;
+}
+
+util::FrameBufferObject& util::FramebufferObject::operator=(
+        util::FrameBufferObject&& other)
+{
+    glDeleteFramebuffers(1, &(this->m_ID));
+    this->m_ID = other.m_ID;
+    this->m_textures = std::move(other.m_textures);
+    other.m_ID = 0;
+
+    return *this;
+}
+
+util::FrameBufferObject::~FramebufferObject()
+{
+    glDeleteFramebuffers(1, &m_ID);
+}
+
+util::FrameBufferObject::bind() const
+{
+    glBindFramebuffer(GL_FRAMEBUFFER, m_ID);
+}
+
+util::FrameBufferObject::bindRead() const
+{
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, m_ID);
+}
+
+util::FrameBufferObject::unbind() const
+{
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+
+//-----------------------------------------------------------------------------
+// convenience functions
+//-----------------------------------------------------------------------------
 /**
  *  \brief Outputs OpenGL errors at the current code position
  *
@@ -53,94 +138,6 @@ bool util::printOglError(const char *file, int line)
     return ret;
 }
 
-
-/**
- *  \brief Creates an OpenGL frame buffer object as alternative render target
- *
- *  \param width            horizontal size in pixel
- *  \param height           vertical size in pixel
- *  \param texIDs           array where the object IDs of the attached
- *                          textures are stored
- *  \param numAttachments   sum of color and attachments that shall be created
- *  \param attachment       array with attachment points (color, depth ...)
- *  \param internalFormat   array with internal format of the attachments
- *  \param format           array with format of the data: GL_RGB,...
- *  \param type             array with data type: GL_UNSIGNED_BYTE, ...
- *  \param filter           array with texture filter: GL_LINEAR or GL_NEAREST
- *
- *  \return The ID of the framebuffer object and the IDs of attached textures
- *          via texIDs.
- */
-GLuint util::createFrameBufferObject(
-    GLsizei width,
-    GLsizei height,
-    GLuint texIDs[],
-    unsigned int numAttachments,
-    GLenum attachment[],
-    GLint internalFormat[],
-    GLenum format[],
-    GLenum datatype[],
-    GLint filter[])
-{
-    GLuint fboID = 0;
-
-    glGenFramebuffers(1, &fboID);
-    glBindFramebuffer(GL_FRAMEBUFFER, fboID);
-
-    for (unsigned int i = 0; i < numAttachments; ++i)
-    {
-        texIDs[i] = util::create2dTextureObject(
-            internalFormat[i],
-            format[i],
-            datatype[i],
-            filter[i],
-            width,
-            height);
-
-        glFramebufferTexture2D(
-            GL_FRAMEBUFFER,
-            attachment[i],
-            GL_TEXTURE_2D,
-            texIDs[i],
-            0);
-    }
-
-    printOpenGLError();
-    if (!(GL_FRAMEBUFFER_COMPLETE == glCheckFramebufferStatus(GL_FRAMEBUFFER)))
-        std::cout << "Error: frame buffer object incomplete!\n" << std::endl;
-
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-    return fboID;
-}
-
-/**
- *  \brief Creates a two framebuffer objects for usage as ping pong render
- *         targets
- */
-void util::createPingPongFBO(
-    GLuint &fbo,
-    GLuint texIDs[2],
-    unsigned int width,
-    unsigned int height)
-{
-    GLenum attachments[2] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
-    GLint  internalFormats[2] = { GL_RGBA, GL_RGBA32UI };
-    GLenum formats[2] = { GL_RGBA, GL_RGBA_INTEGER };
-    GLenum datatypes[2] = { GL_FLOAT, GL_UNSIGNED_INT };
-    GLint  filters[2] = { GL_LINEAR, GL_NEAREST };
-
-    fbo = util::createFrameBufferObject(
-            width,
-            height,
-            texIDs,
-            2,
-            attachments,
-            internalFormats,
-            formats,
-            datatypes,
-            filters);
-}
 /**
  *  \brief Grabs the RGB values from the given FBO and writes them to an image
  *         file.
@@ -152,15 +149,15 @@ void util::createPingPongFBO(
  *  \param type FreeImage Image type (FIF_BMP, FIF_TIFF, ...)
  */
 void util::makeScreenshot(
-        GLuint fbo,
+        FramebufferObject fbo,
         unsigned int width,
         unsigned int height,
-        const char *file,
+        const std::string &file,
         FREE_IMAGE_FORMAT type)
 {
     GLubyte* pixels = new GLubyte[3 * width * height];
 
-    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    fbo.bind();
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     glReadPixels(0, 0, width, height, GL_BGR, GL_UNSIGNED_BYTE, pixels);
 
@@ -175,7 +172,7 @@ void util::makeScreenshot(
             0x00FF00,
             0xFF0000,
             false);
-    FreeImage_Save(type, image, file, 0);
+    FreeImage_Save(type, image, file.c_str(), 0);
 
     // Free resources
     FreeImage_Unload(image);

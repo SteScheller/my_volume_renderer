@@ -65,6 +65,18 @@ namespace cr
     // ------------------------------------------------------------------------
     // classes
     // ------------------------------------------------------------------------
+    template<typename T>
+    class VolumeData
+    {
+        public:
+            VolumeData();
+            ~VolumeData();
+
+        private:
+            VolumeConfig m_config;
+            T* m_rawData;
+    };
+
     class VolumeConfig
     {
         private:
