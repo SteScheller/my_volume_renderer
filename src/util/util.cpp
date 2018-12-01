@@ -10,16 +10,16 @@
 //-----------------------------------------------------------------------------
 // Framebuffer Class Implementations
 //-----------------------------------------------------------------------------
-util::FrameBufferObject::FrameBufferObject() :
+util::FramebufferObject::FramebufferObject() :
     m_ID(0),
     m_textures()
 {
 }
 
-util::FramebufferObject::FrameBufferObject(
+util::FramebufferObject::FramebufferObject(
         const std::vector<util::texture::Texture2D&> &textures,
         const std::vector<GLenum> &attachments) :
-    FramebufferObject()
+    util::FramebufferObject::FramebufferObject()
 {
     if ((textures.size() < 0) || (textures.size() != attachments.size()))
             return;
@@ -27,7 +27,7 @@ util::FramebufferObject::FrameBufferObject(
     glGenFramebuffers(1, &m_ID);
     m_textures = textures;
 
-    this->bind()
+    this->bind();
 
     for (size_t i = 0; i < textures.size(); ++i)
     {
@@ -35,7 +35,7 @@ util::FramebufferObject::FrameBufferObject(
             GL_FRAMEBUFFER,
             attachments[i],
             GL_TEXTURE_2D,
-            texures[i].getID(),
+            textures[i].getID(),
             0);
 
     }
@@ -48,15 +48,15 @@ util::FramebufferObject::FrameBufferObject(
     this->unbind();
 }
 
-util::FrameBufferObject::FrameBufferObject(util::FrameBufferObject&& other)
+util::FramebufferObject::FramebufferObject(util::FramebufferObject&& other)
 {
     this->m_ID = other.m_ID;
     this->m_textures = std::move(other.m_textures);
     other.m_ID = 0;
 }
 
-util::FrameBufferObject& util::FramebufferObject::operator=(
-        util::FrameBufferObject&& other)
+util::FramebufferObject& util::FramebufferObject::operator=(
+        util::FramebufferObject&& other)
 {
     glDeleteFramebuffers(1, &(this->m_ID));
     this->m_ID = other.m_ID;
@@ -66,22 +66,22 @@ util::FrameBufferObject& util::FramebufferObject::operator=(
     return *this;
 }
 
-util::FrameBufferObject::~FramebufferObject()
+util::FramebufferObject::~FramebufferObject()
 {
     glDeleteFramebuffers(1, &m_ID);
 }
 
-util::FrameBufferObject::bind() const
+void util::FramebufferObject::bind() const
 {
     glBindFramebuffer(GL_FRAMEBUFFER, m_ID);
 }
 
-util::FrameBufferObject::bindRead() const
+void util::FramebufferObject::bindRead() const
 {
     glBindFramebuffer(GL_READ_FRAMEBUFFER, m_ID);
 }
 
-util::FrameBufferObject::unbind() const
+void util::FramebufferObject::unbind() const
 {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
@@ -149,7 +149,7 @@ bool util::printOglError(const char *file, int line)
  *  \param type FreeImage Image type (FIF_BMP, FIF_TIFF, ...)
  */
 void util::makeScreenshot(
-        FramebufferObject fbo,
+        const FramebufferObject &fbo,
         unsigned int width,
         unsigned int height,
         const std::string &file,
@@ -178,6 +178,4 @@ void util::makeScreenshot(
     FreeImage_Unload(image);
     delete[] pixels;
 }
-
-
 

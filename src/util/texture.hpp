@@ -77,10 +77,10 @@ namespace util
                 const GLvoid * data = static_cast<const GLvoid*>(nullptr),
                 const std::array<float, 4> &borderColor =
                     {0.f, 0.f, 0.f, 1.f} );
-            Texture3D(const Texture2D& other) = delete;
-            Texture3D(Texture2D&& other);
-            Texture3D& operator=(const Texture2D& other) = delete;
-            Texture3D& operator=(Texture2D&& other);
+            Texture3D(const Texture3D& other) = delete;
+            Texture3D(Texture3D&& other);
+            Texture3D& operator=(const Texture3D& other) = delete;
+            Texture3D& operator=(Texture3D&& other);
 
             ~Texture3D();
 
@@ -90,7 +90,7 @@ namespace util
         //---------------------------------------------------------------------
         // Convenience Functions
         //---------------------------------------------------------------------
-        GLuint create2dHybridTausTexture(GLsizei width, GLsizei height);
+        Texture2D& create2dHybridTausTexture(GLsizei width, GLsizei height);
     }
 
 }

@@ -20,7 +20,6 @@ util::geometry::Shape::Shape()
 {
 }
 
-util::geometry::Shape::operator(util::geometry::Shape&& other)
 util::geometry::Shape::~Shape()
 {
     glDeleteVertexArrays(1, &m_vertexArrayObject);

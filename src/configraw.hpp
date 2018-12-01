@@ -48,35 +48,27 @@ namespace cr
     // ------------------------------------------------------------------------
     // forward declarations
     // ------------------------------------------------------------------------
+    class VolumeConfig;
+    class VolumeDataBase;
     unsigned int datatypeSize(cr::Datatype type);
     Datatype dotconfigValToDatatype(std::string value);
-    class VolumeConfig;
-    void *loadScalarVolumeDataTimestep(
-        VolumeConfig vConf, unsigned int n, bool swap);
-    void deleteVolumeData(VolumeConfig vConf, void *volumeData);
-    GLuint loadScalarVolumeTex(VolumeConfig vConf, void* volumeData);
+    VolumeDataBase loadScalarVolumeTimestep(
+        VolumeConfig volumeConfig, unsigned int n, bool swap);
+    void deleteVolumeData(VolumeConfig volumeConfig, void *volumeData);
+    util::texture::Texture3D loadScalarVolumeTex(
+            const VolumeConfig &volumeConfig, void* volumeData);
     std::vector<util::bin_t > *bucketVolumeData(
-        VolumeConfig vConf,
+        VolumeConfig volumeConfig,
         void* values,
         size_t numBins,
         float min,
         float max);
 
     // ------------------------------------------------------------------------
-    // classes
+    // class declarations
     // ------------------------------------------------------------------------
-    template<typename T>
-    class VolumeData
-    {
-        public:
-            VolumeData();
-            ~VolumeData();
 
-        private:
-            VolumeConfig m_config;
-            T* m_rawData;
-    };
-
+    // volume dataset configuration class
     class VolumeConfig
     {
         private:
@@ -125,22 +117,65 @@ namespace cr
         bool isValid(){ return _valid; }
 
         // getter and setter
-        unsigned int getNumTimesteps(){ return _num_timesteps; }
-        std::array<size_t, 3> getVolumeDim(){ return _volume_dim; }
-        std::array<size_t, 3> getOrigVolumeDim(){ return _orig_volume_dim; }
-        bool getSubset(){ return _subset; }
-        std::array<size_t, 3> getSubsetMin(){ return _subset_min; }
-        std::array<size_t, 3> getSubsetMax(){ return _subset_max; }
-        size_t getVoxelCount(){ return _voxel_count; }
-        Datatype getVoxelType(){ return _voxel_type; }
-        std::array<size_t, 3> getVoxelDim(){ return _voxel_dim; }
-        size_t getVoxelSizeOf(){ return _voxel_sizeof; }
-        std::string getRawFileDir(){ return _raw_file_dir; }
-        std::string getRawFileExp(){ return _raw_file_exp; }
+        unsigned int getNumTimesteps() const { return _num_timesteps; }
+        std::array<size_t, 3> getVolumeDim() const { return _volume_dim; }
+        std::array<size_t, 3> getOrigVolumeDim() const
+        {
+            return _orig_volume_dim;
+        }
+        bool getSubset() const { return _subset; }
+        std::array<size_t, 3> getSubsetMin() const { return _subset_min; }
+        std::array<size_t, 3> getSubsetMax() const { return _subset_max; }
+        size_t getVoxelCount() const { return _voxel_count; }
+        Datatype getVoxelType() const { return _voxel_type; }
+        std::array<size_t, 3> getVoxelDim() const { return _voxel_dim; }
+        size_t getVoxelSizeOf() const { return _voxel_sizeof; }
+        std::string getRawFileDir() const { return _raw_file_dir; }
+        std::string getRawFileExp() const { return _raw_file_exp; }
     };
 
+    // volume dataset representative
+    class VolumeDataBase {};
+
+    template<typename T>
+    class VolumeData : VolumeDataBase
+    {
+        public:
+            VolumeData() : m_config(), m_rawData(nullptr) {}
+            VolumeData(VolumeConfig volumeConfig, T* rawData) :
+                m_config(volumeConfig),
+                m_rawData(rawData)
+            {
+            }
+
+            VolumeData(const VolumeData& other) = delete;
+            VolumeData& operator=(VolumeData& other) = delete;
+            VolumeData(VolumeData&& other) :
+                m_config(std::move(other.m_config)),
+                m_rawData(std::move(other.m_rawData))
+            {
+                other.m_config = VolumeConfig();
+                other.m_rawData = nullptr;
+            }
+            VolumeData& operator=(VolumeData&& other)
+            {
+                this->m_config = std::move(other.m_config);
+                this->m_rawData = std::move(other.m_rawData);
+                other.m_config = VolumeConfig();
+                other.m_rawData = nullptr;
+
+                return this;
+            }
+            ~VolumeData(){if (nullptr != m_rawData) delete[] m_rawData;}
+
+        private:
+            VolumeConfig m_config;
+            T* m_rawData;
+    };
+
+
     // ------------------------------------------------------------------------
-    // function templates
+    // templated utility functions
     // ------------------------------------------------------------------------
     /**
      * \brief swaps the byteorder of the given value

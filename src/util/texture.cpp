@@ -8,15 +8,15 @@
 //-----------------------------------------------------------------------------
 // texture class implementations
 //-----------------------------------------------------------------------------
-util::texture::Texture() :
+util::texture::Texture::Texture() :
     m_ID(0)
 {
 }
 
-util::texture::Texture(util::texture::Texture&& other) :
-    m_ID(other.ID)
+util::texture::Texture::Texture(util::texture::Texture&& other) :
+    m_ID(other.m_ID)
 {
-    other.ID = 0;
+    other.m_ID = 0;
 }
 
 util::texture::Texture& util::texture::Texture::operator=(
@@ -28,7 +28,7 @@ util::texture::Texture& util::texture::Texture::operator=(
     return *this;
 }
 
-util::texture::~Texture()
+util::texture::Texture::~Texture()
 {
     glDeleteTextures(1, &m_ID);
 }
@@ -62,7 +62,7 @@ util::texture::Texture2D::Texture2D(
     GLsizei width,
     GLsizei height,
     const GLvoid * data,
-    std::array<float, 4> borderColor)
+    const std::array<float, 4> &borderColor)
 {
     glGenTextures(1, &m_ID);
 
@@ -90,14 +90,14 @@ util::texture::Texture2D::Texture2D(
 
 util::texture::Texture2D::Texture2D(
         util::texture::Texture2D&& other) :
-    Texture(other)
+    Texture(std::move(other))
 {
 }
 
 util::texture::Texture2D& util::texture::Texture2D::operator=(
         util::texture::Texture2D&& other)
 {
-    Texture::operator=(other);
+    Texture::operator=(std::move(other));
 
     return *this;
 }
@@ -147,7 +147,7 @@ util::texture::Texture3D::Texture3D(
     GLsizei height,
     GLsizei depth,
     const GLvoid * data,
-    std::array<float, 4> borderColor)
+    const std::array<float, 4> &borderColor)
 {
     glGenTextures(1, &m_ID);
 
@@ -177,14 +177,14 @@ util::texture::Texture3D::Texture3D(
 
 util::texture::Texture3D::Texture3D(
         util::texture::Texture3D&& other) :
-    Texture(other)
+    Texture(std::move(other))
 {
 }
 
 util::texture::Texture3D& util::texture::Texture3D::operator=(
         util::texture::Texture3D&& other)
 {
-    Texture::operator=(other);
+    Texture::operator=(std::move(other));
 
     return *this;
 }

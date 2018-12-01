@@ -26,8 +26,6 @@ namespace util
     //-------------------------------------------------------------------------
     // Declarations
     //-------------------------------------------------------------------------
-    bool printOglError(const char *file, int line);
-
     // texture.cpp
     // see texture classes and functions in texture.hpp
 
@@ -35,38 +33,30 @@ namespace util
     // see shape classes and functions in geometry.hpp
 
     // util.cpp
-    GLuint createFrameBufferObject(
-        GLsizei width,
-        GLsizei height,
-        GLuint texIDs[],
-        unsigned int numAttachments,
-        GLenum attachment[],
-        GLint internalFormat[],
-        GLenum format[],
-        GLenum datatype[],
-        GLint filter[]);
+    bool printOglError(const char *file, int line);
 
-       void makeScreenshot(
-        GLuint fbo,
+    void makeScreenshot(
+        const FramebufferObject &fbo,
         unsigned int width,
         unsigned int height,
-        const char *file,
+        const std::string &file,
         FREE_IMAGE_FORMAT type);
 
     //-------------------------------------------------------------------------
     // Type definitions
     //-------------------------------------------------------------------------
-    class FrameBufferObject
+    class FramebufferObject
     {
         public:
-        FrameBufferObject();
-        FramebufferObject::FrameBufferObject(
+        FramebufferObject();
+        FramebufferObject::FramebufferObject(
             const std::vector<util::texture::Texture2D&> &textures,
             const std::vector<GLenum> &attachments);
-        FrameBufferObject(const FrameBufferObject& other) = delete;
-        FrameBufferObject(FrameBufferObject&& other);
-        FrameBufferObject& operator=(const FrameBufferObject& other) = delete;
-        FrameBufferObject& operator=(FrameBufferObject&& other);
+        FramebufferObject(const FramebufferObject& other) = delete;
+        FramebufferObject(FramebufferObject&& other);
+        FramebufferObject& operator=(const FramebufferObject& other) = delete;
+        FramebufferObject& operator=(FramebufferObject&& other);
+        ~FramebufferObject();
 
         void bind() const;
         void bindRead() const;
