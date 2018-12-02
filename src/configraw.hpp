@@ -6,6 +6,7 @@
 #include <fstream>
 #include <vector>
 #include <cstdint>
+#include <memory>
 
 #include <GL/gl3w.h>
 
@@ -52,17 +53,12 @@ namespace cr
     class VolumeDataBase;
     unsigned int datatypeSize(cr::Datatype type);
     Datatype dotconfigValToDatatype(std::string value);
-    VolumeDataBase loadScalarVolumeTimestep(
+    std::shared_ptr<VolumeDataBase> loadScalarVolumeTimestep(
         VolumeConfig volumeConfig, unsigned int n, bool swap);
-    void deleteVolumeData(VolumeConfig volumeConfig, void *volumeData);
     util::texture::Texture3D loadScalarVolumeTex(
-            const VolumeConfig &volumeConfig, void* volumeData);
-    std::vector<util::bin_t > *bucketVolumeData(
-        VolumeConfig volumeConfig,
-        void* values,
-        size_t numBins,
-        float min,
-        float max);
+            const VolumeDataBase &volumeData);
+    std::vector<util::bin_t> *bucketVolumeData(
+        VolumeDataBase volumeData, size_t numBins, float min, float max);
 
     // ------------------------------------------------------------------------
     // class declarations
@@ -135,42 +131,59 @@ namespace cr
     };
 
     // volume dataset representative
-    class VolumeDataBase {};
-
-    template<typename T>
-    class VolumeData : VolumeDataBase
+    class VolumeDataBase
     {
         public:
-            VolumeData() : m_config(), m_rawData(nullptr) {}
-            VolumeData(VolumeConfig volumeConfig, T* rawData) :
-                m_config(volumeConfig),
-                m_rawData(rawData)
-            {
-            }
-
-            VolumeData(const VolumeData& other) = delete;
-            VolumeData& operator=(VolumeData& other) = delete;
-            VolumeData(VolumeData&& other) :
-                m_config(std::move(other.m_config)),
-                m_rawData(std::move(other.m_rawData))
-            {
-                other.m_config = VolumeConfig();
-                other.m_rawData = nullptr;
-            }
-            VolumeData& operator=(VolumeData&& other)
-            {
-                this->m_config = std::move(other.m_config);
-                this->m_rawData = std::move(other.m_rawData);
-                other.m_config = VolumeConfig();
-                other.m_rawData = nullptr;
-
-                return this;
-            }
-            ~VolumeData(){if (nullptr != m_rawData) delete[] m_rawData;}
+        VolumeDataBase() : m_config() {}
+        VolumeDataBase(VolumeConfig volumeConfig) :
+            m_config(volumeConfig)
+        {
+        }
+        virtual void* getRawData() const;
+        VolumeConfig getVolumeConfig() const { return m_config; }
 
         private:
-            VolumeConfig m_config;
-            T* m_rawData;
+        VolumeConfig m_config;
+    };
+
+    template<typename T>
+    class VolumeData : public VolumeDataBase
+    {
+        public:
+        VolumeData() : m_rawData(nullptr) {}
+        VolumeData(VolumeConfig volumeConfig, T* rawData) :
+            VolumeDataBase(volumeConfig),
+            m_rawData(rawData)
+        {
+        }
+
+        VolumeData(const VolumeData& other) = delete;
+        VolumeData& operator=(VolumeData& other) = delete;
+        VolumeData(VolumeData&& other) :
+            VolumeDataBase(std::move(other.m_config)),
+            m_rawData(std::move(other.m_rawData))
+        {
+            other.m_config = VolumeConfig();
+            other.m_rawData = nullptr;
+        }
+        VolumeData& operator=(VolumeData&& other)
+        {
+            this->m_config = std::move(other.m_config);
+            this->m_rawData = std::move(other.m_rawData);
+            other.m_config = VolumeConfig();
+            other.m_rawData = nullptr;
+
+            return this;
+        }
+        ~VolumeData(){if (nullptr != m_rawData) delete[] m_rawData;}
+
+        void* getRawData() const override
+        {
+            return reinterpret_cast<void*>(m_rawData);
+        }
+
+        private:
+        T* m_rawData;
     };
 
 

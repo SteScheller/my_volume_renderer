@@ -220,11 +220,11 @@ std::string cr::VolumeConfig::getTimestepFile(unsigned int n)
  * Note: Calling function has to delete the returned volume data.
  *
 */
-cr::VolumeDataBase cr::loadScalarVolumeTimestep(
+std::shared_ptr<cr::VolumeDataBase> cr::loadScalarVolumeTimestep(
     VolumeConfig volumeConfig, unsigned int n, bool swap)
 {
     void *rawData = nullptr;
-    VolumeDataBase volumeData();
+    std::shared_ptr<VolumeDataBase> pVolumeData = nullptr;
 
     // TODO: return a unique pointer to the volume data class
     //
@@ -237,13 +237,16 @@ cr::VolumeDataBase cr::loadScalarVolumeTimestep(
         {
             case Datatype::unsigned_byte:
                 rawData = reinterpret_cast<void *>(
-                    new unsigned_byte_t[volumeConfig.getVoxelCount()]);
+                        new unsigned_byte_t[volumeConfig.getVoxelCount()]);
                 loadRaw<unsigned_byte_t>(
                     volumeConfig.getTimestepFile(n),
                     reinterpret_cast<unsigned_byte_t*>(rawData),
                     volumeConfig.getVoxelCount(),
                     swap);
-                volumeData = std
+                pVolumeData = std::make_shared<VolumeDataBase>(
+                    new VolumeData<unsigned_byte_t>(
+                        volumeConfig,
+                        reinterpret_cast<unsigned_byte_t*>(rawData)));
                 break;
 
             case Datatype::signed_byte:
@@ -254,6 +257,10 @@ cr::VolumeDataBase cr::loadScalarVolumeTimestep(
                     reinterpret_cast<signed_byte_t*>(rawData),
                     volumeConfig.getVoxelCount(),
                     swap);
+                pVolumeData = std::make_shared<VolumeDataBase>(
+                    new VolumeData<signed_byte_t>(
+                        volumeConfig,
+                        reinterpret_cast<signed_byte_t*>(rawData)));
                 break;
 
             case Datatype::unsigned_halfword:
@@ -264,6 +271,10 @@ cr::VolumeDataBase cr::loadScalarVolumeTimestep(
                     reinterpret_cast<unsigned_halfword_t*>(rawData),
                     volumeConfig.getVoxelCount(),
                     swap);
+                pVolumeData = std::make_shared<VolumeDataBase>(
+                    new VolumeData<unsigned_halfword_t>(
+                        volumeConfig,
+                        reinterpret_cast<unsigned_halfword_t*>(rawData)));
                 break;
 
             case Datatype::signed_halfword:
@@ -274,6 +285,10 @@ cr::VolumeDataBase cr::loadScalarVolumeTimestep(
                     reinterpret_cast<signed_halfword_t*>(rawData),
                     volumeConfig.getVoxelCount(),
                     swap);
+                pVolumeData = std::make_shared<VolumeDataBase>(
+                    new VolumeData<signed_halfword_t>(
+                        volumeConfig,
+                        reinterpret_cast<signed_halfword_t*>(rawData)));
                 break;
 
             case Datatype::unsigned_word:
@@ -284,6 +299,10 @@ cr::VolumeDataBase cr::loadScalarVolumeTimestep(
                     reinterpret_cast<unsigned_word_t*>(rawData),
                     volumeConfig.getVoxelCount(),
                     swap);
+                pVolumeData = std::make_shared<VolumeDataBase>(
+                    new VolumeData<unsigned_word_t>(
+                        volumeConfig,
+                        reinterpret_cast<unsigned_word_t*>(rawData)));
                 break;
 
             case Datatype::signed_word:
@@ -294,6 +313,10 @@ cr::VolumeDataBase cr::loadScalarVolumeTimestep(
                     reinterpret_cast<signed_word_t*>(rawData),
                     volumeConfig.getVoxelCount(),
                     swap);
+                pVolumeData = std::make_shared<VolumeDataBase>(
+                    new VolumeData<signed_word_t>(
+                        volumeConfig,
+                        reinterpret_cast<signed_word_t*>(rawData)));
                 break;
 
             case Datatype::unsigned_longword:
@@ -304,6 +327,10 @@ cr::VolumeDataBase cr::loadScalarVolumeTimestep(
                     reinterpret_cast<unsigned_longword_t*>(rawData),
                     volumeConfig.getVoxelCount(),
                     swap);
+                pVolumeData = std::make_shared<VolumeDataBase>(
+                    new VolumeData<unsigned_longword_t>(
+                        volumeConfig,
+                        reinterpret_cast<unsigned_longword_t*>(rawData)));
                 break;
 
             case Datatype::signed_longword:
@@ -314,6 +341,10 @@ cr::VolumeDataBase cr::loadScalarVolumeTimestep(
                     reinterpret_cast<signed_longword_t*>(rawData),
                     volumeConfig.getVoxelCount(),
                     swap);
+                pVolumeData = std::make_shared<VolumeDataBase>(
+                    new VolumeData<signed_longword_t>(
+                        volumeConfig,
+                        reinterpret_cast<signed_longword_t*>(rawData)));
                 break;
 
             case Datatype::single_precision_float:
@@ -326,6 +357,10 @@ cr::VolumeDataBase cr::loadScalarVolumeTimestep(
                         rawData),
                     volumeConfig.getVoxelCount(),
                     swap);
+                pVolumeData = std::make_shared<VolumeDataBase>(
+                    new VolumeData<single_precision_float_t>(
+                        volumeConfig,
+                        reinterpret_cast<single_precision_float_t*>(rawData)));
                 break;
 
             case Datatype::double_precision_float:
@@ -337,6 +372,10 @@ cr::VolumeDataBase cr::loadScalarVolumeTimestep(
                     reinterpret_cast<double_precision_float_t*>(rawData),
                     volumeConfig.getVoxelCount(),
                     swap);
+                pVolumeData = std::make_shared<VolumeDataBase>(
+                    new VolumeData<double_precision_float_t>(
+                        volumeConfig,
+                        reinterpret_cast<double_precision_float_t*>(rawData)));
                 break;
 
             default:
@@ -358,6 +397,10 @@ cr::VolumeDataBase cr::loadScalarVolumeTimestep(
                     volumeConfig.getSubsetMin(),
                     volumeConfig.getSubsetMax(),
                     swap);
+                pVolumeData = std::make_shared<VolumeDataBase>(
+                    new VolumeData<unsigned_byte_t>(
+                        volumeConfig,
+                        reinterpret_cast<unsigned_byte_t*>(rawData)));
                 break;
 
             case Datatype::signed_byte:
@@ -370,6 +413,10 @@ cr::VolumeDataBase cr::loadScalarVolumeTimestep(
                     volumeConfig.getSubsetMin(),
                     volumeConfig.getSubsetMax(),
                     swap);
+                pVolumeData = std::make_shared<VolumeDataBase>(
+                    new VolumeData<signed_byte_t>(
+                        volumeConfig,
+                        reinterpret_cast<signed_byte_t*>(rawData)));
                 break;
 
             case Datatype::unsigned_halfword:
@@ -382,6 +429,10 @@ cr::VolumeDataBase cr::loadScalarVolumeTimestep(
                     volumeConfig.getSubsetMin(),
                     volumeConfig.getSubsetMax(),
                     swap);
+                pVolumeData = std::make_shared<VolumeDataBase>(
+                    new VolumeData<unsigned_halfword_t>(
+                        volumeConfig,
+                        reinterpret_cast<unsigned_halfword_t*>(rawData)));
                 break;
 
             case Datatype::signed_halfword:
@@ -394,6 +445,10 @@ cr::VolumeDataBase cr::loadScalarVolumeTimestep(
                     volumeConfig.getSubsetMin(),
                     volumeConfig.getSubsetMax(),
                     swap);
+                pVolumeData = std::make_shared<VolumeDataBase>(
+                    new VolumeData<signed_halfword_t>(
+                        volumeConfig,
+                        reinterpret_cast<signed_halfword_t*>(rawData)));
                 break;
 
             case Datatype::unsigned_word:
@@ -406,6 +461,10 @@ cr::VolumeDataBase cr::loadScalarVolumeTimestep(
                     volumeConfig.getSubsetMin(),
                     volumeConfig.getSubsetMax(),
                     swap);
+                pVolumeData = std::make_shared<VolumeDataBase>(
+                    new VolumeData<unsigned_word_t>(
+                        volumeConfig,
+                        reinterpret_cast<unsigned_word_t*>(rawData)));
                 break;
 
             case Datatype::signed_word:
@@ -418,6 +477,10 @@ cr::VolumeDataBase cr::loadScalarVolumeTimestep(
                     volumeConfig.getSubsetMin(),
                     volumeConfig.getSubsetMax(),
                     swap);
+                pVolumeData = std::make_shared<VolumeDataBase>(
+                    new VolumeData<signed_word_t>(
+                        volumeConfig,
+                        reinterpret_cast<signed_word_t*>(rawData)));
                 break;
 
             case Datatype::unsigned_longword:
@@ -431,6 +494,10 @@ cr::VolumeDataBase cr::loadScalarVolumeTimestep(
                     volumeConfig.getSubsetMin(),
                     volumeConfig.getSubsetMax(),
                     swap);
+                pVolumeData = std::make_shared<VolumeDataBase>(
+                    new VolumeData<unsigned_longword_t>(
+                        volumeConfig,
+                        reinterpret_cast<unsigned_longword_t*>(rawData)));
                 break;
 
             case Datatype::signed_longword:
@@ -443,6 +510,10 @@ cr::VolumeDataBase cr::loadScalarVolumeTimestep(
                     volumeConfig.getSubsetMin(),
                     volumeConfig.getSubsetMax(),
                     swap);
+                pVolumeData = std::make_shared<VolumeDataBase>(
+                    new VolumeData<signed_longword_t>(
+                        volumeConfig,
+                        reinterpret_cast<signed_longword_t*>(rawData)));
                 break;
 
             case Datatype::single_precision_float:
@@ -457,6 +528,10 @@ cr::VolumeDataBase cr::loadScalarVolumeTimestep(
                     volumeConfig.getSubsetMin(),
                     volumeConfig.getSubsetMax(),
                     swap);
+                pVolumeData = std::make_shared<VolumeDataBase>(
+                    new VolumeData<single_precision_float_t>(
+                        volumeConfig,
+                        reinterpret_cast<single_precision_float_t*>(rawData)));
                 break;
 
             case Datatype::double_precision_float:
@@ -471,6 +546,10 @@ cr::VolumeDataBase cr::loadScalarVolumeTimestep(
                     volumeConfig.getSubsetMin(),
                     volumeConfig.getSubsetMax(),
                     swap);
+                pVolumeData = std::make_shared<VolumeDataBase>(
+                    new VolumeData<double_precision_float_t>(
+                        volumeConfig,
+                        reinterpret_cast<double_precision_float_t*>(rawData)));
                 break;
 
             default:
@@ -478,68 +557,7 @@ cr::VolumeDataBase cr::loadScalarVolumeTimestep(
         }
     }
 
-    return volumeData;
-}
-
-/**
- * \brief frees the memory that stores the volume data
- *
- * \param volumeConfig configuration object of the volume dataset
- * \param volumeData typeless pointer to the volume data
- *
- * Convenience function for freeing the memory of the volume data that
- * hides the type of the underlying data.
- *
-*/
-void deleteVolumeData(VolumeConfig volumeConfig, void *volumeData)
-{
-    switch(volumeConfig.getVoxelType())
-    {
-        case Datatype::unsigned_byte:
-            delete[] reinterpret_cast<unsigned_byte_t*>(volumeData);
-            break;
-
-        case Datatype::signed_byte:
-            delete[] reinterpret_cast<signed_byte_t*>(volumeData);
-            break;
-
-        case Datatype::unsigned_halfword:
-            delete[] reinterpret_cast<unsigned_halfword_t*>(volumeData);
-            break;
-
-        case Datatype::signed_halfword:
-            delete[] reinterpret_cast<signed_halfword_t*>(volumeData);
-            break;
-
-        case Datatype::unsigned_word:
-            delete[] reinterpret_cast<unsigned_word_t*>(volumeData);
-            break;
-
-        case Datatype::signed_word:
-            delete[] reinterpret_cast<signed_word_t*>(volumeData);
-            break;
-
-        case Datatype::unsigned_longword:
-            delete[] reinterpret_cast<unsigned_longword_t*>(volumeData);
-            break;
-
-        case Datatype::signed_longword:
-            delete[] reinterpret_cast<signed_longword_t*>(volumeData);
-            break;
-
-        case Datatype::single_precision_float:
-            delete[] reinterpret_cast<single_precision_float_t*>(
-                volumeData);
-            break;
-
-        case Datatype::double_precision_float:
-            delete[] reinterpret_cast<double_precision_float_t*>(
-                volumeData);
-            break;
-
-        default:
-            break;
-    }
+    return pVolumeData;
 }
 
 /**
@@ -552,11 +570,12 @@ void deleteVolumeData(VolumeConfig volumeConfig, void *volumeData)
  *
  * Note: Texture has to be deleted by the calling function
 */
-util::texture::Texture3D loadScalarVolumeTex(
-    const VolumeConfig &volumeConfig, void* volumeData)
+util::texture::Texture3D cr::loadScalarVolumeTex(
+    const VolumeDataBase &volumeData)
 {
     bool supported = true;
     GLenum type = GL_UNSIGNED_BYTE;
+    VolumeConfig volumeConfig = volumeData.getVolumeConfig();
 
     switch(volumeConfig.getVoxelType())
     {
@@ -609,17 +628,16 @@ util::texture::Texture3D loadScalarVolumeTex(
             volumeConfig.getVoxelDim()[0],
             volumeConfig.getVoxelDim()[1],
             volumeConfig.getVoxelDim()[2],
-            volumeData);
+            volumeData.getRawData());
 
     else
         return util::texture::Texture3D();
 }
 
 /**
- * \brief groups the volume data according to its data type (histogram)
+ * \brief groups the volume data values into bins for use in a histogram
  *
- * \param volumeConfig configuration object for the dataset
- * \param values pointer to the volume data
+ * \param volumeData volume dataset representative class object
  * \param numBins number of histogram bins
  * \param min lower histogram x axis limit
  * \param max upper histogram x axis limit
@@ -628,105 +646,116 @@ util::texture::Texture3D loadScalarVolumeTex(
  *
  * Note: vector of bins has to be deleted by the calling function
 */
-std::vector<util::bin_t > *bucketVolumeData(
-    VolumeConfig volumeConfig,
-    void* values,
+std::shared_ptr<std::vector<util::bin_t>> cr::bucketVolumeData(
+    const VolumeDataBase &volumeData,
     size_t numBins,
     float min,
     float max)
 {
-    std::vector<util::bin_t> *bins = nullptr;
+    std::shared_ptr<std::vector<util::bin_t>> bins = nullptr;
+    VolumeConfig volumeConfig = volumeData.getVolumeConfig();
+    void *values = reinterpret_cast<void*>(volumeData.getRawData());
 
     switch(volumeConfig.getVoxelType())
     {
         case Datatype::unsigned_byte:
-            bins = util::binData<unsigned_byte_t>(
+            bins = std::make_shared<std::vector<util::bin_t>>(
+                util::binData<unsigned_byte_t>(
                 numBins,
                 static_cast<unsigned_byte_t>(min),
                 static_cast<unsigned_byte_t>(max),
                 reinterpret_cast<unsigned_byte_t*>(values),
-                volumeConfig.getVoxelCount());
+                volumeConfig.getVoxelCount()));
             break;
 
         case Datatype::signed_byte:
-            bins = util::binData<signed_byte_t>(
+            bins = std::make_shared<std::vector<util::bin_t>>(
+                util::binData<signed_byte_t>(
                 numBins,
                 static_cast<signed_byte_t>(min),
                 static_cast<signed_byte_t>(max),
                 reinterpret_cast<signed_byte_t*>(values),
-                volumeConfig.getVoxelCount());
+                volumeConfig.getVoxelCount()));
             break;
 
         case Datatype::unsigned_halfword:
-            bins = util::binData<unsigned_halfword_t>(
+            bins = std::make_shared<std::vector<util::bin_t>>(
+                util::binData<unsigned_halfword_t>(
                 numBins,
                 static_cast<unsigned_halfword_t>(min),
                 static_cast<unsigned_halfword_t>(max),
                 reinterpret_cast<unsigned_halfword_t*>(values),
-                volumeConfig.getVoxelCount());
+                volumeConfig.getVoxelCount()));
             break;
 
         case Datatype::signed_halfword:
-            bins = util::binData<signed_halfword_t>(
+            bins = std::make_shared<std::vector<util::bin_t>>(
+                util::binData<signed_halfword_t>(
                 numBins,
                 static_cast<signed_halfword_t>(min),
                 static_cast<signed_halfword_t>(max),
                 reinterpret_cast<signed_halfword_t*>(values),
-                volumeConfig.getVoxelCount());
+                volumeConfig.getVoxelCount()));
             break;
 
         case Datatype::unsigned_word:
-            bins = util::binData<unsigned_word_t>(
+            bins = std::make_shared<std::vector<util::bin_t>>(
+                util::binData<unsigned_word_t>(
                 numBins,
                 static_cast<unsigned_word_t>(min),
                 static_cast<unsigned_word_t>(max),
                 reinterpret_cast<unsigned_word_t*>(values),
-                volumeConfig.getVoxelCount());
+                volumeConfig.getVoxelCount()));
             break;
 
         case Datatype::signed_word:
-            bins = util::binData<signed_word_t>(
+            bins = std::make_shared<std::vector<util::bin_t>>(
+                util::binData<signed_word_t>(
                 numBins,
                 static_cast<signed_word_t>(min),
                 static_cast<signed_word_t>(max),
                 reinterpret_cast<signed_word_t*>(values),
-                volumeConfig.getVoxelCount());
+                volumeConfig.getVoxelCount()));
             break;
 
         case Datatype::unsigned_longword:
-            bins = util::binData<unsigned_longword_t>(
+            bins = std::make_shared<std::vector<util::bin_t>>(
+                util::binData<unsigned_longword_t>(
                 numBins,
                 static_cast<unsigned_longword_t>(min),
                 static_cast<unsigned_longword_t>(max),
                 reinterpret_cast<unsigned_longword_t*>(values),
-                volumeConfig.getVoxelCount());
+                volumeConfig.getVoxelCount()));
             break;
 
         case Datatype::signed_longword:
-            bins = util::binData<signed_longword_t>(
+            bins = std::make_shared<std::vector<util::bin_t>>(
+                util::binData<signed_longword_t>(
                 numBins,
                 static_cast<signed_longword_t>(min),
                 static_cast<signed_longword_t>(max),
                 reinterpret_cast<signed_longword_t*>(values),
-                volumeConfig.getVoxelCount());
+                volumeConfig.getVoxelCount()));
             break;
 
         case Datatype::single_precision_float:
-            bins = util::binData<single_precision_float_t>(
+            bins = std::make_shared<std::vector<util::bin_t>>(
+                util::binData<single_precision_float_t>(
                 numBins,
                 static_cast<single_precision_float_t>(min),
                 static_cast<single_precision_float_t>(max),
                 reinterpret_cast<single_precision_float_t*>(values),
-                volumeConfig.getVoxelCount());
+                volumeConfig.getVoxelCount()));
             break;
 
         case Datatype::double_precision_float:
-            bins = util::binData<double_precision_float_t>(
+            bins = std::make_shared<std::vector<util::bin_t>>(
+                util::binData<double_precision_float_t>(
                 numBins,
                 static_cast<double_precision_float_t>(min),
                 static_cast<double_precision_float_t>(max),
                 reinterpret_cast<double_precision_float_t*>(values),
-                volumeConfig.getVoxelCount());
+                volumeConfig.getVoxelCount()));
             break;
 
         default:

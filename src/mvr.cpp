@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <ctime>
 #include <utility>
+#include <memory>
 
 #include <GL/gl3w.h>
 #include <GLFW/glfw3.h>

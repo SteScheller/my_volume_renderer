@@ -1,5 +1,6 @@
 #pragma once
 
+#include <memory>
 #include <array>
 
 #include <GL/gl3w.h>
@@ -182,17 +183,17 @@ namespace mvr
 
         glm::mat4 m_volumeModelMX;
 
-        std::array<util::FrameBufferObject, 2> m_framebuffers;
+        std::array<util::FramebufferObject, 2> m_framebuffers;
         std::array<std::vector<util::texture::Texture2D>, 2>
             m_framebufferTextures;
 
-        util::FrameBufferObject m_tfColorWidgetFBO;
-        util::FrameBufferObject m_tfFuncWidgetFBO;
+        util::FramebufferObject m_tfColorWidgetFBO;
+        util::FramebufferObject m_tfFuncWidgetFBO;
 
         std::vector<util::bin_t> m_histogramBins;
         util::texture::Texture3D m_volumeTex;
 
-        cr::VolumeData m_volumeData;
+        std::shared_ptr<cr::VolumeDataBase> m_volumeData;
 
         /*static bool _flag_reload_shaders = false;
         static bool _flag_show_menues = true;
