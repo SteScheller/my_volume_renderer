@@ -131,6 +131,7 @@ namespace mvr
         float m_zNear;
         float m_zFar;
         glm::vec3 m_cameraPosition;
+        glm::vec3 m_cameraLookAt;
         float m_cameraZoomSpeed;
         float m_cameraRotationSpeed;
         float m_cameraTranslationSpeed;
@@ -184,7 +185,7 @@ namespace mvr
         glm::mat4 m_volumeModelMX;
 
         std::array<util::FramebufferObject, 2> m_framebuffers;
-        std::array<std::vector<util::texture::Texture2D>, 2>
+        std::array<std::array<util::texture::Texture2D, 2>, 2>
             m_framebufferTextures;
 
         util::FramebufferObject m_tfColorWidgetFBO;

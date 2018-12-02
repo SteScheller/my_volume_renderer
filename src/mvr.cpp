@@ -69,6 +69,7 @@ mvr::Renderer::Renderer() :
     m_zNear(0.000001f),
     m_zFar(30.f),
     m_cameraPosition(mvr::Renderer::DEFAULT_CAMERA_POSITION),
+    m_cameraLookAt(mvr::Renderer::DEFAULT_CAMERA_LOOKAT),
     m_cameraZoomSpeed(0.1f),
     m_cameraRotationSpeed(0.2f),
     m_cameraTranslationSpeed(0.002f),
@@ -136,20 +137,38 @@ int mvr::Renderer::Initialize()
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glPointSize(13.f);
 
-    m_shaderQuad = std::move(Shader(
-        "src/shader/quad.vert", "src/shader/quad.frag"));
-    m_shaderFrame = std::move(Shader(
-        "src/shader/frame.vert", "src/shader/frame.frag"));
-    m_shaderVolume = std::move(Shader(
-        "src/shader/volume.vert", "src/shader/volume.frag"));
-    m_shaderTfColor = std::move(Shader(
-        "src/shader/tfColor.vert", "src/shader/tfColor.frag"));
-    m_shaderTfFunc = std::move(Shader(
-        "src/shader/tfFunc.vert", "src/shader/tfFunc.frag"));
-    m_shaderTfPoint = std::move(Shader(
-        "src/shader/tfPoint.vert", "src/shader/tfPoint.frag"));
+    m_shaderQuad = Shader("src/shader/quad.vert", "src/shader/quad.frag");
+    m_shaderFrame = Shader("src/shader/frame.vert", "src/shader/frame.frag");
+    m_shaderVolume =
+        Shader("src/shader/volume.vert", "src/shader/volume.frag");
+    m_shaderTfColor =
+        Shader("src/shader/tfColor.vert", "src/shader/tfColor.frag");
+    m_shaderTfFunc =
+        Shader("src/shader/tfFunc.vert", "src/shader/tfFunc.frag");
+    m_shaderTfPoint =
+        Shader("src/shader/tfPoint.vert", "src/shader/tfPoint.frag");
 
-    m_framebufferTextures[0][0] = std::move(
+    m_framebufferTextures[0][0] = util::texture::Texture2D(
+            GL_RGBA,
+            GL_RGBA,
+            0,
+            GL_FLOAT,
+            GL_LINEAR,
+            GL_CLAMP_TO_BORDER,
+            m_renderingDimensions[0],
+            m_renderingDimensions[1]);
+
+    m_framebufferTextures[0][1] = util::texture::Texture2D(
+            GL_RGBA32UI,
+            GL_RGBA_INTEGER,
+            0,
+            GL_UNSIGNED_INT,
+            GL_NEAREST,
+            GL_CLAMP_TO_BORDER,
+            m_renderingDimensions[0],
+            m_renderingDimensions[1]);
+
+    m_framebufferTextures[1][0] =
         util::texture::Texture2D(
             GL_RGBA,
             GL_RGBA,
@@ -158,10 +177,9 @@ int mvr::Renderer::Initialize()
             GL_LINEAR,
             GL_CLAMP_TO_BORDER,
             m_renderingDimensions[0],
-            m_renderingDimensions[1]));
+            m_renderingDimensions[1]);
 
-    m_framebufferTextures[0][1] = std::move(
-        util::texture::Texture2D(
+    m_framebufferTextures[1][1] = util::texture::Texture2D(
             GL_RGBA32UI,
             GL_RGBA_INTEGER,
             0,
@@ -169,29 +187,7 @@ int mvr::Renderer::Initialize()
             GL_NEAREST,
             GL_CLAMP_TO_BORDER,
             m_renderingDimensions[0],
-            m_renderingDimensions[1]));
-
-    m_framebufferTextures[1][0] = std::move(
-        util::texture::Texture2D(
-            GL_RGBA,
-            GL_RGBA,
-            0,
-            GL_FLOAT,
-            GL_LINEAR,
-            GL_CLAMP_TO_BORDER,
-            m_renderingDimensions[0],
-            m_renderingDimensions[1]));
-
-    m_framebufferTextures[1][1] = std::move(
-        util::texture::Texture2D(
-            GL_RGBA32UI,
-            GL_RGBA_INTEGER,
-            0,
-            GL_UNSIGNED_INT,
-            GL_NEAREST,
-            GL_CLAMP_TO_BORDER,
-            m_renderingDimensions[0],
-            m_renderingDimensions[1]));
+            m_renderingDimensions[1]);
 
     std::vector<GLenum> attachments {
         GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1};
@@ -202,10 +198,10 @@ int mvr::Renderer::Initialize()
     std::vector<util::texture::Texture2D&> firstFboTextures{
         m_framebufferTextures[1][0], m_framebufferTextures[1][1]};
 
-    m_framebuffers[0] = std::move(
-            util::FramebufferObject(firstFboTextures, attachments);
-    m_framebuffers[1] = std::move(
-            util::FramebufferObject(secondFboTextures, attachments);
+    m_framebuffers[0] =
+        util::FramebufferObject(firstFboTextures, attachments);
+    m_framebuffers[1] =
+        util::FramebufferObject(secondFboTextures, attachments);
 
     if (EXIT_SUCCESS == ret) m_isInitialized = true;
 
@@ -261,53 +257,51 @@ int mvr::Renderer::run()
         GL_CLAMP_TO_EDGE,
         m_tfColorWidgetDimensions[0],
         m_tfColorWidgetDimensions[1]);
-    std::vector<util:texture:Texture2D&> tfColorWidgetFboTextures =
+    std::vector<util::texture::Texture2D&> tfColorWidgetFboTextures =
         { tfColorWidgetTex };
     std::vector<GLenum> tfColorWidgetFboAttachments = { GL_COLOR_ATTACHMENT0 };
-    m_tfColorWidgetFBO = std::move(
-            util::FrameBufferObject(
-                tfColorWidgetFboTextures, tfColorWidgetFboAttachments));
+    m_tfColorWidgetFBO = util::FramebufferObject(
+        tfColorWidgetFboTextures, tfColorWidgetFboAttachments);
 
     // render target that shows transfer function line plot
-    std::array<util::texture::Texture2D, 2> tfFuncWidgetTextures;
-    tfFuncWidgetTextures[0] = std::move(
-        util::Texture::Texture2D(
-            GL_RGBA,
-            GL_RGBA,
-            0,
-            GL_FLOAT,
-            GL_LINEAR,
-            GL_CLAMP_TO_EDGE,
-            m_tfFuncWidgetDimensions[0],
-            m_tfFuncWidgetDimensions[1]));
-    tfFuncWidgetTextures[1] = std::move(
-        util::Texture::Texture2D(
-            GL_RG32F,
-            GL_RG,
-            0,
-            GL_FLOAT,
-            GL_NEAREST,
-            GL_CLAMP_TO_BORDER,
-            m_tfFuncWidgetDimensions[0],
-            m_tfFuncWidgetDimensions[1]));
+    util::texture::Texture2D tfFuncWidgetTexFirst(
+        GL_RGBA,
+        GL_RGBA,
+        0,
+        GL_FLOAT,
+        GL_LINEAR,
+        GL_CLAMP_TO_EDGE,
+        m_tfFuncWidgetDimensions[0],
+        m_tfFuncWidgetDimensions[1]);
+    util::texture::Texture2D tfFuncWidgetTexSecond(
+        GL_RG32F,
+        GL_RG,
+        0,
+        GL_FLOAT,
+        GL_NEAREST,
+        GL_CLAMP_TO_BORDER,
+        m_tfFuncWidgetDimensions[0],
+        m_tfFuncWidgetDimensions[1]);
+    std::vector<util::texture::Texture2D&> tfFuncWidgetTextures
+        { tfFuncWidgetTexFirst, tfFuncWidgetTexSecond };
     std::vector<GLenum> tfFuncWidgetFboAttachments =
         { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
-    m_tfFuncWidgetFBO = std::move(
-            m_util::FrameBufferObject(
-                tfFuncWidgetTextures, tfFuncWidgetFboAttachments));
+    m_tfFuncWidgetFBO = util::FramebufferObject(
+        tfFuncWidgetTextures, tfFuncWidgetFboAttachments);
 
     // ------------------------------------------------------------------------
     // volume
     // initialize view and projection matrices
     // ------------------------------------------------------------------------
     glm::vec3 right = glm::normalize(
-        glm::cross(-camPos, glm::vec3(0.f, 1.f, 0.f)));
-    glm::vec3 up = glm::normalize(glm::cross(right, -camPos));
-    glm::mat4 viewMX = glm::lookAt(camPos, camLookAt, up);
+        glm::cross(-m_cameraPosition, glm::vec3(0.f, 1.f, 0.f)));
+    glm::vec3 up = glm::normalize(glm::cross(right, -m_cameraPosition));
+    glm::mat4 viewMX = glm::lookAt(m_cameraPosition, m_cameraLookAt, up);
 
     glm::mat4 projMX = glm::perspective(
-        glm::radians(fovY),
-        static_cast<float>(render_w)/static_cast<float>(render_h),
+        glm::radians(m_fovY),
+        static_cast<float>(m_renderingDimensions[0]) /
+            static_cast<float>(m_renderingDimensions[1]),
         0.1f,
         50.0f);
 

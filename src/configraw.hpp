@@ -56,9 +56,12 @@ namespace cr
     std::shared_ptr<VolumeDataBase> loadScalarVolumeTimestep(
         VolumeConfig volumeConfig, unsigned int n, bool swap);
     util::texture::Texture3D loadScalarVolumeTex(
-            const VolumeDataBase &volumeData);
-    std::vector<util::bin_t> *bucketVolumeData(
-        VolumeDataBase volumeData, size_t numBins, float min, float max);
+        const VolumeDataBase &volumeData);
+    std::shared_ptr<std::vector<util::bin_t>> bucketVolumeData(
+        const VolumeDataBase &volumeData,
+        size_t numBins,
+        float min,
+        float max);
 
     // ------------------------------------------------------------------------
     // class declarations
