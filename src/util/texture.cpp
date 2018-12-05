@@ -211,7 +211,7 @@ void util::texture::Texture3D::unbind() const
  * \param width            texture width
  * \param height           texture height
  */
-util::texture::Texture2D& util::texture::create2dHybridTausTexture(
+util::texture::Texture2D util::texture::create2dHybridTausTexture(
         GLsizei width,
         GLsizei height)
 {

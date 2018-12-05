@@ -226,10 +226,6 @@ std::shared_ptr<cr::VolumeDataBase> cr::loadScalarVolumeTimestep(
     void *rawData = nullptr;
     std::shared_ptr<VolumeDataBase> pVolumeData = nullptr;
 
-    // TODO: return a unique pointer to the volume data class
-    //
-    // - Rohdaten als void pointer zurueckgeben (virtuell in Basisklasse,
-    // ueberschreiben/ implementieren in Kindklasse.)
     if (!volumeConfig.getSubset())
     {
         // the volume shall be loaded completely

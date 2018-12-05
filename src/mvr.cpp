@@ -107,10 +107,15 @@ mvr::Renderer::Renderer() :
     m_shaderTfFunc(),
     m_shaderTfPoint(),
     m_volumeModelMX(1.f),
+    m_framebuffers(),
+    m_framebufferTextures(),
     m_tfColorWidgetFBO(),
     m_tfFuncWidgetFBO(),
     m_histogramBins(0),
-    m_volumeTex()
+    m_volumeTex(),
+    m_volumeData(nullptr),
+    m_transferFunction(),
+    m_randomSeedTex()
 {
     m_volumeDescriptionFile.resize(mvr::Renderer::MAX_FILEPATH_LENGTH, '\0');
 }
@@ -123,6 +128,9 @@ int mvr::Renderer::Initialize()
 {
     int ret = EXIT_SUCCESS;
 
+    //-------------------------------------------------------------------------
+    // window and context creation
+    //-------------------------------------------------------------------------
     m_window = createWindow(
         m_windowDimensions[0], m_windowDimensions[1], "MVR");
 
@@ -137,6 +145,9 @@ int mvr::Renderer::Initialize()
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glPointSize(13.f);
 
+    //-------------------------------------------------------------------------
+    // shader setup
+    //-------------------------------------------------------------------------
     m_shaderQuad = Shader("src/shader/quad.vert", "src/shader/quad.frag");
     m_shaderFrame = Shader("src/shader/frame.vert", "src/shader/frame.frag");
     m_shaderVolume =
@@ -148,6 +159,9 @@ int mvr::Renderer::Initialize()
     m_shaderTfPoint =
         Shader("src/shader/tfPoint.vert", "src/shader/tfPoint.frag");
 
+    //-------------------------------------------------------------------------
+    // ping pong framebuffers and rendering targets
+    //-------------------------------------------------------------------------
     m_framebufferTextures[0][0] = util::texture::Texture2D(
             GL_RGBA,
             GL_RGBA,
@@ -203,7 +217,64 @@ int mvr::Renderer::Initialize()
     m_framebuffers[1] =
         util::FramebufferObject(secondFboTextures, attachments);
 
-    if (EXIT_SUCCESS == ret) m_isInitialized = true;
+    // ------------------------------------------------------------------------
+    // geometry
+    // ------------------------------------------------------------------------
+    // shapes
+    util::geometry::CubeFrame frame;
+    util::geometry::Cube volume;
+    util::geometry::Quad quad;
+
+    // bounding box limits
+    glm::vec4 bbMin(glm::vec3(-0.5f), 1.f);
+    glm::vec4 bbMax(glm::vec3(0.5f), 1.f);
+    //-------------------------------------------------------------------------
+    // utility textures
+    //-------------------------------------------------------------------------
+    // seed texture for fragment shader random number generator
+    m_randomSeedTex = util::create2dHybridTausTexture(
+        m_renderingDimensions[0], m_renderingDimensions[1]);
+
+    //-------------------------------------------------------------------------
+    // volume data and transfer function loading
+    //-------------------------------------------------------------------------
+    // load the data, adjust the model matrix, prepare a histogram of the data
+    // and a texture object
+    cr::VolumeConfig volumeConfig = cr::VolumeConfig(m_volumeDescriptionFile);
+    if(vConf.isValid())
+    {
+        // TODO: adapt ReloadStuff Function and call it here
+        m_volumeData = cr::loadScalarVolumeDataTimestep(
+            volumeConfig, m_timestep, false);
+    }
+    else
+        ret = EXIT_FAILURE;
+
+    // create a transfer function object
+    m_transferFunction = tf::TransferFuncRGBA1D();
+
+    //-------------------------------------------------------------------------
+    // transformation matrices
+    //-------------------------------------------------------------------------
+    // view and projection matrices for the volume
+    glm::vec3 right = glm::normalize(
+        glm::cross(-m_cameraPosition, glm::vec3(0.f, 1.f, 0.f)));
+    glm::vec3 up = glm::normalize(glm::cross(right, -m_cameraPosition));
+    glm::mat4 viewMX = glm::lookAt(m_cameraPosition, m_cameraLookAt, up);
+
+    glm::mat4 projMX = glm::perspective(
+        glm::radians(m_fovY),
+        static_cast<float>(m_renderingDimensions[0]) /
+            static_cast<float>(m_renderingDimensions[1]),
+        0.1f,
+        50.0f);
+
+    // projection matrix for the window filling quad
+    glm::mat4 projMXquad = glm::ortho(-0.5f, 0.5f, -0.5f, 0.5f);
+
+
+    if (EXIT_SUCCESS == ret)
+        m_isInitialized = true;
 
     return ret;
 }
@@ -231,22 +302,8 @@ int mvr::Renderer::run()
     if (EXIT_SUCCESS != ret) return ret;
 
     // ------------------------------------------------------------------------
-    // geometry
+    // gui widget framebuffer objects
     // ------------------------------------------------------------------------
-    // shapes
-    util::geometry::CubeFrame frame;
-    util::geometry::Cube volume;
-    util::geometry::Quad quad;
-
-    // bounding box limits
-    glm::vec4 bbMin(glm::vec3(-0.5f), 1.f);
-    glm::vec4 bbMax(glm::vec3(0.5f), 1.f);
-
-    // ------------------------------------------------------------------------
-    // framebuffer objects
-    // ------------------------------------------------------------------------
-    // window filling frame bufferobjects constructed in Initialize() method
-
     // render target for widget that shows resulting transfer function colors
     util::texture::Texture2D tfColorWidgetTex(
         GL_RGBA,
@@ -290,44 +347,10 @@ int mvr::Renderer::run()
         tfFuncWidgetTextures, tfFuncWidgetFboAttachments);
 
     // ------------------------------------------------------------------------
-    // volume
-    // initialize view and projection matrices
+    // local variables
     // ------------------------------------------------------------------------
-    glm::vec3 right = glm::normalize(
-        glm::cross(-m_cameraPosition, glm::vec3(0.f, 1.f, 0.f)));
-    glm::vec3 up = glm::normalize(glm::cross(right, -m_cameraPosition));
-    glm::mat4 viewMX = glm::lookAt(m_cameraPosition, m_cameraLookAt, up);
-
-    glm::mat4 projMX = glm::perspective(
-        glm::radians(m_fovY),
-        static_cast<float>(m_renderingDimensions[0]) /
-            static_cast<float>(m_renderingDimensions[1]),
-        0.1f,
-        50.0f);
-
-    // Diagonal of a voxel
-    float voxelDiagonal = 1.f;
-
-    // load the data, adjust the model matrix, prepare a histogram of the data
-    // and a texture object
-    cr::VolumeConfig volumeConfig = cr::VolumeConfig(m_volumeDescriptionFile);
-    if(vConf.isValid())
-    //TODO:    loadVolume(volumeConfgg);
-
-    // ------------------------------------------------------------------------
-    // misc. stuff
-    // ------------------------------------------------------------------------
-    // create a transfer function object
-    tf::TransferFuncRGBA1D transferFunction = tf::TransferFuncRGBA1D();
-
-    // temporary variables
     glm::vec3 tempVec3 = glm::vec3(0.f);
-
-    // projection matrix for the window filling quad
-    glm::mat4 projMXquad = glm::ortho(0.f, 1.f, 0.f, 1.f);
-
-    // seed texture for fragment shader random number generator
-    _rngTex = util::create2dHybridTausTexture(render_w, render_h);
+    float voxelDiagonal = 1.f;
 
     // ------------------------------------------------------------------------
     // render loop

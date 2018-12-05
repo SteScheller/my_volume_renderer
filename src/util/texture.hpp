@@ -90,7 +90,7 @@ namespace util
         //---------------------------------------------------------------------
         // Convenience Functions
         //---------------------------------------------------------------------
-        Texture2D& create2dHybridTausTexture(GLsizei width, GLsizei height);
+        Texture2D create2dHybridTausTexture(GLsizei width, GLsizei height);
     }
 
 }

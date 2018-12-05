@@ -196,6 +196,9 @@ namespace mvr
 
         std::shared_ptr<cr::VolumeDataBase> m_volumeData;
 
+        tf::TransferFuncRGBA1D m_transferFunction;
+
+        util::texture::Texture2D m_randomSeedTex;
         /*static bool _flag_reload_shaders = false;
         static bool _flag_show_menues = true;
 
