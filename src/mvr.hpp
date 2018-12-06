@@ -172,9 +172,11 @@ namespace mvr
         //---------------------------------------------------------------------
         // internals
         //---------------------------------------------------------------------
+        // window and context creation
         bool m_isInitialized;
         GLFWwindow* m_window;
 
+        // shader and rendering targets
         Shader m_shaderQuad;
         Shader m_shaderFrame;
         Shader m_shaderVolume;
@@ -182,24 +184,37 @@ namespace mvr
         Shader m_shaderTfFunc;
         Shader m_shaderTfPoint;
 
-        glm::mat4 m_volumeModelMX;
-
         std::array<util::FramebufferObject, 2> m_framebuffers;
         std::array<std::array<util::texture::Texture2D, 2>, 2>
             m_framebufferTextures;
+        // util::FramebufferObject m_tfColorWidgetFBO;
+        // util::FramebufferObject m_tfFuncWidgetFBO;
 
-        util::FramebufferObject m_tfColorWidgetFBO;
-        util::FramebufferObject m_tfFuncWidgetFBO;
+        // geometry
+        util::geometry::CubeFrame m_volumeFrame;
+        util::geometry::Cube m_volumeCube;
+        util::geometry::Quad m_windowQuad;
+        glm::vec4 m_boundingBoxMin;
+        glm::vec4 m_boundingBoxMax;
 
+        // transformation matrices
+        glm::mat4 m_volumeModelMx;
+        glm::mat4 m_volumeViewMx;
+        glm::mat4 m_volumeProjMx;
+        glm::mat4 m_quadProjMx;
+
+        // volume data
         std::vector<util::bin_t> m_histogramBins;
+        tf::TransferFuncRGBA1D m_transferFunction;
+        std::shared_ptr<cr::VolumeDataBase> m_volumeData;
         util::texture::Texture3D m_volumeTex;
 
-        std::shared_ptr<cr::VolumeDataBase> m_volumeData;
-
-        tf::TransferFuncRGBA1D m_transferFunction;
-
+        // miscellaneous
         util::texture::Texture2D m_randomSeedTex;
-        /*static bool _flag_reload_shaders = false;
+        float m_voxelDiagonal;
+        bool m_showMenues;
+
+        /*
         static bool _flag_show_menues = true;
 
         // flag for seeding the random generator in the fragment shader

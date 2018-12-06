@@ -109,13 +109,22 @@ mvr::Renderer::Renderer() :
     m_volumeModelMX(1.f),
     m_framebuffers(),
     m_framebufferTextures(),
-    m_tfColorWidgetFBO(),
-    m_tfFuncWidgetFBO(),
+    m_volumeFrame(false),
+    m_volumeCube(false),
+    m_windowQuad(false),
+    m_boundingBoxMin(glm::vec3(-0.5f), 1.f),
+    m_boundingBoxMax(glm::vec3(0.5f), 1.f),
+    m_volumeModelMx(1.f),
+    m_volumeViewMx(1.f),
+    m_volumeProjMx(1.f),
+    m_quadProjMx(glm::ortho(-0.5f, 0.5f, -0.5f, 0.5f)),
     m_histogramBins(0),
-    m_volumeTex(),
-    m_volumeData(nullptr),
     m_transferFunction(),
-    m_randomSeedTex()
+    m_volumeData(nullptr),
+    m_volumeTex(),
+    m_randomSeedTex(),
+    m_voxelDiagonal(1.f),
+    m_showMenues(true)
 {
     m_volumeDescriptionFile.resize(mvr::Renderer::MAX_FILEPATH_LENGTH, '\0');
 }
@@ -220,14 +229,10 @@ int mvr::Renderer::Initialize()
     // ------------------------------------------------------------------------
     // geometry
     // ------------------------------------------------------------------------
-    // shapes
-    util::geometry::CubeFrame frame;
-    util::geometry::Cube volume;
-    util::geometry::Quad quad;
+    m_volumeFrame = util::geometry::CubeFrame(true);
+    m_volumeCube = util::geometry::Cube(true);
+    m_windowQuad = util::geometry::Quad(true);
 
-    // bounding box limits
-    glm::vec4 bbMin(glm::vec3(-0.5f), 1.f);
-    glm::vec4 bbMax(glm::vec3(0.5f), 1.f);
     //-------------------------------------------------------------------------
     // utility textures
     //-------------------------------------------------------------------------
@@ -244,11 +249,20 @@ int mvr::Renderer::Initialize()
     if(vConf.isValid())
     {
         // TODO: adapt ReloadStuff Function and call it here
+        //
+        // - update Volume Texture
+        // - update Volume Data Object
+        // - regenerate Histogram
+        // - update Volume Model Matrix
+        // - update VoxelDiagonal
         m_volumeData = cr::loadScalarVolumeDataTimestep(
             volumeConfig, m_timestep, false);
     }
     else
+    {
         ret = EXIT_FAILURE;
+        return ret;
+    }
 
     // create a transfer function object
     m_transferFunction = tf::TransferFuncRGBA1D();
@@ -256,22 +270,19 @@ int mvr::Renderer::Initialize()
     //-------------------------------------------------------------------------
     // transformation matrices
     //-------------------------------------------------------------------------
-    // view and projection matrices for the volume
+    // view and projection matrices for the volume (model matrix is set during
+    // loading of the volume)
     glm::vec3 right = glm::normalize(
         glm::cross(-m_cameraPosition, glm::vec3(0.f, 1.f, 0.f)));
     glm::vec3 up = glm::normalize(glm::cross(right, -m_cameraPosition));
-    glm::mat4 viewMX = glm::lookAt(m_cameraPosition, m_cameraLookAt, up);
+    m_volumeViewMx = glm::lookAt(m_cameraPosition, m_cameraLookAt, up);
 
-    glm::mat4 projMX = glm::perspective(
+    m_volumeProjMx= glm::perspective(
         glm::radians(m_fovY),
         static_cast<float>(m_renderingDimensions[0]) /
             static_cast<float>(m_renderingDimensions[1]),
         0.1f,
         50.0f);
-
-    // projection matrix for the window filling quad
-    glm::mat4 projMXquad = glm::ortho(-0.5f, 0.5f, -0.5f, 0.5f);
-
 
     if (EXIT_SUCCESS == ret)
         m_isInitialized = true;
@@ -317,7 +328,7 @@ int mvr::Renderer::run()
     std::vector<util::texture::Texture2D&> tfColorWidgetFboTextures =
         { tfColorWidgetTex };
     std::vector<GLenum> tfColorWidgetFboAttachments = { GL_COLOR_ATTACHMENT0 };
-    m_tfColorWidgetFBO = util::FramebufferObject(
+    util::FramebufferObject tfColorWidgetFBO = util::FramebufferObject(
         tfColorWidgetFboTextures, tfColorWidgetFboAttachments);
 
     // render target that shows transfer function line plot
@@ -343,58 +354,30 @@ int mvr::Renderer::run()
         { tfFuncWidgetTexFirst, tfFuncWidgetTexSecond };
     std::vector<GLenum> tfFuncWidgetFboAttachments =
         { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
-    m_tfFuncWidgetFBO = util::FramebufferObject(
+    util::FramebufferObject tfFuncWidgetFBO = util::FramebufferObject(
         tfFuncWidgetTextures, tfFuncWidgetFboAttachments);
 
     // ------------------------------------------------------------------------
     // local variables
     // ------------------------------------------------------------------------
     glm::vec3 tempVec3 = glm::vec3(0.f);
-    float voxelDiagonal = 1.f;
+    unsigned int ping = 0, pong = 1;
 
     // ------------------------------------------------------------------------
     // render loop
     // ------------------------------------------------------------------------
-    static unsigned int ping = 0, pong = 1;
     while (!glfwWindowShouldClose(window))
     {
         // swap fbo objects in each render pass
         std::swap(ping, pong);
         glfwPollEvents();
 
-        // check if shader programs shall be reloaded
-        if (_flag_reload_shaders)
-        {
-            _flag_reload_shaders = false;
-            std::cout << "Reloading shaders..." << std::endl;
-
-            glDeleteProgram(shaderQuad.ID);
-            glDeleteProgram(shaderFrame.ID);
-            glDeleteProgram(shaderVolume.ID);
-            glDeleteProgram(shaderTfColor.ID);
-            glDeleteProgram(shaderTfFunc.ID);
-            glDeleteProgram(shaderTfPoint.ID);
-
-            shaderQuad = Shader(
-                "src/shader/quad.vert", "src/shader/quad.frag");
-            shaderFrame = Shader(
-                "src/shader/frame.vert", "src/shader/frame.frag");
-            shaderVolume = Shader(
-                "src/shader/volume.vert", "src/shader/volume.frag");
-            shaderTfColor = Shader(
-                "src/shader/tfColor.vert", "src/shader/tfColor.frag");
-            shaderTfFunc = Shader(
-                "src/shader/tfFunc.vert", "src/shader/tfFunc.frag");
-            shaderTfPoint = Shader(
-                "src/shader/tfPoint.vert", "src/shader/tfPoint.frag");
-        }
         // --------------------------------------------------------------------
         // draw the volume, frame etc. into a frame buffer object
         // --------------------------------------------------------------------
-
         // activate the framebuffer object as current framebuffer
-        glViewport(0, 0, render_w, render_h);
-        glBindFramebuffer(GL_FRAMEBUFFER, _ppFBOs[ping]);
+        glViewport(0, 0, m_renderingDimensions[0], m_renderingDimensions[1]);
+        m_framebuffers[ping].bind();
 
         // select color attachments as render targets
         static const GLenum buf[2] = {
@@ -403,10 +386,7 @@ int mvr::Renderer::run()
 
         // clear old buffer content
         glClearColor(
-                gui_clear_color[0],
-                gui_clear_color[1],
-                gui_clear_color[2],
-                0.f);
+            m_clear_color[0], m_clear_color[1], m_clear_color[2], 0.f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // update model, view and projection matrix

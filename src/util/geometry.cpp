@@ -20,6 +20,20 @@ util::geometry::Shape::Shape()
 {
 }
 
+util::geometry::Shape::Shape(util::geometry::Shape&& other) :
+    m_vertexArrayObject(other.m_vertexArrayObject)
+{
+    other.m_vertexArrayObject = 0;
+}
+
+util::geometry::Shape& operator=(util::geometry::Shape&& other)
+{
+    this->m_vertexArrayObject = other.m_vertexArrayObject;
+    other.m_vertexArrayObject = 0;
+
+    return *this;
+}
+
 util::geometry::Shape::~Shape()
 {
     glDeleteVertexArrays(1, &m_vertexArrayObject);
@@ -38,8 +52,14 @@ void util::geometry::Shape::unbind() const
 //-----------------------------------------------------------------------------
 // CubeFrame
 //-----------------------------------------------------------------------------
-util::geometry::CubeFrame::CubeFrame()
+util::geometry::CubeFrame::CubeFrame(bool oglAvailable)
 {
+    if (false == oglAvailable)
+    {
+        m_vertexArrayObject = 0;
+        return;
+    }
+
     std::array<float, 4 * 8> vertices = {
         -0.5f,  -0.5f,  -0.5f,  1.f,
         0.5f,   -0.5f,  -0.5f,  1.f,
@@ -131,7 +151,14 @@ util::geometry::CubeFrame::CubeFrame()
     glDeleteBuffers(2, vbo.data());
     glDeleteBuffers(1, &ebo);
 
- }
+}
+
+util::geometry::CubeFrame& operator=(util::geometry::CubeFrame&& other)
+{
+    Shape::operator=(std::move(other));
+
+    return *this;
+}
 
 util::geometry::CubeFrame::~CubeFrame()
 {
@@ -147,8 +174,14 @@ void util::geometry::CubeFrame::draw() const
 //-----------------------------------------------------------------------------
 // Cube
 //-----------------------------------------------------------------------------
-util::geometry::Cube::Cube()
+util::geometry::Cube::Cube(bool oglAvailable)
 {
+    if (false == oglAvailable)
+    {
+        m_vertexArrayObject = 0;
+        return;
+    }
+
     std::array<float, 4 * 8> vertices = {
         -0.5f,  -0.5f,  -0.5f,  1.f,
         0.5f,   -0.5f,  -0.5f,  1.f,
@@ -242,6 +275,13 @@ util::geometry::Cube::Cube()
     glDeleteBuffers(1, &ebo);
 }
 
+util::geometry::Cube& operator=(util::geometry::Cube&& other)
+{
+    Shape::operator=(std::move(other));
+
+    return *this;
+}
+
 util::geometry::Cube::~Cube()
 {
 }
@@ -255,8 +295,14 @@ void util::geometry::Cube::draw() const
 //-----------------------------------------------------------------------------
 // Quad
 //-----------------------------------------------------------------------------
-util::geometry::Quad::Quad()
+util::geometry::Quad::Quad(bool oglAvailable)
 {
+    if (false == oglAvailable)
+    {
+        m_vertexArrayObject = 0;
+        return;
+    }
+
     std::array<float, 2 * 4> vertices = {
         -0.5f,  -0.5f,
         0.5f,   -0.5f,
@@ -326,6 +372,13 @@ util::geometry::Quad::Quad()
     this->unbind();
     glDeleteBuffers(2, vbo.data());
     glDeleteBuffers(1, &ebo);
+}
+
+util::geometry::Quad& operator=(util::geometry::Quad&& other)
+{
+    Shape::operator=(std::move(other));
+
+    return *this;
 }
 
 util::geometry::Quad::~Quad()
