@@ -26,6 +26,7 @@ namespace util
     //-------------------------------------------------------------------------
     // Declarations
     //-------------------------------------------------------------------------
+    class FramebufferObject;
     // texture.cpp
     // see texture classes and functions in texture.hpp
 
@@ -49,8 +50,8 @@ namespace util
     {
         public:
         FramebufferObject();
-        FramebufferObject::FramebufferObject(
-            const std::vector<util::texture::Texture2D&> &textures,
+        FramebufferObject(
+            std::vector<util::texture::Texture2D> &&textures,
             const std::vector<GLenum> &attachments);
         FramebufferObject(const FramebufferObject& other) = delete;
         FramebufferObject(FramebufferObject&& other);
@@ -59,17 +60,19 @@ namespace util
         ~FramebufferObject();
 
         void bind() const;
-        void bindRead() const;
+        void bindRead(size_t attachmentNumber) const;
         void unbind() const;
 
-        std::vector<util::texture::Texture2D&>& getTextures()
+        const std::vector<GLenum> getAttachments() { return m_attachments; }
+        const std::vector<util::texture::Texture2D>& accessTextures()
         {
             return m_textures;
         }
 
         private:
         GLuint m_ID;
-        std::vector<util::texture::Texture2D&> &m_textures;
+        std::vector<util::texture::Texture2D> m_textures;
+        std::vector<GLenum> m_attachments;
 
     };
 

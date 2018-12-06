@@ -33,7 +33,7 @@ namespace util
             GLuint m_ID;
         };
 
-        class Texture2D : Texture
+        class Texture2D : public Texture
         {
             public:
             Texture2D();
@@ -60,7 +60,7 @@ namespace util
             void bind() const;
         };
 
-        class Texture3D : Texture
+        class Texture3D : public Texture
         {
             public:
             Texture3D();

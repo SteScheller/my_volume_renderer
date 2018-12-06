@@ -1,6 +1,8 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <algorithm>
+
 #include <GL/gl3w.h>
 
 #include <FreeImage.h>
@@ -12,16 +14,18 @@
 //-----------------------------------------------------------------------------
 util::FramebufferObject::FramebufferObject() :
     m_ID(0),
-    m_textures()
+    m_textures(std::vector<util::texture::Texture2D>(0))
 {
 }
 
 util::FramebufferObject::FramebufferObject(
-        const std::vector<util::texture::Texture2D&> &textures,
+        std::vector<util::texture::Texture2D> &&textures,
         const std::vector<GLenum> &attachments) :
-    util::FramebufferObject::FramebufferObject()
+    m_ID(0),
+    m_textures(std::move(textures)),
+    m_attachments(attachments)
 {
-    if ((textures.size() < 0) || (textures.size() != attachments.size()))
+    if ((m_textures.size() < 0) || (m_textures.size() != attachments.size()))
             return;
 
     glGenFramebuffers(1, &m_ID);
@@ -35,7 +39,7 @@ util::FramebufferObject::FramebufferObject(
             GL_FRAMEBUFFER,
             attachments[i],
             GL_TEXTURE_2D,
-            textures[i].getID(),
+            m_textures[i].getID(),
             0);
 
     }
@@ -48,9 +52,10 @@ util::FramebufferObject::FramebufferObject(
     this->unbind();
 }
 
-util::FramebufferObject::FramebufferObject(util::FramebufferObject&& other)
+util::FramebufferObject::FramebufferObject(util::FramebufferObject&& other) :
+    m_ID(other.m_ID),
+    m_textures(std::vector<util::texture::Texture2D&>(0))
 {
-    this->m_ID = other.m_ID;
     this->m_textures = std::move(other.m_textures);
     other.m_ID = 0;
 }
@@ -74,18 +79,20 @@ util::FramebufferObject::~FramebufferObject()
 void util::FramebufferObject::bind() const
 {
     glBindFramebuffer(GL_FRAMEBUFFER, m_ID);
+    glDrawBuffers(m_attachments.size(), m_attachments.data());
 }
 
-void util::FramebufferObject::bindRead() const
+void util::FramebufferObject::bindRead(size_t attachmentNumber) const
 {
     glBindFramebuffer(GL_READ_FRAMEBUFFER, m_ID);
+    glReadBuffer(
+        m_attachments[std::min(attachmentNumber, m_attachments.size() - 1)]);
 }
 
 void util::FramebufferObject::unbind() const
 {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
-
 
 //-----------------------------------------------------------------------------
 // convenience functions

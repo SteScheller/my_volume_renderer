@@ -19,7 +19,7 @@ int main(int argc, char *argv[])
 
     applyProgramOptions(argc, argv);
 
-    mvr::Renderer renderer();
+    mvr::Renderer renderer;
 
     return_code = renderer.run();
 

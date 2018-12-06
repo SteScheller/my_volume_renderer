@@ -9,7 +9,7 @@ namespace util
     namespace geometry
     {
         class Shape
-       {
+        {
             public:
             Shape();
             Shape(const Shape& other) = delete;

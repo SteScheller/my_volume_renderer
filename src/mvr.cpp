@@ -73,7 +73,7 @@ mvr::Renderer::Renderer() :
     m_cameraZoomSpeed(0.1f),
     m_cameraRotationSpeed(0.2f),
     m_cameraTranslationSpeed(0.002f),
-    m_Projection(mvr::Projection::perspective),
+    m_projection(mvr::Projection::perspective),
     // isosurface mode
     m_isovalue(0.1f),
     m_isovalueDenoising(true),
@@ -106,9 +106,7 @@ mvr::Renderer::Renderer() :
     m_shaderTfColor(),
     m_shaderTfFunc(),
     m_shaderTfPoint(),
-    m_volumeModelMX(1.f),
     m_framebuffers(),
-    m_framebufferTextures(),
     m_volumeFrame(false),
     m_volumeCube(false),
     m_windowQuad(false),
@@ -131,6 +129,10 @@ mvr::Renderer::Renderer() :
 
 mvr::Renderer::~Renderer()
 {
+    if (nullptr != m_window)
+        glfwDestroyWindow(m_window);
+
+    glfwTerminate();
 }
 
 int mvr::Renderer::Initialize()
@@ -171,60 +173,58 @@ int mvr::Renderer::Initialize()
     //-------------------------------------------------------------------------
     // ping pong framebuffers and rendering targets
     //-------------------------------------------------------------------------
-    m_framebufferTextures[0][0] = util::texture::Texture2D(
-            GL_RGBA,
-            GL_RGBA,
-            0,
-            GL_FLOAT,
-            GL_LINEAR,
-            GL_CLAMP_TO_BORDER,
-            m_renderingDimensions[0],
-            m_renderingDimensions[1]);
+    {
+        std::vector<util::texture::Texture2D> fboTexturesPing;
+        std::vector<util::texture::Texture2D> fboTexturesPong;
 
-    m_framebufferTextures[0][1] = util::texture::Texture2D(
-            GL_RGBA32UI,
-            GL_RGBA_INTEGER,
-            0,
-            GL_UNSIGNED_INT,
-            GL_NEAREST,
-            GL_CLAMP_TO_BORDER,
-            m_renderingDimensions[0],
-            m_renderingDimensions[1]);
+        fboTexturesPing.emplace_back(
+                GL_RGBA,
+                GL_RGBA,
+                0,
+                GL_FLOAT,
+                GL_LINEAR,
+                GL_CLAMP_TO_BORDER,
+                m_renderingDimensions[0],
+                m_renderingDimensions[1]);
 
-    m_framebufferTextures[1][0] =
-        util::texture::Texture2D(
-            GL_RGBA,
-            GL_RGBA,
-            0,
-            GL_FLOAT,
-            GL_LINEAR,
-            GL_CLAMP_TO_BORDER,
-            m_renderingDimensions[0],
-            m_renderingDimensions[1]);
+        fboTexturesPing.emplace_back(
+                GL_RGBA32UI,
+                GL_RGBA_INTEGER,
+                0,
+                GL_UNSIGNED_INT,
+                GL_NEAREST,
+                GL_CLAMP_TO_BORDER,
+                m_renderingDimensions[0],
+                m_renderingDimensions[1]);
 
-    m_framebufferTextures[1][1] = util::texture::Texture2D(
-            GL_RGBA32UI,
-            GL_RGBA_INTEGER,
-            0,
-            GL_UNSIGNED_INT,
-            GL_NEAREST,
-            GL_CLAMP_TO_BORDER,
-            m_renderingDimensions[0],
-            m_renderingDimensions[1]);
+        fboTexturesPong.emplace_back(
+                GL_RGBA,
+                GL_RGBA,
+                0,
+                GL_FLOAT,
+                GL_LINEAR,
+                GL_CLAMP_TO_BORDER,
+                m_renderingDimensions[0],
+                m_renderingDimensions[1]);
 
-    std::vector<GLenum> attachments {
-        GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1};
+        fboTexturesPong.emplace_back(
+                GL_RGBA32UI,
+                GL_RGBA_INTEGER,
+                0,
+                GL_UNSIGNED_INT,
+                GL_NEAREST,
+                GL_CLAMP_TO_BORDER,
+                m_renderingDimensions[0],
+                m_renderingDimensions[1]);
 
-    std::vector<util::texture::Texture2D&> secondFboTextures{
-        m_framebufferTextures[0][0], m_framebufferTextures[0][1]};
+        const std::vector<GLenum> attachments {
+            GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1};
 
-    std::vector<util::texture::Texture2D&> firstFboTextures{
-        m_framebufferTextures[1][0], m_framebufferTextures[1][1]};
-
-    m_framebuffers[0] =
-        util::FramebufferObject(firstFboTextures, attachments);
-    m_framebuffers[1] =
-        util::FramebufferObject(secondFboTextures, attachments);
+        m_framebuffers[0] = util::FramebufferObject(
+            std::move(fboTexturesPing), attachments);
+        m_framebuffers[1] = util::FramebufferObject(
+            std::move(fboTexturesPong), attachments);
+    }
 
     // ------------------------------------------------------------------------
     // geometry
@@ -237,7 +237,7 @@ int mvr::Renderer::Initialize()
     // utility textures
     //-------------------------------------------------------------------------
     // seed texture for fragment shader random number generator
-    m_randomSeedTex = util::create2dHybridTausTexture(
+    m_randomSeedTex = util::texture::create2dHybridTausTexture(
         m_renderingDimensions[0], m_renderingDimensions[1]);
 
     //-------------------------------------------------------------------------
@@ -246,7 +246,7 @@ int mvr::Renderer::Initialize()
     // load the data, adjust the model matrix, prepare a histogram of the data
     // and a texture object
     cr::VolumeConfig volumeConfig = cr::VolumeConfig(m_volumeDescriptionFile);
-    if(vConf.isValid())
+    if(volumeConfig.isValid())
     {
         // TODO: adapt ReloadStuff Function and call it here
         //
@@ -255,6 +255,7 @@ int mvr::Renderer::Initialize()
         // - regenerate Histogram
         // - update Volume Model Matrix
         // - update VoxelDiagonal
+        // - updateBoundingBox limits
         m_volumeData = cr::loadScalarVolumeDataTimestep(
             volumeConfig, m_timestep, false);
     }
@@ -313,60 +314,65 @@ int mvr::Renderer::run()
     if (EXIT_SUCCESS != ret) return ret;
 
     // ------------------------------------------------------------------------
+    // local variables
+    // ------------------------------------------------------------------------
+    unsigned int ping = 0, pong = 1;
+
+    // ------------------------------------------------------------------------
     // gui widget framebuffer objects
     // ------------------------------------------------------------------------
     // render target for widget that shows resulting transfer function colors
-    util::texture::Texture2D tfColorWidgetTex(
-        GL_RGBA,
-        GL_RGBA,
-        0,
-        GL_FLOAT,
-        GL_LINEAR,
-        GL_CLAMP_TO_EDGE,
-        m_tfColorWidgetDimensions[0],
-        m_tfColorWidgetDimensions[1]);
-    std::vector<util::texture::Texture2D&> tfColorWidgetFboTextures =
-        { tfColorWidgetTex };
-    std::vector<GLenum> tfColorWidgetFboAttachments = { GL_COLOR_ATTACHMENT0 };
-    util::FramebufferObject tfColorWidgetFBO = util::FramebufferObject(
-        tfColorWidgetFboTextures, tfColorWidgetFboAttachments);
+    util::FramebufferObject tfColorWidgetFBO;
+    {
+        std::vector<util::texture::Texture2D> tfColorWidgetFboTextures;
+        tfColorWidgetFboTextures.emplace_back(
+            GL_RGBA,
+            GL_RGBA,
+            0,
+            GL_FLOAT,
+            GL_LINEAR,
+            GL_CLAMP_TO_EDGE,
+            m_tfColorWidgetDimensions[0],
+            m_tfColorWidgetDimensions[1]);
+        const std::vector<GLenum> tfColorWidgetFboAttachments = {
+            GL_COLOR_ATTACHMENT0 };
+        tfColorWidgetFBO = util::FramebufferObject(
+            std::move(tfColorWidgetFboTextures), tfColorWidgetFboAttachments);
+    }
 
     // render target that shows transfer function line plot
-    util::texture::Texture2D tfFuncWidgetTexFirst(
-        GL_RGBA,
-        GL_RGBA,
-        0,
-        GL_FLOAT,
-        GL_LINEAR,
-        GL_CLAMP_TO_EDGE,
-        m_tfFuncWidgetDimensions[0],
-        m_tfFuncWidgetDimensions[1]);
-    util::texture::Texture2D tfFuncWidgetTexSecond(
-        GL_RG32F,
-        GL_RG,
-        0,
-        GL_FLOAT,
-        GL_NEAREST,
-        GL_CLAMP_TO_BORDER,
-        m_tfFuncWidgetDimensions[0],
-        m_tfFuncWidgetDimensions[1]);
-    std::vector<util::texture::Texture2D&> tfFuncWidgetTextures
-        { tfFuncWidgetTexFirst, tfFuncWidgetTexSecond };
-    std::vector<GLenum> tfFuncWidgetFboAttachments =
-        { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
-    util::FramebufferObject tfFuncWidgetFBO = util::FramebufferObject(
-        tfFuncWidgetTextures, tfFuncWidgetFboAttachments);
+    util::FramebufferObject tfFuncWidgetFBO;
+    {
+        std::vector<util::texture::Texture2D> tfFuncWidgetTextures;
+        tfFuncWidgetTextures.emplace_back(
+            GL_RGBA,
+            GL_RGBA,
+            0,
+            GL_FLOAT,
+            GL_LINEAR,
+            GL_CLAMP_TO_EDGE,
+            m_tfFuncWidgetDimensions[0],
+            m_tfFuncWidgetDimensions[1]);
+        tfFuncWidgetTextures.emplace_back(
+            GL_RG32F,
+            GL_RG,
+            0,
+            GL_FLOAT,
+            GL_NEAREST,
+            GL_CLAMP_TO_BORDER,
+            m_tfFuncWidgetDimensions[0],
+            m_tfFuncWidgetDimensions[1]);
+        const std::vector<GLenum> tfFuncWidgetFboAttachments =
+            { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
+        tfFuncWidgetFBO = util::FramebufferObject(
+            std::move(tfFuncWidgetTextures), tfFuncWidgetFboAttachments);
+    }
 
-    // ------------------------------------------------------------------------
-    // local variables
-    // ------------------------------------------------------------------------
-    glm::vec3 tempVec3 = glm::vec3(0.f);
-    unsigned int ping = 0, pong = 1;
 
     // ------------------------------------------------------------------------
     // render loop
     // ------------------------------------------------------------------------
-    while (!glfwWindowShouldClose(window))
+    while (!glfwWindowShouldClose(m_window))
     {
         // swap fbo objects in each render pass
         std::swap(ping, pong);
@@ -375,243 +381,68 @@ int mvr::Renderer::run()
         // --------------------------------------------------------------------
         // draw the volume, frame etc. into a frame buffer object
         // --------------------------------------------------------------------
-        // activate the framebuffer object as current framebuffer
+        // activate one of the framebuffer objects as rendering target
         glViewport(0, 0, m_renderingDimensions[0], m_renderingDimensions[1]);
         m_framebuffers[ping].bind();
 
-        // select color attachments as render targets
-        static const GLenum buf[2] = {
-            GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
-        glDrawBuffers(2, buf);
-
         // clear old buffer content
-        glClearColor(
-            m_clear_color[0], m_clear_color[1], m_clear_color[2], 0.f);
+        glClearColor(m_clearColor[0], m_clearColor[1], m_clearColor[2], 0.f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        // update model, view and projection matrix
-        right = glm::normalize(glm::cross(-camPos, glm::vec3(0.f, 1.f, 0.f)));
-        up = glm::normalize(glm::cross(right, -camPos));
-        viewMX = glm::lookAt(camPos, camLookAt, up);
-        if (gui_projection == static_cast<int>(Projection::perspective))
-        {
-            projMX = glm::perspective(
-                glm::radians(fovY),
-                static_cast<float>(render_w)/static_cast<float>(render_h),
-                zNear,
-                zFar);
-        }
-        else
-        {
-            projMX = glm::orthoRH(
-                    -0.5f,
-                    0.5f,
-                    -0.5f,
-                    0.5f,
-                    zNear,
-                    zFar);
-        }
-
-        // calculate the diagonal of a voxel
-        voxel_diag = glm::length(glm::vec3(
-                (modelMX *
-                    glm::vec4(
-                        1.f / static_cast<float>(vConf.getVolumeDim()[0]),
-                        1.f / static_cast<float>(vConf.getVolumeDim()[1]),
-                        1.f / static_cast<float>(vConf.getVolumeDim()[2]),
-                        1.f)).xyz));
-
-        // apply gui settings
-        if(gui_wireframe)
-            glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-        else
-            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-
-        // draw the bounding frame
-        if(gui_frame)
-        {
-            shaderFrame.use();
-            shaderFrame.setMat4("pvmMX", projMX * viewMX * modelMX);
-            glBindVertexArray(frameVAO);
-            glDrawElements(GL_LINES, 2*12, GL_UNSIGNED_INT, 0);
-            glBindVertexArray(0);
-        }
-
-        // draw the volume
-        shaderVolume.use();
-
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_3D, volumeTex);
-        shaderVolume.setInt("volumeTex", 0);
-
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, transferFunction.getTexture());
-        shaderVolume.setInt("transferfunctionTex", 1);
-
-        glActiveTexture(GL_TEXTURE2);
-        glBindTexture(GL_TEXTURE_2D, _rngTex);
-        shaderVolume.setInt("seed", 2);
-        shaderVolume.setBool("useSeed", true);
-
-        glActiveTexture(GL_TEXTURE3);
-        glBindTexture(GL_TEXTURE_2D, _ppTexIDs[pong][1]);
-        shaderVolume.setInt("stateIn", 3);
-
-        shaderVolume.setInt("winWidth", render_w);
-        shaderVolume.setInt("winHeight", render_h);
-        shaderVolume.setInt("mode", gui_mode);
-        shaderVolume.setMat4("modelMX", modelMX);
-        shaderVolume.setMat4("pvmMX", projMX * viewMX * modelMX);
-        shaderVolume.setVec3("eyePos", camPos);
-        shaderVolume.setVec3("bbMin", (modelMX * bbMin).xyz);
-        shaderVolume.setVec3("bbMax", (modelMX * bbMax).xyz);
-        shaderVolume.setInt("mode", gui_mode);
-        shaderVolume.setInt("gradMethod", gui_grad_method);
-        shaderVolume.setFloat("stepSize", voxel_diag * gui_step_size);
-        shaderVolume.setFloat("stepSizeVoxel", gui_step_size);
-        shaderVolume.setFloat("brightness", gui_brightness);
-        shaderVolume.setBool("ambientOcclusion", gui_ambient_occlusion);
-        shaderVolume.setInt("aoSamples", gui_ambient_occlusion_samples);
-        shaderVolume.setFloat(
-                "aoRadius", voxel_diag * gui_ambient_occlusion_radius);
-        shaderVolume.setFloat(
-                "aoProportion", gui_ambient_occlusion_proportion);
-        shaderVolume.setFloat("isovalue", gui_isovalue);
-        shaderVolume.setBool("isoDenoise", gui_iso_denoise);
-        shaderVolume.setFloat("isoDenoiseR", voxel_diag * gui_iso_denoise_r);
-        tempVec3 = glm::normalize(
-                glm::vec3(
-                    gui_light_dir[0], gui_light_dir[1], gui_light_dir[2]));
-        shaderVolume.setVec3(
-            "lightDir", tempVec3[0], tempVec3[1], tempVec3[2]);
-        shaderVolume.setVec3(
-            "ambient", gui_ambient[0], gui_ambient[1], gui_ambient[2]);
-        shaderVolume.setVec3(
-            "diffuse", gui_diffuse[0], gui_diffuse[1], gui_diffuse[2]);
-        shaderVolume.setVec3(
-            "specular", gui_specular[0], gui_specular[1], gui_specular[2]);
-        shaderVolume.setFloat("kAmb", gui_k_amb);
-        shaderVolume.setFloat("kDiff", gui_k_diff);
-        shaderVolume.setFloat("kSpec", gui_k_spec);
-        shaderVolume.setFloat("kExp", gui_k_exp);
-        shaderVolume.setBool("invertColors", gui_invert_colors);
-        shaderVolume.setBool("invertAlpha", gui_invert_alpha);
-        shaderVolume.setBool("sliceVolume", gui_slice_volume);
-        tempVec3 = glm::normalize(
-                glm::vec3(
-                    gui_slice_plane_normal[0],
-                    gui_slice_plane_normal[1],
-                    gui_slice_plane_normal[2]));
-        shaderVolume.setVec3(
-            "slicePlaneNormal", tempVec3[0], tempVec3[1], tempVec3[2]);
-        tempVec3 = (modelMX *
-                glm::vec4(
-                    gui_slice_plane_base[0] / 2.f,
-                    gui_slice_plane_base[1] / 2.f,
-                    gui_slice_plane_base[2] / 2.f,
-                    1.f)).xyz;
-        shaderVolume.setVec3(
-            "slicePlaneBase", tempVec3[0], tempVec3[1], tempVec3[2]);
-
-        glBindVertexArray(volumeVAO);
-        glDrawElements(GL_TRIANGLES, 3*2*6, GL_UNSIGNED_INT, 0);
-        glBindVertexArray(0);
+        drawVolume(m_framebuffers[pong].accessTextures()[1]);
 
         // --------------------------------------------------------------------
         // show the rendering result as window filling quad in the default
         // framebuffer
         // --------------------------------------------------------------------
-        glViewport(0, 0, win_w, win_h);
+        glViewport(0, 0, m_windowDimensions[0], m_windowDimensions[1]);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 
-        shaderQuad.use();
+        m_shaderQuad.use();
 
         glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, _ppTexIDs[ping][0]);
-        shaderQuad.setInt("renderTex", 0);
+        m_framebuffers[ping].accessTextures()[0].bind();
+        m_shaderQuad.setInt("renderTex", 0);
 
         glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, _ppTexIDs[ping][1]);
-        shaderQuad.setInt("rngTex", 1);
+        m_framebuffers[ping].accessTextures()[1].bind();
+        m_shaderQuad.setInt("rngTex", 1);
 
         glActiveTexture(GL_TEXTURE2);
-        glBindTexture(GL_TEXTURE_3D, volumeTex);
-        shaderQuad.setInt("volumeTex", 2);
-        shaderQuad.setFloat("volumeZ", gui_volume_z);
+        m_volumeTex.bind();
+        m_shaderQuad.setInt("volumeTex", 2);
+        m_shaderQuad.setFloat("volumeZ", m_outputDataZSlice);
 
-        shaderQuad.setMat4("projMX", projMXquad);
-        shaderQuad.setInt("texSelect", gui_tex_select);
+        m_shaderQuad.setMat4("projMX", m_quadProjMx);
+        m_shaderQuad.setInt("texSelect", static_cast<int>(m_outputSelect));
 
-        glBindVertexArray(quadVAO);
-        glDrawElements(GL_TRIANGLE_FAN, 4, GL_UNSIGNED_INT, 0);
-        glBindVertexArray(0);
+        m_windowQuad.draw();
 
         // draw ImGui windows
-        if(_flag_show_menues)
+        if(m_showMenues)
         {
             ImGui_ImplOpenGL3_NewFrame();
             ImGui_ImplGlfw_NewFrame();
             ImGui::NewFrame();
-            showSettingsWindow(
-                vConf,
-                volumeData,
-                volumeTex,
-                modelMX,
-                histogramBins);
-            if(gui_show_demo_window)
-                ImGui::ShowDemoWindow(&gui_show_demo_window);
-            if(gui_mode == static_cast<int>(Mode::transfer_function))
-            {
-                if(gui_show_tf_window)
-                    showTransferFunctionWindow(
-                        transferFunction,
-                        shaderTfColor,
-                        shaderTfFunc,
-                        shaderTfPoint,
-                        tfColorFBO,
-                        tfColorTexIDs,
-                        tfFuncFBO,
-                        tfFuncTexIDs,
-                        quadVAO);
-                if(gui_show_histogram_window)
-                    showHistogramWindow(
-                        histogramBins,
-                        vConf,
-                        volumeData);
-            }
+            drawSettingsWindow();
+            if(m_showDemoWindow)
+                ImGui::ShowDemoWindow(&m_showDemoWindow);
+            if(m_showTfWindow)
+                drawTransferFunctionWindow();
+            if(m_showHistogramWindow)
+                drawHistogramWindow();
             ImGui::Render();
             ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         }
 
-        glfwSwapBuffers(window);
+        glfwSwapBuffers(m_window);
     }
 
     // Cleanup
-    glDisable(GL_DEPTH_TEST);
-    glDisable(GL_BLEND);
-
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
-
-    glDeleteFramebuffers(2, _ppFBOs);
-    glDeleteTextures(2, &(_ppTexIDs[0][0]));
-    glDeleteTextures(2, &(_ppTexIDs[1][0]));
-    glDeleteTextures(1, &_rngTex);
-    glDeleteFramebuffers(1, &tfColorFBO);
-    glDeleteTextures(1, tfColorTexIDs);
-    glDeleteFramebuffers(1, &tfFuncFBO);
-    glDeleteTextures(2, tfFuncTexIDs);
-
-    glDeleteTextures(1, &volumeTex);
-
-    glfwDestroyWindow(m_window);
-    glfwTerminate();
-
-    if (volumeData != nullptr) cr::deleteVolumeData(vConf, volumeData);
-    if (histogramBins != nullptr) delete histogramBins;
-
 }
 
 int mvr::Renderer::renderImage()
@@ -623,40 +454,148 @@ int mvr::Renderer::renderImage()
 //-----------------------------------------------------------------------------
 // subroutines
 //-----------------------------------------------------------------------------
-/**
- *  \brief Creates a two framebuffer objects for usage as ping pong render
- *         targets
- */
-void util::createPingPongFBO(
-    GLuint &fbo,
-    GLuint texIDs[2],
-    unsigned int width,
-    unsigned int height)
+void mvr::Renderer::drawVolume(const util::texture::Texture2D& stateInTexture)
 {
-    GLenum attachments[2] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
-    GLint  internalFormats[2] = { GL_RGBA, GL_RGBA32UI };
-    GLenum formats[2] = { GL_RGBA, GL_RGBA_INTEGER };
-    GLenum datatypes[2] = { GL_FLOAT, GL_UNSIGNED_INT };
-    GLint  filters[2] = { GL_LINEAR, GL_NEAREST };
+    // ------------------------------------------------------------------------
+    // local variables
+    // ------------------------------------------------------------------------
+    glm::vec3 tempVec3 = glm::vec3(0.f);
+    glm::vec3 right(0.f), up(0.f);
 
-    fbo = util::createFrameBufferObject(
-            width,
-            height,
-            texIDs,
-            2,
-            attachments,
-            internalFormats,
-            formats,
-            datatypes,
-            filters);
+    // ------------------------------------------------------------------------
+    // draw the volume
+    // ------------------------------------------------------------------------
+    // first update model, view and projection matrix
+    right = glm::normalize(
+        glm::cross(-m_cameraPosition, glm::vec3(0.f, 1.f, 0.f)));
+    up = glm::normalize(glm::cross(right, -m_cameraPosition));
+    m_volumeViewMx = glm::lookAt(m_cameraPosition, m_cameraLookAt, up);
+    if (m_projection == Projection::perspective)
+    {
+        m_volumeProjMx = glm::perspective(
+            glm::radians(m_fovY),
+            static_cast<float>(m_renderingDimensions[0]) /
+                static_cast<float>(m_renderingDimensions[1]),
+            m_zNear,
+            m_zFar);
+    }
+    else
+    {
+        m_volumeProjMx = glm::orthoRH(
+            -0.5f, 0.5f, -0.5f, 0.5f, m_zNear, m_zFar);
+    }
+
+    // TODO: Move that into the reload function
+    // calculate the diagonal of a voxel
+    {
+        cr::VolumeConfig vConf = m_volumeData->getVolumeConfig();
+        m_voxelDiagonal = glm::length(glm::vec3(
+            (m_volumeModelMx *
+                glm::vec4(
+                    1.f / static_cast<float>(vConf.getVolumeDim()[0]),
+                    1.f / static_cast<float>(vConf.getVolumeDim()[1]),
+                    1.f / static_cast<float>(vConf.getVolumeDim()[2]),
+                    1.f)).xyz));
+    }
+
+    // apply gui settings
+    if(m_showWireframe)
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    else
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
+    // draw the bounding frame
+    if(m_showVolumeFrame)
+    {
+        m_shaderFrame.use();
+        m_shaderFrame.setMat4(
+            "pvmMX", m_volumeProjMx * m_volumeViewMx * m_volumeModelMx);
+        m_volumeFrame.draw();
+    }
+
+    // draw the volume
+    m_shaderVolume.use();
+
+    glActiveTexture(GL_TEXTURE0);
+    m_volumeTex.bind();
+    m_shaderVolume.setInt("volumeTex", 0);
+
+    glActiveTexture(GL_TEXTURE1);
+    // TODO: change tfFunction Texture to util texture object
+    glBindTexture(GL_TEXTURE_2D, m_transferFunction.getTexture());
+    m_shaderVolume.setInt("transferfunctionTex", 1);
+
+    glActiveTexture(GL_TEXTURE2);
+    m_randomSeedTex.bind();
+    m_shaderVolume.setInt("seed", 2);
+    m_shaderVolume.setBool("useSeed", true);
+
+    glActiveTexture(GL_TEXTURE3);
+    stateInTexture.bind();
+    m_shaderVolume.setInt("stateIn", 3);
+
+    m_shaderVolume.setInt("winWidth", m_renderingDimensions[0]);
+    m_shaderVolume.setInt("winHeight", m_renderingDimensions[1]);
+    m_shaderVolume.setMat4("modelMX", m_volumeModelMx);
+    m_shaderVolume.setMat4(
+        "pvmMX", m_volumeProjMx * m_volumeViewMx * m_volumeModelMx);
+    m_shaderVolume.setVec3("eyePos", m_cameraPosition);
+    m_shaderVolume.setVec3("bbMin", m_boundingBoxMin.xyz);
+    m_shaderVolume.setVec3("bbMax", m_boundingBoxMax.xyz);
+    m_shaderVolume.setInt("mode", static_cast<int>(m_renderMode));
+    m_shaderVolume.setInt(
+        "gradMethod", static_cast<int>(m_gradientMethod));
+    m_shaderVolume.setFloat("stepSize", m_voxelDiagonal * m_stepSize);
+    m_shaderVolume.setFloat("stepSizeVoxel", m_stepSize);
+    m_shaderVolume.setFloat("brightness", m_brightness);
+    m_shaderVolume.setBool("ambientOcclusion", m_ambientOcclusion);
+    m_shaderVolume.setInt("aoSamples", m_ambientOcclusionNumSamples);
+    m_shaderVolume.setFloat(
+        "aoRadius", m_voxelDiagonal * m_ambientOcclusionRadius);
+    m_shaderVolume.setFloat("aoProportion", m_ambientOcclusionProportion);
+    m_shaderVolume.setFloat("isovalue", m_isovalue);
+    m_shaderVolume.setBool("isoDenoise", m_isovalueDenoising);
+    m_shaderVolume.setFloat("isoDenoiseR",
+        m_voxelDiagonal * m_isovalueDenoisingRadius);
+    tempVec3 = glm::normalize( glm::vec3(
+        m_lightDirection[0], m_lightDirection[1], m_lightDirection[2]));
+    m_shaderVolume.setVec3(
+        "lightDir", tempVec3[0], tempVec3[1], tempVec3[2]);
+    m_shaderVolume.setVec3(
+        "ambient",
+        m_ambientColor[0], m_ambientColor[1], m_ambientColor[2]);
+    m_shaderVolume.setVec3(
+        "diffuse",
+        m_diffuseColor[0], m_diffuseColor[1], m_diffuseColor[2]);
+    m_shaderVolume.setVec3(
+        "specular",
+        m_specularColor[0], m_specularColor[1], m_specularColor[2]);
+    m_shaderVolume.setFloat("kAmb", m_ambientFactor);
+    m_shaderVolume.setFloat("kDiff", m_diffuseFactor);
+    m_shaderVolume.setFloat("kSpec", m_specularFactor);
+    m_shaderVolume.setFloat("kExp", m_specularExponent);
+    m_shaderVolume.setBool("invertColors", m_invertColors);
+    m_shaderVolume.setBool("invertAlpha", m_invertAlpha);
+    m_shaderVolume.setBool("sliceVolume", m_slicingPlane);
+    tempVec3 = glm::normalize( glm::vec3(
+        m_slicingPlaneNormal[0],
+        m_slicingPlaneNormal[1],
+        m_slicingPlaneNormal[2]));
+    m_shaderVolume.setVec3(
+        "slicePlaneNormal", tempVec3[0], tempVec3[1], tempVec3[2]);
+    tempVec3 = (m_volumeModelMx *
+        glm::vec4(
+            m_slicingPlaneBase[0] / 2.f,
+            m_slicingPlaneBase[1] / 2.f,
+            m_slicingPlaneBase[2] / 2.f,
+            1.f)).xyz;
+    m_shaderVolume.setVec3(
+        "slicePlaneBase", tempVec3[0], tempVec3[1], tempVec3[2]);
+
+    m_volumeCube.draw();
+
 }
-
-static void showSettingsWindow(
-    cr::VolumeConfig &vConf,
-    void *&volumeData,
-    GLuint &volumeTex,
-    glm::mat4 &modelMX,
-    std::vector<util::bin_t> *&histogramBins)
+void mvr::Renderer::drawSettingsWindow()
 {
     cr::VolumeConfig tempConf;
 
@@ -939,10 +878,7 @@ static void showSettingsWindow(
     ImGui::End();
 }
 
-static void showHistogramWindow(
-    std::vector<util::bin_t> *&histogramBins,
-    cr::VolumeConfig vConf,
-    void* volumeData)
+void mvr::Renderer::drawHistogramWindow()
 {
     float values[(*histogramBins).size()];
 
@@ -996,16 +932,7 @@ static void showHistogramWindow(
 /**
  * \brief Shows and handles the ImGui Window for the transfer function editor
 */
-static void showTransferFunctionWindow(
-        tf::TransferFuncRGBA1D &transferFunction,
-        Shader &shaderTfColor,
-        Shader &shaderTfFunc,
-        Shader &shaderTfPoint,
-        GLuint tfColorFBO,
-        GLuint *tfColorTexIDs,
-        GLuint tfFuncFBO,
-        GLuint *tfFuncTexIDs,
-        GLuint quadVAO)
+void mvr::Renderer::drawTransferFunctionWindow()
 {
     glm::vec4 tempVec4 = glm::vec4(0.f);
     tf::ControlPointRGBA1D cp = tf::ControlPointRGBA1D();
@@ -1345,7 +1272,7 @@ void mvr::Renderer::loadVolume(cr::VolumeConfig volumeConfig)
     if (histogramBins != nullptr) delete histogramBins;
 
     volumeData = cr::loadScalarVolumeDataTimestep(vConf, timestep, false);
-    m_volumeModelMX = glm::scale(
+    m_volumeModelMx = glm::scale(
         glm::mat4(1.f),
         glm::normalize(glm::vec3(
             static_cast<float>(volumeConfig.getVolumeDim()[0]),
@@ -1358,7 +1285,7 @@ void mvr::Renderer::loadVolume(cr::VolumeConfig volumeConfig)
 //-----------------------------------------------------------------------------
 // helper functions
 //-----------------------------------------------------------------------------
-int initializeGl3w()
+int mvr::Renderer::initializeGl3w()
 {
     if (gl3wInit())
     {
@@ -1379,7 +1306,7 @@ int initializeGl3w()
     return EXIT_SUCCESS;
 }
 
-int initializeImGui()
+int mvr::Renderer::initializeImGui()
 {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -1394,7 +1321,7 @@ int initializeImGui()
     return EXIT_SUCCESS;
 }
 
-GLFWwindow* createWindow(
+GLFWwindow* mvr::Renderer::createWindow(
     unsigned int width, unsigned int height, const char* title)
 {
     glfwSetErrorCallback(error_cb);
@@ -1419,7 +1346,7 @@ GLFWwindow* createWindow(
     return window;
 }
 
-void resizeRenderResult(
+void mvr::Rendere::resizeRendering(
     int width,
     int height)
 {
@@ -1453,7 +1380,8 @@ void mvr::Renderer::createHelpMarker(const char* desc)
 //-----------------------------------------------------------------------------
 // glfw callback functions
 //-----------------------------------------------------------------------------
-void cursor_position_cb(GLFWwindow *window, double xpos, double ypos)
+void mvr::Renderer::cursorPosition_cb(
+        GLFWwindow *window, double xpos, double ypos)
 {
     static double xpos_old = 0.0;
     static double ypos_old = 0.0;
@@ -1490,7 +1418,8 @@ void cursor_position_cb(GLFWwindow *window, double xpos, double ypos)
     }
 }
 
-void mouse_button_cb(GLFWwindow* window, int button, int action, int mods)
+void mvr::Renderer::mouseButton_cb(
+        GLFWwindow* window, int button, int action, int mods)
 {
     double mouseX = 0.0, mouseY = 0.0;
     glm::vec2 temp = glm::vec2(0.f);
@@ -1536,7 +1465,7 @@ void mouse_button_cb(GLFWwindow* window, int button, int action, int mods)
     ImGui_ImplGlfw_MouseButtonCallback(window, button, action, mods);
 }
 
-void scroll_cb(GLFWwindow *window, double xoffset, double yoffset)
+void mvr::Renderer::scroll_cb(GLFWwindow *window, double xoffset, double yoffset)
 
 {
 
@@ -1554,7 +1483,8 @@ void scroll_cb(GLFWwindow *window, double xoffset, double yoffset)
     ImGui_ImplGlfw_ScrollCallback(window, xoffset, yoffset);
 }
 
-void key_cb(GLFWwindow* window, int key, int scancode , int action, int mods)
+void mvr::Renderer::key_cb(
+        GLFWwindow* window, int key, int scancode , int action, int mods)
 {
 
     if((key == GLFW_KEY_ESCAPE) && (action == GLFW_PRESS))
@@ -1586,13 +1516,13 @@ void key_cb(GLFWwindow* window, int key, int scancode , int action, int mods)
     ImGui_ImplGlfw_KeyCallback(window, key, scancode, action, mods);
 }
 
-void char_cb(GLFWwindow* window, unsigned int c)
+void mvr::Renderer::char_cb(GLFWwindow* window, unsigned int c)
 {
     // chain ImGui callback
     ImGui_ImplGlfw_CharCallback(window, c);
 }
 
-void framebuffer_size_cb(
+void mvr::Renderer::framebufferSize_cb(
     __attribute__((unused)) GLFWwindow* window,
     int width,
     int height)

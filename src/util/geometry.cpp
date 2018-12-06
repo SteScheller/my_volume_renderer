@@ -26,7 +26,8 @@ util::geometry::Shape::Shape(util::geometry::Shape&& other) :
     other.m_vertexArrayObject = 0;
 }
 
-util::geometry::Shape& operator=(util::geometry::Shape&& other)
+util::geometry::Shape& util::geometry::Shape::operator=(
+        util::geometry::Shape&& other)
 {
     this->m_vertexArrayObject = other.m_vertexArrayObject;
     other.m_vertexArrayObject = 0;
@@ -153,7 +154,8 @@ util::geometry::CubeFrame::CubeFrame(bool oglAvailable)
 
 }
 
-util::geometry::CubeFrame& operator=(util::geometry::CubeFrame&& other)
+util::geometry::CubeFrame& util::geometry::CubeFrame::operator=(
+        util::geometry::CubeFrame&& other)
 {
     Shape::operator=(std::move(other));
 
@@ -275,7 +277,8 @@ util::geometry::Cube::Cube(bool oglAvailable)
     glDeleteBuffers(1, &ebo);
 }
 
-util::geometry::Cube& operator=(util::geometry::Cube&& other)
+util::geometry::Cube& util::geometry::Cube::operator=(
+        util::geometry::Cube&& other)
 {
     Shape::operator=(std::move(other));
 
@@ -374,7 +377,8 @@ util::geometry::Quad::Quad(bool oglAvailable)
     glDeleteBuffers(1, &ebo);
 }
 
-util::geometry::Quad& operator=(util::geometry::Quad&& other)
+util::geometry::Quad& util::geometry::Quad::operator=(
+        util::geometry::Quad&& other)
 {
     Shape::operator=(std::move(other));
 

@@ -135,7 +135,7 @@ namespace mvr
         float m_cameraZoomSpeed;
         float m_cameraRotationSpeed;
         float m_cameraTranslationSpeed;
-        Projection m_Projection;
+        Projection m_projection;
 
         // isosurface mode
         float m_isovalue;
@@ -149,7 +149,7 @@ namespace mvr
         std::array<float, 3> m_diffuseColor;
         std::array<float, 3> m_specularColor;
         float m_ambientFactor;
-        float m_diffuceFactor;
+        float m_diffuseFactor;
         float m_specularFactor;
         float m_specularExponent;
 
@@ -185,8 +185,8 @@ namespace mvr
         Shader m_shaderTfPoint;
 
         std::array<util::FramebufferObject, 2> m_framebuffers;
-        std::array<std::array<util::texture::Texture2D, 2>, 2>
-            m_framebufferTextures;
+        //std::array<std::array<util::texture::Texture2D, 2>, 2>
+        //    m_framebufferTextures;
         // util::FramebufferObject m_tfColorWidgetFBO;
         // util::FramebufferObject m_tfFuncWidgetFBO;
 
@@ -227,45 +227,12 @@ namespace mvr
         //---------------------------------------------------------------------
         // subroutines
         //---------------------------------------------------------------------
-        void showSettingsWindow(
-            cr::VolumeConfig &vConf,
-            void *&volumeData,
-            GLuint &volumeTex,
-            glm::mat4 &modelMX,
-            std::vector<util::bin_t> *&histogramBins);
-
-        void showHistogramWindow(
-            std::vector<util::bin_t> *&histogramBins,
-            cr::VolumeConfig vConf,
-            void* volumeData);
-
-        void showTransferFunctionWindow(
-            tf::TransferFuncRGBA1D &transferFunction,
-            Shader &shaderTfColor,
-            Shader &shaderTfFunc,
-            Shader &shaderTfPoint,
-            GLuint tfColorFBO,
-            GLuint *tfColorTexIDs,
-            GLuint tfFuncFBO,
-            GLuint *tfFuncTexIDs,
-            GLuint quadVAO);
-
-        void drawTfColor(
-            tf::TransferFuncRGBA1D &transferFunc,
-            Shader &shaderTfColor,
-            GLuint fboID,
-            GLuint quadVAO,
-            unsigned int width,
-            unsigned int height);
-
-        void drawTfFunc(
-            tf::TransferFuncRGBA1D &transferFunc,
-            Shader &shaderTfFunc,
-            Shader &shaderTfPoint,
-            GLuint fboID,
-            GLuint quadVAO,
-            unsigned int width,
-            unsigned int height);
+        void drawVolume(const util::texture::Texture2D& stateInTexture);
+        void drawSettingsWindow();
+        void drawHistogramWindow();
+        void drawTransferFunctionWindow();
+        void drawTfColor();
+        void drawTfFunc();
 
         /**
          * \brief updates the volume data, texture, histogram information...
@@ -276,33 +243,24 @@ namespace mvr
         // helper functions
         //---------------------------------------------------------------------
         int initializeGl3w();
-
         int initializeImGui();
 
         GLFWwindow* createWindow(
-                unsigned int width,
-                unsigned int height,
-                const char* title);
+            unsigned int width, unsigned int height, const char* title);
 
-        void resizeRenderResult(int width, int height);
-
-        void createPingPongFBO(
-            GLuint &fbo,
-            GLuint texIDs[2],
-            unsigned int width,
-            unsigned int height);
+        void resizeRendering(int width, int height);
 
         void createHelpMarker(const char* desc);
 
         //---------------------------------------------------------------------
         // glfw callback functions
         //---------------------------------------------------------------------
-        void cursor_position_cb(
+        void cursorPosition_cb(
                 GLFWwindow *window,
                 double xpos,
                 double ypos);
 
-        void mouse_button_cb(
+        void mouseButton_cb(
                 GLFWwindow* window,
                 int button,
                 int action,
@@ -324,7 +282,7 @@ namespace mvr
                 GLFWwindow* window,
                 unsigned int c);
 
-        void framebuffer_size_cb(
+        void framebufferSize_cb(
                 GLFWwindow* window,
                 int width,
                 int height);
