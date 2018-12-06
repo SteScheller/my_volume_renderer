@@ -5,3 +5,5 @@ bugfixes:
 new features:
 - batch mode image creation
 
+refactoring:
+- write own shader utility class
