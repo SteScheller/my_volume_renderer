@@ -14,6 +14,7 @@
 
 #include "geometry.hpp"
 #include "texture.hpp"
+#include "transferfunc.hpp"
 
 //-----------------------------------------------------------------------------
 // Macros
@@ -32,6 +33,9 @@ namespace util
 
     // geometry.cpp
     // see shape classes and functions in geometry.hpp
+
+    // transferfunc.cpp
+    // see transferfunction and control point class in transferfunc.hpp
 
     // util.cpp
     bool printOglError(const char *file, int line);

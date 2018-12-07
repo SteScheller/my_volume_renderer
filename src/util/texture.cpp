@@ -22,6 +22,7 @@ util::texture::Texture::Texture(util::texture::Texture&& other) :
 util::texture::Texture& util::texture::Texture::operator=(
         util::texture::Texture&& other)
 {
+    glDeleteTextures(1, &m_ID);
     this->m_ID = other.m_ID;
     other.m_ID = 0;
 

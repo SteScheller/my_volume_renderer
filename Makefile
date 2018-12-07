@@ -11,6 +11,7 @@ SOURCES += src/configraw.cpp src/transferfunc.cpp
 SOURCES += libs/imgui/imgui_impl_glfw.cpp libs/imgui/imgui_impl_opengl3.cpp
 SOURCES += libs/imgui/imgui.cpp libs/imgui/imgui_demo.cpp 
 SOURCES += libs/imgui/imgui_draw.cpp libs/imgui/imgui_widgets.cpp
+SOURCES += libs/imgui/imgui_stl.cpp
 SOURCES += libs/gl3w/GL/gl3w.c
 
 OBJS = $(addsuffix .o, $(basename $(SOURCES)))
@@ -19,9 +20,10 @@ INCLUDE = -I./src -I./include -I./libs/gl3w -I./libs/imgui -I./libs/nlohmann
 
 CC = cc
 CXX = g++
-CXXFLAGS = $(INCLUDE) `pkg-config --cflags glfw3`
+CXXFLAGS = $(INCLUDE) -std=c++14 `pkg-config --cflags glfw3`
 CXXFLAGS += -Wall -Wextra
-CFLAGS = $(CXXFLAGS)
+CFLAGS = $(INCLUDE) -std=c11 `pkg-config --cflags glfw3`
+CFLAGS += -Wall -Wextra
 
 LIBS = -lGL `pkg-config --static --libs glfw3` 
 LIBS += -lboost_system -lboost_filesystem -lboost_regex -lboost_program_options

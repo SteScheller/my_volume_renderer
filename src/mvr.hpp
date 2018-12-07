@@ -164,11 +164,6 @@ namespace mvr
         float m_ambientOcclusionProportion;
         int m_ambientOcclusionNumSamples;
 
-        // temporary control points for transfer function
-        //float gui_tf_cp_pos = 0.f;
-        //float gui_tf_cp_color_rgb[3] = {0.f, 0.f, 0.0f};
-        //float gui_tf_cp_color_a = 0.f;
-
         //---------------------------------------------------------------------
         // internals
         //---------------------------------------------------------------------
@@ -204,8 +199,8 @@ namespace mvr
         glm::mat4 m_quadProjMx;
 
         // volume data
-        std::vector<util::bin_t> m_histogramBins;
-        tf::TransferFuncRGBA1D m_transferFunction;
+        std::shared_ptr<std::vector<util::bin_t>> m_histogramBins;
+        util::tf::TransferFuncRGBA1D m_transferFunction;
         std::shared_ptr<cr::VolumeDataBase> m_volumeData;
         util::texture::Texture3D m_volumeTex;
 
@@ -213,16 +208,17 @@ namespace mvr
         util::texture::Texture2D m_randomSeedTex;
         float m_voxelDiagonal;
         bool m_showMenues;
-
-        /*
-        static bool _flag_show_menues = true;
-
-        // flag for seeding the random generator in the fragment shader
-        static GLuint _rngTex = 0;
+        bool m_showControlPointList;
 
         // for picking of control points in transfer function editor
-        static float _selected_cp_pos = 0.f;
-        static ImVec2 _tf_screen_pos = ImVec2();*/
+        std::array<unsigned int,2> m_tfScreenPosition;
+        float m_selectedTfControlPointPos;
+
+        /* static bool _flag_show_menues = true;
+
+        // flag for seeding the random generator in the fragment shader
+        static GLuint _rngTex = 0;*/
+
 
         //---------------------------------------------------------------------
         // subroutines
@@ -230,9 +226,11 @@ namespace mvr
         void drawVolume(const util::texture::Texture2D& stateInTexture);
         void drawSettingsWindow();
         void drawHistogramWindow();
-        void drawTransferFunctionWindow();
-        void drawTfColor();
-        void drawTfFunc();
+        void drawTransferFunctionWindow(
+            util::FramebufferObject &tfColorWidgetFBO,
+            util::FramebufferObject &tfFuncWidgetFBO);
+        void drawTfColor(util::FramebufferObject &tfColorWidgetFBO);
+        void drawTfFunc(util::FramebufferObject &tfFuncWidgetFBO);
 
         /**
          * \brief updates the volume data, texture, histogram information...
@@ -248,6 +246,8 @@ namespace mvr
         GLFWwindow* createWindow(
             unsigned int width, unsigned int height, const char* title);
 
+        void updatePingPongFramebufferObjects();
+
         void resizeRendering(int width, int height);
 
         void createHelpMarker(const char* desc);
@@ -255,39 +255,39 @@ namespace mvr
         //---------------------------------------------------------------------
         // glfw callback functions
         //---------------------------------------------------------------------
-        void cursorPosition_cb(
+        static void cursorPosition_cb(
                 GLFWwindow *window,
                 double xpos,
                 double ypos);
 
-        void mouseButton_cb(
+        static void mouseButton_cb(
                 GLFWwindow* window,
                 int button,
                 int action,
                 int mods);
 
-        void scroll_cb(
+        static void scroll_cb(
                 GLFWwindow* window,
                 double xoffset,
                 double yoffset);
 
-        void key_cb(
+        static void key_cb(
                 GLFWwindow* window,
                 int key,
                 int scancode,
                 int action,
                 int mods);
 
-        void char_cb(
+        static void char_cb(
                 GLFWwindow* window,
                 unsigned int c);
 
-        void framebufferSize_cb(
+        static void framebufferSize_cb(
                 GLFWwindow* window,
                 int width,
                 int height);
 
-        void error_cb(
+        static void error_cb(
                 int error,
                 const char* description);
 

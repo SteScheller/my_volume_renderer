@@ -21,6 +21,7 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include <imgui.h>
+#include <imgui_stl.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
 
@@ -29,7 +30,6 @@
 #include "shader.hpp"
 #include "util/util.hpp"
 #include "configraw.hpp"
-#include "transferfunc.hpp"
 
 //-----------------------------------------------------------------------------
 // public member implementations
@@ -85,7 +85,7 @@ mvr::Renderer::Renderer() :
     m_diffuseColor{ {1.f, 1.f, 1.f} },
     m_specularColor{ {1.f, 1.f, 1.f} },
     m_ambientFactor(0.2f),
-    m_diffuceFactor(0.3f),
+    m_diffuseFactor(0.3f),
     m_specularFactor(0.5f),
     m_specularExponent(10.0f),
     // slicing plane functionality
@@ -116,13 +116,16 @@ mvr::Renderer::Renderer() :
     m_volumeViewMx(1.f),
     m_volumeProjMx(1.f),
     m_quadProjMx(glm::ortho(-0.5f, 0.5f, -0.5f, 0.5f)),
-    m_histogramBins(0),
+    m_histogramBins(nullptr),
     m_transferFunction(),
     m_volumeData(nullptr),
     m_volumeTex(),
     m_randomSeedTex(),
     m_voxelDiagonal(1.f),
-    m_showMenues(true)
+    m_showMenues(true),
+    m_showControlPointList(false),
+    m_tfScreenPosition{ {0, 0} },
+    m_selectedTfControlPointPos(0.f)
 {
     m_volumeDescriptionFile.resize(mvr::Renderer::MAX_FILEPATH_LENGTH, '\0');
 }
@@ -173,58 +176,7 @@ int mvr::Renderer::Initialize()
     //-------------------------------------------------------------------------
     // ping pong framebuffers and rendering targets
     //-------------------------------------------------------------------------
-    {
-        std::vector<util::texture::Texture2D> fboTexturesPing;
-        std::vector<util::texture::Texture2D> fboTexturesPong;
-
-        fboTexturesPing.emplace_back(
-                GL_RGBA,
-                GL_RGBA,
-                0,
-                GL_FLOAT,
-                GL_LINEAR,
-                GL_CLAMP_TO_BORDER,
-                m_renderingDimensions[0],
-                m_renderingDimensions[1]);
-
-        fboTexturesPing.emplace_back(
-                GL_RGBA32UI,
-                GL_RGBA_INTEGER,
-                0,
-                GL_UNSIGNED_INT,
-                GL_NEAREST,
-                GL_CLAMP_TO_BORDER,
-                m_renderingDimensions[0],
-                m_renderingDimensions[1]);
-
-        fboTexturesPong.emplace_back(
-                GL_RGBA,
-                GL_RGBA,
-                0,
-                GL_FLOAT,
-                GL_LINEAR,
-                GL_CLAMP_TO_BORDER,
-                m_renderingDimensions[0],
-                m_renderingDimensions[1]);
-
-        fboTexturesPong.emplace_back(
-                GL_RGBA32UI,
-                GL_RGBA_INTEGER,
-                0,
-                GL_UNSIGNED_INT,
-                GL_NEAREST,
-                GL_CLAMP_TO_BORDER,
-                m_renderingDimensions[0],
-                m_renderingDimensions[1]);
-
-        const std::vector<GLenum> attachments {
-            GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1};
-
-        m_framebuffers[0] = util::FramebufferObject(
-            std::move(fboTexturesPing), attachments);
-        m_framebuffers[1] = util::FramebufferObject(
-            std::move(fboTexturesPong), attachments);
-    }
+    updatePingPongFramebufferObjects();
 
     // ------------------------------------------------------------------------
     // geometry
@@ -247,18 +199,7 @@ int mvr::Renderer::Initialize()
     // and a texture object
     cr::VolumeConfig volumeConfig = cr::VolumeConfig(m_volumeDescriptionFile);
     if(volumeConfig.isValid())
-    {
-        // TODO: adapt ReloadStuff Function and call it here
-        //
-        // - update Volume Texture
-        // - update Volume Data Object
-        // - regenerate Histogram
-        // - update Volume Model Matrix
-        // - update VoxelDiagonal
-        // - updateBoundingBox limits
-        m_volumeData = cr::loadScalarVolumeDataTimestep(
-            volumeConfig, m_timestep, false);
-    }
+        loadVolume(volumeConfig);
     else
     {
         ret = EXIT_FAILURE;
@@ -266,7 +207,7 @@ int mvr::Renderer::Initialize()
     }
 
     // create a transfer function object
-    m_transferFunction = tf::TransferFuncRGBA1D();
+    m_transferFunction = util::tf::TransferFuncRGBA1D();
 
     //-------------------------------------------------------------------------
     // transformation matrices
@@ -429,7 +370,8 @@ int mvr::Renderer::run()
             if(m_showDemoWindow)
                 ImGui::ShowDemoWindow(&m_showDemoWindow);
             if(m_showTfWindow)
-                drawTransferFunctionWindow();
+                drawTransferFunctionWindow(
+                    tfColorWidgetFBO, tfFuncWidgetFBO);
             if(m_showHistogramWindow)
                 drawHistogramWindow();
             ImGui::Render();
@@ -443,14 +385,17 @@ int mvr::Renderer::run()
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
+
+    return EXIT_SUCCESS;
 }
 
 int mvr::Renderer::renderImage()
 {
     // TODO
 
-    return 0;
+    return EXIT_SUCCESS;
 }
+
 //-----------------------------------------------------------------------------
 // subroutines
 //-----------------------------------------------------------------------------
@@ -485,19 +430,6 @@ void mvr::Renderer::drawVolume(const util::texture::Texture2D& stateInTexture)
             -0.5f, 0.5f, -0.5f, 0.5f, m_zNear, m_zFar);
     }
 
-    // TODO: Move that into the reload function
-    // calculate the diagonal of a voxel
-    {
-        cr::VolumeConfig vConf = m_volumeData->getVolumeConfig();
-        m_voxelDiagonal = glm::length(glm::vec3(
-            (m_volumeModelMx *
-                glm::vec4(
-                    1.f / static_cast<float>(vConf.getVolumeDim()[0]),
-                    1.f / static_cast<float>(vConf.getVolumeDim()[1]),
-                    1.f / static_cast<float>(vConf.getVolumeDim()[2]),
-                    1.f)).xyz));
-    }
-
     // apply gui settings
     if(m_showWireframe)
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
@@ -521,8 +453,7 @@ void mvr::Renderer::drawVolume(const util::texture::Texture2D& stateInTexture)
     m_shaderVolume.setInt("volumeTex", 0);
 
     glActiveTexture(GL_TEXTURE1);
-    // TODO: change tfFunction Texture to util texture object
-    glBindTexture(GL_TEXTURE_2D, m_transferFunction.getTexture());
+    m_transferFunction.accessTexture().bind();
     m_shaderVolume.setInt("transferfunctionTex", 1);
 
     glActiveTexture(GL_TEXTURE2);
@@ -595,143 +526,141 @@ void mvr::Renderer::drawVolume(const util::texture::Texture2D& stateInTexture)
     m_volumeCube.draw();
 
 }
+
 void mvr::Renderer::drawSettingsWindow()
 {
     cr::VolumeConfig tempConf;
+    static int renderMode = static_cast<int>(m_renderMode);
+    static int gradientMethod = static_cast<int>(m_gradientMethod);
+    static int projection = static_cast<int>(m_projection);
+    static int timestep = m_timestep;
+    static int renderingDimensions[2] = {
+        static_cast<int>(m_renderingDimensions[0]),
+        static_cast<int>(m_renderingDimensions[1])};
+    static int outputSelect = static_cast<int>(m_outputSelect);
 
     ImGui::Begin("Settings");
     {
         if(ImGui::InputText(
                 "volume",
-                gui_volume_desc_file,
-                MAX_FILEPATH_LENGTH,
+                &m_volumeDescriptionFile,
                 ImGuiInputTextFlags_CharsNoBlank |
                     ImGuiInputTextFlags_EnterReturnsTrue))
         {
-            tempConf = cr::VolumeConfig(gui_volume_desc_file);
+            tempConf = cr::VolumeConfig(m_volumeDescriptionFile);
             if(tempConf.isValid())
-            {
-                vConf = tempConf;
-                reloadStuff(
-                    vConf,
-                    volumeData,
-                    volumeTex,
-                    gui_timestep,
-                    modelMX,
-                    histogramBins,
-                    gui_num_bins,
-                    gui_x_min,
-                    gui_x_max);
-            }
+                loadVolume(tempConf);
         }
         ImGui::SameLine();
-        showHelpMarker("Path to the volume description file");
+        createHelpMarker("Path to the volume description file");
         ImGui::Text("Mode");
         ImGui::RadioButton(
             "line of sight",
-            &gui_mode,
+            &renderMode,
             static_cast<int>(Mode::line_of_sight));
         ImGui::RadioButton(
             "maximum intensity projection",
-            &gui_mode,
+            &renderMode,
             static_cast<int>(Mode::maximum_intensity_projection));
         ImGui::RadioButton(
             "isosurface",
-            &gui_mode,
+            &renderMode,
             static_cast<int>(Mode::isosurface));
         ImGui::RadioButton(
             "transfer function",
-            &gui_mode,
+            &renderMode,
             static_cast<int>(Mode::transfer_function));
+        m_renderMode = static_cast<mvr::Mode>(m_renderMode);
 
         ImGui::Spacing();
 
         if(ImGui::InputInt(
             "timestep",
-            &gui_timestep,
+            &timestep,
             1,
             1,
             ImGuiInputTextFlags_CharsNoBlank |
                 ImGuiInputTextFlags_EnterReturnsTrue))
         {
-            if (gui_timestep < 0) gui_timestep = 0;
-            else if(gui_timestep >
-                    static_cast<int>(vConf.getNumTimesteps() - 1))
-                gui_timestep = vConf.getNumTimesteps() - 1;
+            if (timestep < 0) timestep = 0;
+            else if(timestep >
+                    static_cast<int>(
+                        m_volumeData->getVolumeConfig().getNumTimesteps() - 1))
+            {
+                timestep = static_cast<int>(
+                    m_volumeData->getVolumeConfig().getNumTimesteps() - 1);
+            }
 
-            reloadStuff(
-                vConf,
-                volumeData,
-                volumeTex,
-                gui_timestep,
-                modelMX,
-                histogramBins,
-                gui_num_bins,
-                gui_x_min,
-                gui_x_max);
+            m_timestep = timestep;
+            loadVolume(m_volumeData->getVolumeConfig());
         }
 
         ImGui::Spacing();
 
         ImGui::SliderFloat(
-            "step size", &gui_step_size, 0.05f, 2.f, "%.3f");
+            "step size", &m_stepSize, 0.05f, 2.f, "%.3f");
 
         ImGui::Spacing();
 
-        ImGui::InputFloat("brightness", &gui_brightness, 0.01f, 0.1f);
+        ImGui::InputFloat("brightness", &m_brightness, 0.01f, 0.1f);
 
         ImGui::Spacing();
 
         ImGui::Text("Gradient Calculation Method:");
         ImGui::RadioButton(
             "central differences",
-            &gui_grad_method,
+            &gradientMethod,
             static_cast<int>(Gradient::central_differences));
         ImGui::RadioButton(
             "sobel operators",
-            &gui_grad_method,
+            &gradientMethod,
             static_cast<int>(Gradient::sobel_operators));
+        m_gradientMethod = static_cast<mvr::Gradient>(gradientMethod);
 
         ImGui::Spacing();
 
         if (ImGui::CollapsingHeader("Isosurface"))
         {
             ImGui::SliderFloat(
-                "isovalue", &gui_isovalue, 0.f, 1.f, "%.3f");
-            ImGui::Checkbox("denoise", &gui_iso_denoise);
+                "isovalue", &m_isovalue, 0.f, 1.f, "%.3f");
+            ImGui::Checkbox("denoise", &m_isovalueDenoising);
             ImGui::SliderFloat(
-                "denoise radius", &gui_iso_denoise_r, 0.001f, 5.f, "%.3f");
+                "denoise radius",
+                &m_isovalueDenoisingRadius,
+                0.001f,
+                5.f,
+                "%.3f");
             if (ImGui::TreeNode("Lighting"))
             {
                 ImGui::SliderFloat3(
-                    "light direction", gui_light_dir, -1.f, 1.f);
-                ImGui::ColorEdit3("ambient", gui_ambient);
-                ImGui::ColorEdit3("diffuse", gui_diffuse);
-                ImGui::ColorEdit3("specular", gui_specular);
+                    "light direction", m_lightDirection.data(), -1.f, 1.f);
+                ImGui::ColorEdit3("ambient", m_ambientColor.data());
+                ImGui::ColorEdit3("diffuse", m_diffuseColor.data());
+                ImGui::ColorEdit3("specular", m_specularColor.data());
 
                 ImGui::Spacing();
 
-                ImGui::SliderFloat("k_amb", &gui_k_amb, 0.f, 1.f);
-                ImGui::SliderFloat("k_diff", &gui_k_diff, 0.f, 1.f);
-                ImGui::SliderFloat("k_spec", &gui_k_spec, 0.f, 1.f);
-                ImGui::SliderFloat("k_exp", &gui_k_exp, 0.f, 50.f);
+                ImGui::SliderFloat("k_amb", &m_ambientFactor, 0.f, 1.f);
+                ImGui::SliderFloat("k_diff", &m_diffuseFactor, 0.f, 1.f);
+                ImGui::SliderFloat("k_spec", &m_specularFactor, 0.f, 1.f);
+                ImGui::SliderFloat("k_exp", &m_specularExponent, 0.f, 50.f);
                 ImGui::TreePop();
             }
         }
 
         if (ImGui::CollapsingHeader("Transfer Function"))
         {
-            ImGui::Checkbox("show histogram", &gui_show_histogram_window);
+            ImGui::Checkbox("show histogram", &m_showHistogramWindow);
             ImGui::SameLine();
-            showHelpMarker(
+            createHelpMarker(
                 "Only visible in transfer function mode.");
 
             ImGui::Spacing();
 
             ImGui::Checkbox(
-                "show transfer function editor", &gui_show_tf_window);
+                "show transfer function editor", &m_showTfWindow);
             ImGui::SameLine();
-            showHelpMarker(
+            createHelpMarker(
                 "Only visible in transfer function mode.");
         }
 
@@ -739,133 +668,153 @@ void mvr::Renderer::drawSettingsWindow()
         {
             ImGui::InputFloat(
                 "camera zoom speed",
-                &gui_cam_zoom_speed,
+                &m_cameraZoomSpeed,
                 0.01f,
                 0.1f,
                 "%.3f");
             ImGui::SameLine();
-            showHelpMarker(
+            createHelpMarker(
                 "Scroll up or down while holding CTRL to zoom.");
 
             ImGui::InputFloat(
                 "camera translation speed",
-                &gui_cam_trans_speed,
+                &m_cameraTranslationSpeed,
                 0.0001f,
                 0.1f,
                 "%.3f");
             ImGui::SameLine();
-            showHelpMarker(
+            createHelpMarker(
                 "Hold the right mouse button and move the mouse to translate "
                 "the camera");
 
             ImGui::InputFloat(
                 "camera rotation speed",
-                &gui_cam_rot_speed,
+                &m_cameraRotationSpeed,
                 0.01f,
                 0.1f,
                 "%.3f");
             ImGui::SameLine();
-            showHelpMarker(
+            createHelpMarker(
                 "Hold the middle mouse button and move the mouse to rotate "
                 "the camera");
 
-            glm::vec3 polar = util::cartesianToPolar<glm::vec3>(camPos);
+            glm::vec3 polar = util::cartesianToPolar<glm::vec3>(
+                m_cameraPosition);
             ImGui::Text("phi: %.3f", polar.y);
             ImGui::Text("theta: %.3f", polar.z);
             ImGui::Text("radius: %.3f", polar.x);
             ImGui::Text(
                 "Camera position: x=%.3f, y=%.3f, z=%.3f",
-                camPos.x, camPos.y, camPos.z);
+                m_cameraPosition.x,
+                m_cameraPosition.y,
+                m_cameraPosition.z);
             ImGui::Text(
                 "Camera look at: x=%.3f, y=%.3f, z=%.3f",
-                camLookAt.x, camLookAt.y, camLookAt.z);
+                m_cameraLookAt.x,
+                m_cameraLookAt.y,
+                m_cameraLookAt.z);
 
             if(ImGui::Button("reset camera position"))
             {
-                camPos = DEFAULT_CAMPOS;
-                camLookAt = DEFAULT_LOOKAT;
+                m_cameraPosition = mvr::Renderer::DEFAULT_CAMERA_POSITION;
+                m_cameraLookAt = mvr::Renderer::DEFAULT_CAMERA_LOOKAT;
             }
 
             ImGui::Separator();
 
             ImGui::SliderFloat(
                 "vertical field of view",
-                &fovY, 10.f, 160.f);
+                &m_fovY,
+                10.f,
+                160.f);
 
             ImGui::Separator();
 
             ImGui::RadioButton(
                 "perspective",
-                &gui_projection,
+                &projection,
                 static_cast<int>(Projection::perspective)); ImGui::SameLine();
             ImGui::RadioButton(
                 "orthographic",
-                &gui_projection,
+                &projection,
                 static_cast<int>(Projection::orthographic));
+            m_projection = static_cast<mvr::Projection>(projection);
         }
 
         if (ImGui::CollapsingHeader("General"))
         {
             ImGui::DragInt2(
                     "Rendering Resolution",
-                    gui_render_resolution,
+                    renderingDimensions,
                     1.0f,
                     240,
                     8192);
             if (ImGui::Button("Change Resolution"))
-                resizeRenderResult(
-                        gui_render_resolution[0], gui_render_resolution[1]);
+                resizeRendering(
+                    renderingDimensions[0], renderingDimensions[1]);
 
             ImGui::Separator();
 
-            ImGui::ColorEdit3("background color", gui_clear_color);
+            ImGui::ColorEdit3("background color", m_clearColor.data());
 
             ImGui::Separator();
 
             ImGui::Checkbox(
-                "show ImGui demo window", &gui_show_demo_window);
+                "show ImGui demo window", &m_showDemoWindow);
 
             ImGui::Separator();
 
-            ImGui::Checkbox("draw frame", &gui_frame); ImGui::SameLine();
-            ImGui::Checkbox("wireframe", &gui_wireframe);
-
-            ImGui::Separator();
-
-            ImGui::Checkbox("invert colors", &gui_invert_colors);
+            ImGui::Checkbox("draw frame", &m_showVolumeFrame);
             ImGui::SameLine();
-            ImGui::Checkbox("invert alpha", &gui_invert_alpha);
+            ImGui::Checkbox("wireframe", &m_showWireframe);
 
             ImGui::Separator();
 
-            ImGui::Checkbox("slice volume", &gui_slice_volume);
-            ImGui::SliderFloat3(
-                "slicing plane normal", gui_slice_plane_normal, -1.f, 1.f);
-            ImGui::SliderFloat3(
-                "slicing plane base", gui_slice_plane_base, -1.f, 1.f);
+            ImGui::Checkbox("invert colors", &m_invertColors);
+            ImGui::SameLine();
+            ImGui::Checkbox("invert alpha", &m_invertAlpha);
 
             ImGui::Separator();
 
-            ImGui::Checkbox("ambient occlusion", &gui_ambient_occlusion);
-            ImGui::SliderFloat("proportion", &gui_ambient_occlusion_proportion, 0.f, 1.f);
-            ImGui::SliderFloat("halfdome radius", &gui_ambient_occlusion_radius, 0.01f, 10.f);
-            ImGui::SliderInt("number of samples", &gui_ambient_occlusion_samples, 1, 100);
+            ImGui::Checkbox("slice volume", &m_slicingPlane);
+            ImGui::SliderFloat3(
+                "slicing plane normal",
+                m_slicingPlaneNormal.data(),
+                -1.f,
+                1.f);
+            ImGui::SliderFloat3(
+                "slicing plane base",
+                m_slicingPlaneBase.data(),
+                -1.f,
+                1.f);
+
+            ImGui::Separator();
+
+            ImGui::Checkbox("ambient occlusion", &m_ambientOcclusion);
+            ImGui::SliderFloat(
+                "proportion", &m_ambientOcclusionProportion, 0.f, 1.f);
+            ImGui::SliderFloat(
+                "halfdome radius", &m_ambientOcclusionRadius, 0.01f, 10.f);
+            ImGui::SliderInt(
+                "number of samples", &m_ambientOcclusionNumSamples, 1, 100);
 
             ImGui::Separator();
 
             ImGui::RadioButton(
                 "volume rendering",
-                &gui_tex_select,
+                &outputSelect,
                 static_cast<int>(Output::volume_rendering));
             ImGui::RadioButton(
                 "random number generator",
-                &gui_tex_select,
+                &outputSelect,
                 static_cast<int>(Output::random_number_generator));
             ImGui::RadioButton(
                 "volume data slice",
-                &gui_tex_select,
+                &outputSelect,
                 static_cast<int>(Output::volume_data_slice));
-            ImGui::SliderFloat("volume z coordinate", &gui_volume_z, 0.f, 1.f);
+            m_outputSelect = static_cast<mvr::Output>(outputSelect);
+            ImGui::SliderFloat(
+                "volume z coordinate", &m_outputDataZSlice, 0.f, 1.f);
         }
 
         ImGui::Separator();
@@ -880,31 +829,33 @@ void mvr::Renderer::drawSettingsWindow()
 
 void mvr::Renderer::drawHistogramWindow()
 {
-    float values[(*histogramBins).size()];
+    float values[m_histogramBins->size()];
 
-    for(size_t i = 0; i < (*histogramBins).size(); i++)
+    for(size_t i = 0; i < m_histogramBins->size(); i++)
     {
-        if (gui_hist_semilog)
-            values[i] = log10(std::get<2>((*histogramBins)[i]));
+        if (m_semilogHistogram)
+            values[i] = log10(std::get<2>((*m_histogramBins)[i]));
         else
-            values[i] = static_cast<float>(std::get<2>((*histogramBins)[i]));
+            values[i] = static_cast<float>(std::get<2>((*m_histogramBins)[i]));
     }
 
-    ImGui::Begin("Histogram", &gui_show_histogram_window);
+    ImGui::Begin("Histogram", &m_showHistogramWindow);
     ImGui::PushItemWidth(-1);
     ImGui::PlotHistogram(
         "",
         values,
-        (*histogramBins).size(),
+        m_histogramBins->size(),
         0,
         nullptr,
         0.f,
-        gui_hist_semilog ? static_cast<int>(log10(gui_y_limit)) : gui_y_limit,
+        m_semilogHistogram ?
+            static_cast<int>(log10(m_yLimitHistogramMax)) :
+            m_yLimitHistogramMax,
         ImVec2(0, 160));
     ImGui::PopItemWidth();
-    ImGui::InputInt("y limit", &gui_y_limit, 1, 100);
+    ImGui::InputInt("y limit", &m_yLimitHistogramMax, 1, 100);
     ImGui::SameLine();
-    ImGui::Checkbox("semi-logarithmic", &gui_hist_semilog);
+    ImGui::Checkbox("semi-logarithmic", &m_semilogHistogram);
 
     ImGui::Spacing();
     ImGui::Separator();
@@ -912,19 +863,21 @@ void mvr::Renderer::drawHistogramWindow()
 
     ImGui::DragFloatRange2(
             "interval",
-            &gui_x_min,
-            &gui_x_max,
+            &m_xLimitsMin,
+            &m_xLimitsMax,
             1.f,
             0.f,
             0.f,
             "Min: %.1f",
             "Max: %.1f");
-    ImGui::InputInt("number of bins", &gui_num_bins);
+    ImGui::InputInt("number of bins", &m_binNumberHistogram);
     if(ImGui::Button("Regenerate Histogram"))
     {
-        delete histogramBins;
-        histogramBins = bucketVolumeData(
-            vConf, volumeData, gui_num_bins, gui_x_min, gui_x_max);
+        m_histogramBins = cr::bucketVolumeData(
+            *m_volumeData,
+            m_binNumberHistogram,
+            m_xLimitsMin,
+            m_xLimitsMax);
     }
     ImGui::End();
 }
@@ -932,38 +885,30 @@ void mvr::Renderer::drawHistogramWindow()
 /**
  * \brief Shows and handles the ImGui Window for the transfer function editor
 */
-void mvr::Renderer::drawTransferFunctionWindow()
+void mvr::Renderer::drawTransferFunctionWindow(
+        util::FramebufferObject &tfColorWidgetFBO,
+        util::FramebufferObject &tfFuncWidgetFBO)
 {
     glm::vec4 tempVec4 = glm::vec4(0.f);
-    tf::ControlPointRGBA1D cp = tf::ControlPointRGBA1D();
-    static tf::controlPointSet1D::iterator cpSelected;
-    tf::controlPointSet1D::iterator cpIterator;
-    std::pair<tf::controlPointSet1D::iterator, bool> ret;
+    util::tf::ControlPointRGBA1D cp = util::tf::ControlPointRGBA1D();
+    static util::tf::controlPointSet1D::iterator cpSelected;
+    util::tf::controlPointSet1D::iterator cpIterator;
+    std::pair<util::tf::controlPointSet1D::iterator, bool> ret;
+    ImVec2 tfScreenPosition = ImVec2();
+    static float tfControlPointPos = 0.f, tfControlPointAlpha = 0.f;
+    static float tfControlPointColor[3] = {0.f, 0.f, 0.f};
 
     // render the transfer function
-    drawTfColor(
-        transferFunction,
-        shaderTfColor,
-        tfColorFBO,
-        quadVAO,
-        tf_color_img_w,
-        tf_color_img_h);
-    drawTfFunc(
-        transferFunction,
-        shaderTfFunc,
-        shaderTfPoint,
-        tfFuncFBO,
-        quadVAO,
-        tf_func_img_w,
-        tf_func_img_h);
+    drawTfColor(tfColorWidgetFBO);
+    drawTfFunc(tfFuncWidgetFBO);
 
     // draw the imgui elements
-    ImGui::Begin("Transfer Function Editor", &gui_show_tf_window);
+    ImGui::Begin("Transfer Function Editor", &m_showTfWindow);
 
     ImGui::DragFloatRange2(
             "interval",
-            &gui_x_min,
-            &gui_x_max,
+            &m_xLimitsMin,
+            &m_xLimitsMax,
             1.f,
             0.f,
             0.f,
@@ -974,16 +919,20 @@ void mvr::Renderer::drawTransferFunctionWindow()
     ImGui::Separator();
     ImGui::Spacing();
 
-    _tf_screen_pos = ImGui::GetCursorScreenPos();
+    tfScreenPosition = ImGui::GetCursorScreenPos();
+    m_tfScreenPosition[0] = tfScreenPosition[0];
+    m_tfScreenPosition[1] = tfScreenPosition[1];
     ImGui::Image(
-        reinterpret_cast<ImTextureID>(tfFuncTexIDs[0]),
-        ImVec2(tf_func_img_w, tf_func_img_h));
+        reinterpret_cast<ImTextureID>(
+            tfFuncWidgetFBO.accessTextures()[0].getID()),
+        ImVec2(m_tfFuncWidgetDimensions[0], m_tfFuncWidgetDimensions[1]));
 
     ImGui::Spacing();
 
     ImGui::Image(
-        reinterpret_cast<ImTextureID>(tfColorTexIDs[0]),
-        ImVec2(tf_color_img_w, tf_color_img_h));
+        reinterpret_cast<ImTextureID>(
+            tfColorWidgetFBO.accessTextures()[0].getID()),
+        ImVec2(m_tfColorWidgetDimensions[0], m_tfColorWidgetDimensions[1]));
 
 
     ImGui::Spacing();
@@ -993,44 +942,45 @@ void mvr::Renderer::drawTransferFunctionWindow()
     ImGui::Text("Edit selected control point:");
 
     // get attributes of the selected control point
-    cp = tf::ControlPointRGBA1D(_selected_cp_pos);
-    cpIterator = transferFunction.getControlPoints()->find(cp);
-    if (transferFunction.getControlPoints()->cend() != cpIterator)
+    cp = util::tf::ControlPointRGBA1D(m_selectedTfControlPointPos);
+    cpIterator = m_transferFunction.accessControlPoints()->find(cp);
+    if (m_transferFunction.accessControlPoints()->cend() != cpIterator)
     {
         cpSelected = cpIterator;
     }
     cp = *cpSelected;
 
-    ImGui::SliderFloat("position##edit", &(cp.pos), gui_x_min, gui_x_max);
+    ImGui::SliderFloat(
+        "position##edit", &(cp.pos), m_xLimitsMin, m_xLimitsMax);
     ImGui::SliderFloat("slope##edit", &(cp.fderiv), -10.f, 10.f);
     ImGui::ColorEdit3("assigned color##edit", glm::value_ptr(cp.color));
     ImGui::SliderFloat("alpha##edit", &(cp.color.a), 0.f, 1.f);
 
     if (cp != (*cpSelected))
     {
-        ret = transferFunction.updateControlPoint(cpIterator, cp);
+        ret = m_transferFunction.updateControlPoint(cpIterator, cp);
         if (ret.second == true)
         {
-            transferFunction.updateTexture(
-                    transferFunction.getControlPoints()->begin()->pos,
-                    transferFunction.getControlPoints()->rbegin()->pos);
+            m_transferFunction.updateTexture(
+                    m_transferFunction.accessControlPoints()->begin()->pos,
+                    m_transferFunction.accessControlPoints()->rbegin()->pos);
             cpSelected = ret.first;
-            _selected_cp_pos = cpSelected->pos;
+            m_selectedTfControlPointPos = cpSelected->pos;
         }
     }
     if (ImGui::Button("remove"))
     {
-        if(transferFunction.getControlPoints()->size() > 1)
+        if(m_transferFunction.accessControlPoints()->size() > 1)
         {
-            transferFunction.removeControlPoint(cpSelected);
-            cpSelected = transferFunction.getControlPoints()->begin();
-            transferFunction.updateTexture(
+            m_transferFunction.removeControlPoint(cpSelected);
+            cpSelected = m_transferFunction.accessControlPoints()->begin();
+            m_transferFunction.updateTexture(
                 std::max(
-                    gui_x_min,
-                    transferFunction.getControlPoints()->begin()->pos),
+                    m_xLimitsMin,
+                    m_transferFunction.accessControlPoints()->begin()->pos),
                 std::min(
-                    gui_x_max,
-                    transferFunction.getControlPoints()->rbegin()->pos));
+                    m_xLimitsMax,
+                    m_transferFunction.accessControlPoints()->rbegin()->pos));
         }
     }
 
@@ -1039,32 +989,34 @@ void mvr::Renderer::drawTransferFunctionWindow()
     ImGui::Spacing();
 
     ImGui::Text("Add new control point:");
-    ImGui::SliderFloat("position", &gui_tf_cp_pos, gui_x_min, gui_x_max);
-    ImGui::ColorEdit3("assigned color", gui_tf_cp_color_rgb);
-    ImGui::SliderFloat("alpha", &gui_tf_cp_color_a, 0.f, 1.f);
+    ImGui::SliderFloat(
+        "position", &tfControlPointPos, m_xLimitsMin, m_xLimitsMax);
+    ImGui::ColorEdit3("assigned color", tfControlPointColor);
+    ImGui::SliderFloat("alpha", &tfControlPointAlpha, 0.f, 1.f);
     if(ImGui::Button("add"))
     {
         tempVec4 = glm::vec4(
-                gui_tf_cp_color_rgb[0],
-                gui_tf_cp_color_rgb[1],
-                gui_tf_cp_color_rgb[2],
-                gui_tf_cp_color_a);
+            tfControlPointColor[0],
+            tfControlPointColor[1],
+            tfControlPointColor[2],
+            tfControlPointAlpha);
 
-        ret = transferFunction.insertControlPoint(gui_tf_cp_pos, tempVec4);
+        ret = m_transferFunction.insertControlPoint(
+            tfControlPointPos, tempVec4);
         if(ret.second == true)
         {
-            transferFunction.updateTexture(
+            m_transferFunction.updateTexture(
                 std::max(
-                    gui_x_min,
-                    transferFunction.getControlPoints()->begin()->pos),
+                    m_xLimitsMin,
+                    m_transferFunction.accessControlPoints()->begin()->pos),
                 std::min(
-                    gui_x_max,
-                    transferFunction.getControlPoints()->rbegin()->pos));
+                    m_xLimitsMax,
+                    m_transferFunction.accessControlPoints()->rbegin()->pos));
         }
     }
 
     // dynamic list of control points
-    if(CONTROL_POINT_LIST)
+    if(m_showControlPointList)
     {
         ImGui::Spacing();
         ImGui::Separator();
@@ -1072,8 +1024,8 @@ void mvr::Renderer::drawTransferFunctionWindow()
 
         int idx = 0;
         for (
-                auto i = transferFunction.getControlPoints()->cbegin();
-                i != transferFunction.getControlPoints()->cend();
+                auto i = m_transferFunction.accessControlPoints()->cbegin();
+                i != m_transferFunction.accessControlPoints()->cend();
                 ++i)
         {
 
@@ -1082,8 +1034,8 @@ void mvr::Renderer::drawTransferFunctionWindow()
             ImGui::SliderFloat(
                 (std::string("position##") + std::to_string(idx)).c_str(),
                 &(cp.pos),
-                gui_x_min,
-                gui_x_max);
+                m_xLimitsMin,
+                m_xLimitsMax);
             ImGui::SliderFloat(
                 (std::string("slope##") + std::to_string(idx)).c_str(),
                 &(cp.fderiv),
@@ -1101,10 +1053,10 @@ void mvr::Renderer::drawTransferFunctionWindow()
 
             if (cp != *i)
             {
-                transferFunction.updateControlPoint(i, cp);
-                transferFunction.updateTexture(
-                    transferFunction.getControlPoints()->begin()->pos,
-                    transferFunction.getControlPoints()->rbegin()->pos);
+                m_transferFunction.updateControlPoint(i, cp);
+                m_transferFunction.updateTexture(
+                    m_transferFunction.accessControlPoints()->begin()->pos,
+                    m_transferFunction.accessControlPoints()->rbegin()->pos);
 
             }
 
@@ -1120,75 +1072,51 @@ void mvr::Renderer::drawTransferFunctionWindow()
 /**
  * \brief draws the color resulting from the transfer function to an fbo object
  */
-static void drawTfColor(
-    tf::TransferFuncRGBA1D &transferFunc,
-    Shader &shaderTfColor,
-    GLuint fboID,
-    GLuint quadVAO,
-    unsigned int width,
-    unsigned int height)
+void mvr::Renderer::drawTfColor(util::FramebufferObject &tfColorWidgetFBO)
 {
     GLint prevFBO = 0;
-
-    if (!glIsFramebuffer(fboID))
-        return;
 
     // store the previously bound framebuffer
     glGetIntegerv(GL_FRAMEBUFFER_BINDING, &prevFBO);
 
     // activate the framebuffer object as current framebuffer
-    glViewport(0, 0, width, height);
-    glBindFramebuffer(GL_FRAMEBUFFER, fboID);
+    glViewport(
+        0, 0, m_tfColorWidgetDimensions[0], m_tfColorWidgetDimensions[1]);
 
-    // select color attachments as render targets
-    static const GLenum buf = GL_COLOR_ATTACHMENT0;
-    glDrawBuffers(1, &buf);
+    tfColorWidgetFBO.bind();
 
     // clear old buffer content
     glClearColor(0.f, 0.f, 0.f, 1.f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    // set up the projection matrix
-    static const glm::mat4 projMX = glm::ortho(0.0f, 1.0f, 0.0f, 1.0f);
-
     // draw the resulting transfer function colors
-    shaderTfColor.use();
+    m_shaderTfColor.use();
 
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, transferFunc.getTexture());
-    shaderTfColor.setInt("transferTex", 0);
-    shaderTfColor.setMat4("projMX", projMX);
-    shaderTfColor.setFloat("x_min", gui_x_min);
-    shaderTfColor.setFloat("x_max", gui_x_max);
-    shaderTfColor.setFloat("tf_interval_lower",
-            transferFunc.getControlPoints()->begin()->pos);
-    shaderTfColor.setFloat("tf_interval_upper",
-            transferFunc.getControlPoints()->rbegin()->pos);
+    m_transferFunction.accessTexture().bind();
+    m_shaderTfColor.setInt("transferTex", 0);
 
-    glBindVertexArray(quadVAO);
-    glDrawElements(GL_TRIANGLE_FAN, 4, GL_UNSIGNED_INT, 0);
-    glBindVertexArray(0);
+    m_shaderTfColor.setMat4("projMX", m_quadProjMx);
+    m_shaderTfColor.setFloat("x_min", m_xLimitsMin);
+    m_shaderTfColor.setFloat("x_max", m_xLimitsMax);
+    m_shaderTfColor.setFloat("tf_interval_lower",
+            m_transferFunction.accessControlPoints()->begin()->pos);
+    m_shaderTfColor.setFloat("tf_interval_upper",
+            m_transferFunction.accessControlPoints()->rbegin()->pos);
+
+    m_windowQuad.draw();
 
     // reset framebuffer to the one previously bound
     glBindFramebuffer(GL_FRAMEBUFFER, prevFBO);
 }
+
 /**
  * \brief draws the alpha value from the transfer function to an fbo object
  */
-static void drawTfFunc(
-    tf::TransferFuncRGBA1D &transferFunc,
-    Shader &shaderTfFunc,
-    Shader &shaderTfPoint,
-    GLuint fboID,
-    GLuint quadVAO,
-    unsigned int width,
-    unsigned int height)
+void mvr::Renderer::drawTfFunc(util::FramebufferObject &tfFuncWidgetFBO)
 {
     bool enableBlend = false;
     GLint prevFBO = 0;
-
-    if (!glIsFramebuffer(fboID))
-        return;
 
     // disable alpha blending to prevent discarding of fragments
     if (glIsEnabled(GL_BLEND))
@@ -1201,55 +1129,50 @@ static void drawTfFunc(
     glGetIntegerv(GL_FRAMEBUFFER_BINDING, &prevFBO);
 
     // activate the framebuffer object as current framebuffer
-    glViewport(0, 0, width, height);
-    glBindFramebuffer(GL_FRAMEBUFFER, fboID);
+    glViewport(0, 0, m_tfFuncWidgetDimensions[0], m_tfFuncWidgetDimensions[1]);
 
-    // select color attachments as render targets
-    static const GLenum buf[2] =
-        { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
-    glDrawBuffers(2, buf);
+    tfFuncWidgetFBO.bind();
 
     // clear old buffer content
     glClearColor(0.f, 0.f, 0.f, 1.f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    // set up the projection matrix
-    static const glm::mat4 projMX = glm::ortho(0.0f, 1.0f, 0.0f, 1.0f);
-
     // draw the line plot of the transfer function alpha value
-    shaderTfFunc.use();
+    m_shaderTfFunc.use();
 
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, transferFunc.getTexture());
-    shaderTfFunc.setInt("transferTex", 0);
-    shaderTfFunc.setMat4("projMX", projMX);
-    shaderTfFunc.setFloat("x_min", gui_x_min);
-    shaderTfFunc.setFloat("x_max", gui_x_max);
-    shaderTfFunc.setFloat("tf_interval_lower",
-            transferFunc.getControlPoints()->begin()->pos);
-    shaderTfFunc.setFloat("tf_interval_upper",
-            transferFunc.getControlPoints()->rbegin()->pos);
-    shaderTfFunc.setInt("width", tf_func_img_w);
-    shaderTfFunc.setInt("height", tf_func_img_h);
+    m_transferFunction.accessTexture().bind();
+    m_shaderTfFunc.setInt("transferTex", 0);
 
-    glBindVertexArray(quadVAO);
-    glDrawElements(GL_TRIANGLE_FAN, 4, GL_UNSIGNED_INT, 0);
+    m_shaderTfFunc.setMat4("projMX", m_quadProjMx);
+    m_shaderTfFunc.setFloat("x_min", m_xLimitsMin);
+    m_shaderTfFunc.setFloat("x_max", m_xLimitsMax);
+    m_shaderTfFunc.setFloat(
+        "tf_interval_lower",
+        m_transferFunction.accessControlPoints()->begin()->pos);
+    m_shaderTfFunc.setFloat(
+        "tf_interval_upper",
+        m_transferFunction.accessControlPoints()->rbegin()->pos);
+    m_shaderTfFunc.setInt("width", m_tfFuncWidgetDimensions[0]);
+    m_shaderTfFunc.setInt("height", m_tfFuncWidgetDimensions[1]);
+
+    m_windowQuad.draw();
 
     // draw the control points
     glClear(GL_DEPTH_BUFFER_BIT);
-    shaderTfPoint.use();
+    m_shaderTfPoint.use();
 
-    shaderTfPoint.setMat4("projMX", projMX);
-    shaderTfPoint.setFloat("x_min", gui_x_min);
-    shaderTfPoint.setFloat("x_max", gui_x_max);
+    m_shaderTfPoint.setMat4("projMX", m_quadProjMx);
+    m_shaderTfPoint.setFloat("x_min", m_xLimitsMin);
+    m_shaderTfPoint.setFloat("x_max", m_xLimitsMax);
 
     for (
-            auto i = transferFunc.getControlPoints()->cbegin();
-            i != transferFunc.getControlPoints()->cend();
+            auto i = m_transferFunction.accessControlPoints()->cbegin();
+            i != m_transferFunction.accessControlPoints()->cend();
             ++i)
     {
-        shaderTfPoint.setFloat("pos", i->pos);
-        shaderTfPoint.setVec4("color", i->color);
+        m_shaderTfPoint.setFloat("pos", i->pos);
+        m_shaderTfPoint.setVec4("color", i->color);
 
         glDrawArrays(GL_POINTS, 0, 1);
     }
@@ -1266,21 +1189,26 @@ static void drawTfFunc(
 
 void mvr::Renderer::loadVolume(cr::VolumeConfig volumeConfig)
 {
-    // TODO: adapt this to our new classes
-    glDeleteTextures(1, &volumeTex);
-    if (volumeData != nullptr) cr::deleteVolumeData(vConf, volumeData);
-    if (histogramBins != nullptr) delete histogramBins;
-
-    volumeData = cr::loadScalarVolumeDataTimestep(vConf, timestep, false);
+    m_volumeData = cr::loadScalarVolumeTimestep(
+        volumeConfig, m_timestep, false);
     m_volumeModelMx = glm::scale(
         glm::mat4(1.f),
         glm::normalize(glm::vec3(
             static_cast<float>(volumeConfig.getVolumeDim()[0]),
             static_cast<float>(volumeConfig.getVolumeDim()[1]),
             static_cast<float>(volumeConfig.getVolumeDim()[2]))));
-    histogramBins = bucketVolumeData(
-        vConf, volumeData, num_bins, x_min, x_max);
-    volumeTex = cr::loadScalarVolumeTex(vConf, volumeData);
+    m_voxelDiagonal = glm::length(glm::vec3(
+        (m_volumeModelMx *
+            glm::vec4(
+                1.f / static_cast<float>(volumeConfig.getVolumeDim()[0]),
+                1.f / static_cast<float>(volumeConfig.getVolumeDim()[1]),
+                1.f / static_cast<float>(volumeConfig.getVolumeDim()[2]),
+                1.f)).xyz));
+    m_histogramBins = bucketVolumeData(
+        *m_volumeData, m_binNumberHistogram, m_xLimitsMin, m_xLimitsMax);
+    m_volumeTex = cr::loadScalarVolumeTex(*m_volumeData);
+    m_boundingBoxMin = m_volumeModelMx * glm::vec4(glm::vec3(-0.5f), 1.f);
+    m_boundingBoxMax = m_volumeModelMx * glm::vec4(glm::vec3(0.5f), 1.f);
 }
 //-----------------------------------------------------------------------------
 // helper functions
@@ -1335,32 +1263,84 @@ GLFWwindow* mvr::Renderer::createWindow(
     glfwMakeContextCurrent(window);
     glfwSwapInterval(1);
 
+    glfwSetWindowUserPointer(window, this);
+
     // install callbacks
-    glfwSetMouseButtonCallback(window, mouse_button_cb);
+    glfwSetMouseButtonCallback(window, mouseButton_cb);
     glfwSetScrollCallback(window, scroll_cb);
     glfwSetKeyCallback(window, key_cb);
     glfwSetCharCallback(window, char_cb);
-    glfwSetCursorPosCallback(window, cursor_position_cb);
-    glfwSetFramebufferSizeCallback(window, framebuffer_size_cb);
+    glfwSetCursorPosCallback(window, cursorPosition_cb);
+    glfwSetFramebufferSizeCallback(window, framebufferSize_cb);
 
     return window;
 }
 
-void mvr::Rendere::resizeRendering(
+void mvr::Renderer::updatePingPongFramebufferObjects()
+{
+    std::vector<util::texture::Texture2D> fboTexturesPing;
+    std::vector<util::texture::Texture2D> fboTexturesPong;
+
+    fboTexturesPing.emplace_back(
+            GL_RGBA,
+            GL_RGBA,
+            0,
+            GL_FLOAT,
+            GL_LINEAR,
+            GL_CLAMP_TO_BORDER,
+            m_renderingDimensions[0],
+            m_renderingDimensions[1]);
+
+    fboTexturesPing.emplace_back(
+            GL_RGBA32UI,
+            GL_RGBA_INTEGER,
+            0,
+            GL_UNSIGNED_INT,
+            GL_NEAREST,
+            GL_CLAMP_TO_BORDER,
+            m_renderingDimensions[0],
+            m_renderingDimensions[1]);
+
+    fboTexturesPong.emplace_back(
+            GL_RGBA,
+            GL_RGBA,
+            0,
+            GL_FLOAT,
+            GL_LINEAR,
+            GL_CLAMP_TO_BORDER,
+            m_renderingDimensions[0],
+            m_renderingDimensions[1]);
+
+    fboTexturesPong.emplace_back(
+            GL_RGBA32UI,
+            GL_RGBA_INTEGER,
+            0,
+            GL_UNSIGNED_INT,
+            GL_NEAREST,
+            GL_CLAMP_TO_BORDER,
+            m_renderingDimensions[0],
+            m_renderingDimensions[1]);
+
+    const std::vector<GLenum> attachments {
+        GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1};
+
+    m_framebuffers[0] = util::FramebufferObject(
+        std::move(fboTexturesPing), attachments);
+    m_framebuffers[1] = util::FramebufferObject(
+        std::move(fboTexturesPong), attachments);
+}
+
+void mvr::Renderer::resizeRendering(
     int width,
     int height)
 {
-    render_w = width;
-    render_h = height;
+    m_renderingDimensions[0] = width;
+    m_renderingDimensions[1] = height;
 
-    glDeleteFramebuffers(2, _ppFBOs);
-    glDeleteTextures(2, &(_ppTexIDs[0][0]));
-    glDeleteTextures(2, &(_ppTexIDs[1][0]));
-    glDeleteTextures(1, &_rngTex);
+    updatePingPongFramebufferObjects();
 
-    createPingPongFBO(_ppFBOs[0], &(_ppTexIDs[0][0]), render_w, render_h);
-    createPingPongFBO(_ppFBOs[1], &(_ppTexIDs[1][0]), render_w, render_h);
-    _rngTex = util::create2dHybridTausTexture(render_w, render_h);
+    m_randomSeedTex = util::texture::create2dHybridTausTexture(
+        m_renderingDimensions[0], m_renderingDimensions[1]);
 }
 
 // from imgui_demo.cpp
@@ -1390,13 +1370,17 @@ void mvr::Renderer::cursorPosition_cb(
     dx = xpos - xpos_old; xpos_old = xpos;
     dy = ypos - ypos_old; ypos_old = ypos;
 
+    mvr::Renderer *pRenderer =
+        reinterpret_cast<mvr::Renderer*>(glfwGetWindowUserPointer(window));
+
     if (GLFW_PRESS == glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_MIDDLE))
     {
-        glm::vec3 polar = util::cartesianToPolar<glm::vec3>(camPos);
+        glm::vec3 polar = util::cartesianToPolar<glm::vec3>(
+            pRenderer->m_cameraPosition);
         float half_pi = glm::half_pi<float>();
 
-        polar.y += glm::radians(dx) * gui_cam_rot_speed;
-        polar.z += glm::radians(dy) * gui_cam_rot_speed;
+        polar.y += glm::radians(dx) * pRenderer->m_cameraRotationSpeed;
+        polar.z += glm::radians(dy) * pRenderer->m_cameraRotationSpeed;
         if (polar.z <= -0.999f * half_pi)
             polar.z = -0.999f * half_pi;
         else if (polar.z >= 0.999f * half_pi)
@@ -1531,7 +1515,7 @@ void mvr::Renderer::framebufferSize_cb(
     win_h = height;
 }
 
-void error_cb(int error, const char* description)
+void mvr::Renderer::error_cb(int error, const char* description)
 {
     std::cerr << "Glfw error " << error << ": " << description << std::endl;
 }

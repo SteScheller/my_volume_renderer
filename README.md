@@ -22,4 +22,5 @@ My implementation of a volume renderer with OpenGL.
 - Boost (tested with 1.64.0)
 - FreeImage (tested with 3.17.0)
 - GPU and driver that support OpenGL >= 3.3
-- C++14 compiler (tested with g++ 7.3.1)
+- C11 and C++14 compatible compilers (tested with cc and g++ version 8.2.1)
+

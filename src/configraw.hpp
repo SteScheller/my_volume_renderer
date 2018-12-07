@@ -171,9 +171,11 @@ namespace cr
         }
         VolumeData& operator=(VolumeData&& other)
         {
+            if (nullptr != this->m_rawData)
+                delete[] this->m_rawData;
+
             this->m_config = std::move(other.m_config);
             this->m_rawData = std::move(other.m_rawData);
-            other.m_config = VolumeConfig();
             other.m_rawData = nullptr;
 
             return this;
