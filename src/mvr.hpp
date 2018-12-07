@@ -180,8 +180,6 @@ namespace mvr
         Shader m_shaderTfPoint;
 
         std::array<util::FramebufferObject, 2> m_framebuffers;
-        //std::array<std::array<util::texture::Texture2D, 2>, 2>
-        //    m_framebufferTextures;
         // util::FramebufferObject m_tfColorWidgetFBO;
         // util::FramebufferObject m_tfFuncWidgetFBO;
 
@@ -213,12 +211,6 @@ namespace mvr
         // for picking of control points in transfer function editor
         std::array<unsigned int,2> m_tfScreenPosition;
         float m_selectedTfControlPointPos;
-
-        /* static bool _flag_show_menues = true;
-
-        // flag for seeding the random generator in the fragment shader
-        static GLuint _rngTex = 0;*/
-
 
         //---------------------------------------------------------------------
         // subroutines

@@ -1370,35 +1370,39 @@ void mvr::Renderer::cursorPosition_cb(
     dx = xpos - xpos_old; xpos_old = xpos;
     dy = ypos - ypos_old; ypos_old = ypos;
 
-    mvr::Renderer *pRenderer =
+    mvr::Renderer *pThis =
         reinterpret_cast<mvr::Renderer*>(glfwGetWindowUserPointer(window));
 
     if (GLFW_PRESS == glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_MIDDLE))
     {
         glm::vec3 polar = util::cartesianToPolar<glm::vec3>(
-            pRenderer->m_cameraPosition);
+            pThis->m_cameraPosition);
         float half_pi = glm::half_pi<float>();
 
-        polar.y += glm::radians(dx) * pRenderer->m_cameraRotationSpeed;
-        polar.z += glm::radians(dy) * pRenderer->m_cameraRotationSpeed;
+        polar.y += glm::radians(dx) * pThis->m_cameraRotationSpeed;
+        polar.z += glm::radians(dy) * pThis->m_cameraRotationSpeed;
         if (polar.z <= -0.999f * half_pi)
             polar.z = -0.999f * half_pi;
         else if (polar.z >= 0.999f * half_pi)
             polar.z = 0.999f * half_pi;
 
-        camPos = util::polarToCartesian<glm::vec3>(polar);
+        pThis->m_cameraPosition = util::polarToCartesian<glm::vec3>(polar);
     }
     else if (GLFW_PRESS == glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT))
     {
         glm::vec3 horizontal = glm::normalize(
-                glm::cross(-camPos, glm::vec3(0.f, 1.f, 0.f)));
+            glm::cross(-(pThis->m_cameraPosition), glm::vec3(0.f, 1.f, 0.f)));
         glm::vec3 vertical = glm::vec3(0.f, 1.f, 0.f);
-        camPos +=
-            static_cast<float>(dx * gui_cam_trans_speed) * horizontal +
-            static_cast<float>(dy * gui_cam_trans_speed) * vertical;
-        camLookAt +=
-            static_cast<float>(dx * gui_cam_trans_speed) * horizontal +
-            static_cast<float>(dy * gui_cam_trans_speed) * vertical;
+        pThis->m_cameraPosition +=
+            static_cast<float>(
+                dx * pThis->m_cameraTranslationSpeed) * horizontal +
+            static_cast<float>(
+                dy * pThis->m_cameraTranslationSpeed) * vertical;
+        pThis->m_cameraPosition +=
+            static_cast<float>(
+                dx * pThis->m_cameraTranslationSpeed) * horizontal +
+            static_cast<float>(
+                dy * pThis->m_cameraTranslationSpeed) * vertical;
     }
 }
 
@@ -1409,10 +1413,13 @@ void mvr::Renderer::mouseButton_cb(
     glm::vec2 temp = glm::vec2(0.f);
     GLint prevFBO = 0;
 
+    mvr::Renderer *pThis =
+        reinterpret_cast<mvr::Renderer*>(glfwGetWindowUserPointer(window));
+
     if ((button == GLFW_MOUSE_BUTTON_LEFT) && (action == GLFW_RELEASE))
     {
-        if (    (gui_mode == static_cast<int>(Mode::transfer_function)) &&
-                gui_show_tf_window  )
+        if (    (pThis->m_renderMode == Mode::transfer_function) &&
+                pThis->m_showTfWindow   )
         {
             // the user might try to select a control point in the transfer
             // function editor
@@ -1423,6 +1430,7 @@ void mvr::Renderer::mouseButton_cb(
 
             // bind FBO-object and the color-attachment which contains
             // the unique picking ID
+            // TODO: -> this has to be a member object
             glBindFramebuffer(GL_READ_FRAMEBUFFER, _selected_cp_fbo);
             glReadBuffer(GL_COLOR_ATTACHMENT1);
 
@@ -1431,8 +1439,8 @@ void mvr::Renderer::mouseButton_cb(
             glFinish();
 
             glReadPixels(
-                static_cast<GLint>(mouseX - _tf_screen_pos.x),
-                static_cast<GLint>(mouseY - _tf_screen_pos.y),
+                static_cast<GLint>(mouseX - pThis->m_tfScreenPosition[0]),
+                static_cast<GLint>(mouseY - pThis->m_tfScreenPosition[1]),
                 1,
                 1,
                 GL_RG,
@@ -1440,7 +1448,7 @@ void mvr::Renderer::mouseButton_cb(
                 glm::value_ptr(temp));
 
             if (temp.g > 0.f)
-                _selected_cp_pos = temp.r;
+                pThis->m_selectedTfControlPointPos = temp.r;
 
             glBindFramebuffer(GL_READ_FRAMEBUFFER, prevFBO);
         }
@@ -1452,15 +1460,17 @@ void mvr::Renderer::mouseButton_cb(
 void mvr::Renderer::scroll_cb(GLFWwindow *window, double xoffset, double yoffset)
 
 {
+    mvr::Renderer *pThis =
+        reinterpret_cast<mvr::Renderer*>(glfwGetWindowUserPointer(window));
 
     if ((GLFW_PRESS == glfwGetKey(window, GLFW_KEY_LEFT_CONTROL)) ||
         (GLFW_PRESS == glfwGetKey(window, GLFW_KEY_RIGHT_CONTROL)))
     {
         // y scrolling changes the distance of the camera from the origin
-        camPos +=
+        pThis->m_cameraPosition +=
             static_cast<float>(-yoffset) *
-            gui_cam_zoom_speed *
-            camPos;
+            pThis->m_cameraZoomSpeed *
+            pThis->m_cameraPosition;
     }
 
     // chain ImGui callback
@@ -1470,15 +1480,19 @@ void mvr::Renderer::scroll_cb(GLFWwindow *window, double xoffset, double yoffset
 void mvr::Renderer::key_cb(
         GLFWwindow* window, int key, int scancode , int action, int mods)
 {
+    mvr::Renderer *pThis =
+        reinterpret_cast<mvr::Renderer*>(glfwGetWindowUserPointer(window));
 
     if((key == GLFW_KEY_ESCAPE) && (action == GLFW_PRESS))
         glfwSetWindowShouldClose(window, true);
 
     if((key == GLFW_KEY_F5) && (action == GLFW_PRESS))
-        _flag_reload_shaders = true;
+    {
+        // TODO: write reload shader function and call it here
+    }
 
     if((key == GLFW_KEY_F10) && (action == GLFW_PRESS))
-        _flag_show_menues = !_flag_show_menues;
+        pThis->m_showMenues = !(pThis->m_showMenues);
 
     if((key == GLFW_KEY_F9) && (action == GLFW_PRESS))
     {
@@ -1493,7 +1507,11 @@ void mvr::Renderer::key_cb(
                 tm);
 
         util::makeScreenshot(
-                _ppFBOs[0], render_w, render_h, filename_buffer, FIF_TIFF);
+            pThis->m_framebuffers[0],
+            pThis->m_renderingDimensions[0],
+            pThis->m_renderingDimensions[1],
+            filename_buffer,
+            FIF_TIFF);
         std::cout << "Saved screenshot " << filename_buffer << std::endl;
     }
     // chain ImGui callback
@@ -1511,8 +1529,11 @@ void mvr::Renderer::framebufferSize_cb(
     int width,
     int height)
 {
-    win_w = width;
-    win_h = height;
+    mvr::Renderer *pThis =
+        reinterpret_cast<mvr::Renderer*>(glfwGetWindowUserPointer(window));
+
+    pThis->m_windowDimensions[0] = width;
+    pThis->m_windowDimensions[1] = height;
 }
 
 void mvr::Renderer::error_cb(int error, const char* description)
