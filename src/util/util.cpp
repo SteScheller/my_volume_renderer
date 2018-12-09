@@ -25,11 +25,11 @@ util::FramebufferObject::FramebufferObject(
     m_textures(std::move(textures)),
     m_attachments(attachments)
 {
-    if ((m_textures.size() < 0) || (m_textures.size() != attachments.size()))
+    if ((m_textures.size() != attachments.size()))
             return;
 
     glGenFramebuffers(1, &m_ID);
-    m_textures = textures;
+    m_textures = std::move(textures);
 
     this->bind();
 
@@ -54,9 +54,8 @@ util::FramebufferObject::FramebufferObject(
 
 util::FramebufferObject::FramebufferObject(util::FramebufferObject&& other) :
     m_ID(other.m_ID),
-    m_textures(std::vector<util::texture::Texture2D&>(0))
+    m_textures(std::move(other.m_textures))
 {
-    this->m_textures = std::move(other.m_textures);
     other.m_ID = 0;
 }
 

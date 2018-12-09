@@ -12,8 +12,6 @@
 #include "util/util.hpp"
 #include "shader.hpp"
 #include "configraw.hpp"
-#include "transferfunc.hpp"
-
 
 namespace mvr
 {
@@ -180,8 +178,8 @@ namespace mvr
         Shader m_shaderTfPoint;
 
         std::array<util::FramebufferObject, 2> m_framebuffers;
-        // util::FramebufferObject m_tfColorWidgetFBO;
-        // util::FramebufferObject m_tfFuncWidgetFBO;
+        util::FramebufferObject m_tfColorWidgetFBO;
+        util::FramebufferObject m_tfFuncWidgetFBO;
 
         // geometry
         util::geometry::CubeFrame m_volumeFrame;
@@ -218,9 +216,7 @@ namespace mvr
         void drawVolume(const util::texture::Texture2D& stateInTexture);
         void drawSettingsWindow();
         void drawHistogramWindow();
-        void drawTransferFunctionWindow(
-            util::FramebufferObject &tfColorWidgetFBO,
-            util::FramebufferObject &tfFuncWidgetFBO);
+        void drawTransferFunctionWindow();
         void drawTfColor(util::FramebufferObject &tfColorWidgetFBO);
         void drawTfFunc(util::FramebufferObject &tfFuncWidgetFBO);
 

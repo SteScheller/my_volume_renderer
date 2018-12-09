@@ -54,12 +54,16 @@ void applyProgramOptions(int argc, char *argv[])
         if (vm.count("volume"))
             desc_file = vm["volume"].as<std::string>();
         else
-            desc_file = DEFAULT_VOLUME_JSON_FILE;
+            desc_file = mvr::Renderer::DEFAULT_VOLUME_FILE;
 
         cr::VolumeConfig tempConf = cr::VolumeConfig(desc_file);
+        // TODO: Extract the requested volume here and set it via the provided
+        // class function.
         if(tempConf.isValid())
-            strncpy(
-                gui_volume_desc_file, desc_file.c_str(), MAX_FILEPATH_LENGTH);
+        {
+            //strncpy(
+            //   gui_volume_desc_file, desc_file.c_str(), MAX_FILEPATH_LENGTH);
+        }
         else
         {
             std::cout << "Invalid volume description!" << std::endl;

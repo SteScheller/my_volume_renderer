@@ -107,6 +107,8 @@ mvr::Renderer::Renderer() :
     m_shaderTfFunc(),
     m_shaderTfPoint(),
     m_framebuffers(),
+    m_tfColorWidgetFBO(),
+    m_tfFuncWidgetFBO(),
     m_volumeFrame(false),
     m_volumeCube(false),
     m_windowQuad(false),
@@ -263,7 +265,6 @@ int mvr::Renderer::run()
     // gui widget framebuffer objects
     // ------------------------------------------------------------------------
     // render target for widget that shows resulting transfer function colors
-    util::FramebufferObject tfColorWidgetFBO;
     {
         std::vector<util::texture::Texture2D> tfColorWidgetFboTextures;
         tfColorWidgetFboTextures.emplace_back(
@@ -277,12 +278,11 @@ int mvr::Renderer::run()
             m_tfColorWidgetDimensions[1]);
         const std::vector<GLenum> tfColorWidgetFboAttachments = {
             GL_COLOR_ATTACHMENT0 };
-        tfColorWidgetFBO = util::FramebufferObject(
+        m_tfColorWidgetFBO = util::FramebufferObject(
             std::move(tfColorWidgetFboTextures), tfColorWidgetFboAttachments);
     }
 
     // render target that shows transfer function line plot
-    util::FramebufferObject tfFuncWidgetFBO;
     {
         std::vector<util::texture::Texture2D> tfFuncWidgetTextures;
         tfFuncWidgetTextures.emplace_back(
@@ -305,7 +305,7 @@ int mvr::Renderer::run()
             m_tfFuncWidgetDimensions[1]);
         const std::vector<GLenum> tfFuncWidgetFboAttachments =
             { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
-        tfFuncWidgetFBO = util::FramebufferObject(
+        m_tfFuncWidgetFBO = util::FramebufferObject(
             std::move(tfFuncWidgetTextures), tfFuncWidgetFboAttachments);
     }
 
@@ -370,8 +370,7 @@ int mvr::Renderer::run()
             if(m_showDemoWindow)
                 ImGui::ShowDemoWindow(&m_showDemoWindow);
             if(m_showTfWindow)
-                drawTransferFunctionWindow(
-                    tfColorWidgetFBO, tfFuncWidgetFBO);
+                drawTransferFunctionWindow();
             if(m_showHistogramWindow)
                 drawHistogramWindow();
             ImGui::Render();
@@ -885,9 +884,7 @@ void mvr::Renderer::drawHistogramWindow()
 /**
  * \brief Shows and handles the ImGui Window for the transfer function editor
 */
-void mvr::Renderer::drawTransferFunctionWindow(
-        util::FramebufferObject &tfColorWidgetFBO,
-        util::FramebufferObject &tfFuncWidgetFBO)
+void mvr::Renderer::drawTransferFunctionWindow()
 {
     glm::vec4 tempVec4 = glm::vec4(0.f);
     util::tf::ControlPointRGBA1D cp = util::tf::ControlPointRGBA1D();
@@ -899,8 +896,8 @@ void mvr::Renderer::drawTransferFunctionWindow(
     static float tfControlPointColor[3] = {0.f, 0.f, 0.f};
 
     // render the transfer function
-    drawTfColor(tfColorWidgetFBO);
-    drawTfFunc(tfFuncWidgetFBO);
+    drawTfColor(m_tfColorWidgetFBO);
+    drawTfFunc(m_tfFuncWidgetFBO);
 
     // draw the imgui elements
     ImGui::Begin("Transfer Function Editor", &m_showTfWindow);
@@ -924,14 +921,14 @@ void mvr::Renderer::drawTransferFunctionWindow(
     m_tfScreenPosition[1] = tfScreenPosition[1];
     ImGui::Image(
         reinterpret_cast<ImTextureID>(
-            tfFuncWidgetFBO.accessTextures()[0].getID()),
+            m_tfFuncWidgetFBO.accessTextures()[0].getID()),
         ImVec2(m_tfFuncWidgetDimensions[0], m_tfFuncWidgetDimensions[1]));
 
     ImGui::Spacing();
 
     ImGui::Image(
         reinterpret_cast<ImTextureID>(
-            tfColorWidgetFBO.accessTextures()[0].getID()),
+            m_tfColorWidgetFBO.accessTextures()[0].getID()),
         ImVec2(m_tfColorWidgetDimensions[0], m_tfColorWidgetDimensions[1]));
 
 
@@ -1430,9 +1427,7 @@ void mvr::Renderer::mouseButton_cb(
 
             // bind FBO-object and the color-attachment which contains
             // the unique picking ID
-            // TODO: -> this has to be a member object
-            glBindFramebuffer(GL_READ_FRAMEBUFFER, _selected_cp_fbo);
-            glReadBuffer(GL_COLOR_ATTACHMENT1);
+            pThis->m_tfColorWidgetFBO.bindRead(1);
 
             // send all commands to the GPU and wait until everything is drawn
             glFlush();
