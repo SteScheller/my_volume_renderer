@@ -26,7 +26,7 @@ util::FramebufferObject::FramebufferObject(
     m_attachments(attachments)
 {
     if ((m_textures.size() != attachments.size()))
-            return;
+        return;
 
     glGenFramebuffers(1, &m_ID);
     m_textures = std::move(textures);
@@ -62,9 +62,11 @@ util::FramebufferObject::FramebufferObject(util::FramebufferObject&& other) :
 util::FramebufferObject& util::FramebufferObject::operator=(
         util::FramebufferObject&& other)
 {
-    glDeleteFramebuffers(1, &(this->m_ID));
-    this->m_ID = other.m_ID;
-    this->m_textures = std::move(other.m_textures);
+    if (0 != m_ID)
+        glDeleteFramebuffers(1, &m_ID);
+
+    m_ID = other.m_ID;
+    m_textures = std::move(other.m_textures);
     other.m_ID = 0;
 
     return *this;
@@ -72,7 +74,8 @@ util::FramebufferObject& util::FramebufferObject::operator=(
 
 util::FramebufferObject::~FramebufferObject()
 {
-    glDeleteFramebuffers(1, &m_ID);
+    if (0 != m_ID)
+        glDeleteFramebuffers(1, &m_ID);
 }
 
 void util::FramebufferObject::bind() const

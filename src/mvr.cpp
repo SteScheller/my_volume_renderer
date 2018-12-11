@@ -157,7 +157,7 @@ int mvr::Renderer::Initialize()
     m_window = createWindow(
         m_windowDimensions[0], m_windowDimensions[1], "MVR");
 
-    ret = initializeImGui();
+    ret = initializeGl3w();
     if (EXIT_SUCCESS != ret) return ret;
 
     ret = initializeImGui();

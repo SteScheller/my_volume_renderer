@@ -29,8 +29,9 @@ util::geometry::Shape::Shape(util::geometry::Shape&& other) :
 util::geometry::Shape& util::geometry::Shape::operator=(
         util::geometry::Shape&& other)
 {
-    glDeleteVertexArrays(1, &(this->m_vertexArrayObject));
-    this->m_vertexArrayObject = other.m_vertexArrayObject;
+    if (0 != m_vertexArrayObject)
+        glDeleteVertexArrays(1, &m_vertexArrayObject);
+    m_vertexArrayObject = other.m_vertexArrayObject;
     other.m_vertexArrayObject = 0;
 
     return *this;
@@ -38,7 +39,8 @@ util::geometry::Shape& util::geometry::Shape::operator=(
 
 util::geometry::Shape::~Shape()
 {
-    glDeleteVertexArrays(1, &m_vertexArrayObject);
+    if (0 != m_vertexArrayObject)
+        glDeleteVertexArrays(1, &m_vertexArrayObject);
 }
 
 void util::geometry::Shape::bind() const
