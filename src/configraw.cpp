@@ -239,10 +239,10 @@ std::unique_ptr<cr::VolumeDataBase> cr::loadScalarVolumeTimestep(
                     reinterpret_cast<unsigned_byte_t*>(rawData),
                     volumeConfig.getVoxelCount(),
                     swap);
-                pVolumeData = std::make_unique<VolumeData<unsigned_byte_t>>(
-                    new VolumeData<unsigned_byte_t>(
+                pVolumeData =
+                    std::make_unique<VolumeData<unsigned_byte_t>>(
                         volumeConfig,
-                        reinterpret_cast<unsigned_byte_t*>(rawData)));
+                        reinterpret_cast<unsigned_byte_t*>(rawData));
                 break;
 
             case Datatype::signed_byte:
@@ -253,10 +253,10 @@ std::unique_ptr<cr::VolumeDataBase> cr::loadScalarVolumeTimestep(
                     reinterpret_cast<signed_byte_t*>(rawData),
                     volumeConfig.getVoxelCount(),
                     swap);
-                pVolumeData = std::make_unique<VolumeData<signed_byte_t>>(
-                    new VolumeData<signed_byte_t>(
+                pVolumeData =
+                    std::make_unique<VolumeData<signed_byte_t>>(
                         volumeConfig,
-                        reinterpret_cast<signed_byte_t*>(rawData)));
+                        reinterpret_cast<signed_byte_t*>(rawData));
                 break;
 
             case Datatype::unsigned_halfword:
@@ -267,11 +267,10 @@ std::unique_ptr<cr::VolumeDataBase> cr::loadScalarVolumeTimestep(
                     reinterpret_cast<unsigned_halfword_t*>(rawData),
                     volumeConfig.getVoxelCount(),
                     swap);
-                pVolumeData = std::make_unique<VolumeData<
-                    unsigned_halfword_t>>(
-                    new VolumeData<unsigned_halfword_t>(
+                pVolumeData =
+                    std::make_unique<VolumeData<unsigned_halfword_t>>(
                         volumeConfig,
-                        reinterpret_cast<unsigned_halfword_t*>(rawData)));
+                        reinterpret_cast<unsigned_halfword_t*>(rawData));
                 break;
 
             case Datatype::signed_halfword:
@@ -282,10 +281,10 @@ std::unique_ptr<cr::VolumeDataBase> cr::loadScalarVolumeTimestep(
                     reinterpret_cast<signed_halfword_t*>(rawData),
                     volumeConfig.getVoxelCount(),
                     swap);
-                pVolumeData = std::make_unique<VolumeData<signed_halfword_t>>(
-                    new VolumeData<signed_halfword_t>(
+                pVolumeData =
+                    std::make_unique<VolumeData<signed_halfword_t>>(
                         volumeConfig,
-                        reinterpret_cast<signed_halfword_t*>(rawData)));
+                        reinterpret_cast<signed_halfword_t*>(rawData));
                 break;
 
             case Datatype::unsigned_word:
@@ -296,10 +295,10 @@ std::unique_ptr<cr::VolumeDataBase> cr::loadScalarVolumeTimestep(
                     reinterpret_cast<unsigned_word_t*>(rawData),
                     volumeConfig.getVoxelCount(),
                     swap);
-                pVolumeData = std::make_unique<VolumeData<unsigned_word_t>>(
-                    new VolumeData<unsigned_word_t>(
+                pVolumeData =
+                    std::make_unique<VolumeData<unsigned_word_t>>(
                         volumeConfig,
-                        reinterpret_cast<unsigned_word_t*>(rawData)));
+                        reinterpret_cast<unsigned_word_t*>(rawData));
                 break;
 
             case Datatype::signed_word:
@@ -310,10 +309,10 @@ std::unique_ptr<cr::VolumeDataBase> cr::loadScalarVolumeTimestep(
                     reinterpret_cast<signed_word_t*>(rawData),
                     volumeConfig.getVoxelCount(),
                     swap);
-                pVolumeData = std::make_unique<VolumeData<signed_word_t>>(
-                    new VolumeData<signed_word_t>(
+                pVolumeData =
+                    std::make_unique<VolumeData<signed_word_t>>(
                         volumeConfig,
-                        reinterpret_cast<signed_word_t*>(rawData)));
+                        reinterpret_cast<signed_word_t*>(rawData));
                 break;
 
             case Datatype::unsigned_longword:
@@ -324,11 +323,10 @@ std::unique_ptr<cr::VolumeDataBase> cr::loadScalarVolumeTimestep(
                     reinterpret_cast<unsigned_longword_t*>(rawData),
                     volumeConfig.getVoxelCount(),
                     swap);
-                pVolumeData = std::make_unique<VolumeData<
-                    unsigned_longword_t>>(
-                    new VolumeData<unsigned_longword_t>(
+                pVolumeData =
+                    std::make_unique<VolumeData<unsigned_longword_t>>(
                         volumeConfig,
-                        reinterpret_cast<unsigned_longword_t*>(rawData)));
+                        reinterpret_cast<unsigned_longword_t*>(rawData));
                 break;
 
             case Datatype::signed_longword:
@@ -339,10 +337,10 @@ std::unique_ptr<cr::VolumeDataBase> cr::loadScalarVolumeTimestep(
                     reinterpret_cast<signed_longword_t*>(rawData),
                     volumeConfig.getVoxelCount(),
                     swap);
-                pVolumeData = std::make_unique<VolumeData<signed_longword_t>>(
-                    new VolumeData<signed_longword_t>(
+                pVolumeData =
+                    std::make_unique<VolumeData<signed_longword_t>>(
                         volumeConfig,
-                        reinterpret_cast<signed_longword_t*>(rawData)));
+                        reinterpret_cast<signed_longword_t*>(rawData));
                 break;
 
             case Datatype::single_precision_float:
@@ -355,11 +353,10 @@ std::unique_ptr<cr::VolumeDataBase> cr::loadScalarVolumeTimestep(
                         rawData),
                     volumeConfig.getVoxelCount(),
                     swap);
-                pVolumeData = std::make_unique<VolumeData<
-                    single_precision_float_t>>(
-                    new VolumeData<single_precision_float_t>(
+                pVolumeData =
+                    std::make_unique<VolumeData<single_precision_float_t>>(
                         volumeConfig,
-                        reinterpret_cast<single_precision_float_t*>(rawData)));
+                        reinterpret_cast<single_precision_float_t*>(rawData));
                 break;
 
             case Datatype::double_precision_float:
@@ -371,11 +368,10 @@ std::unique_ptr<cr::VolumeDataBase> cr::loadScalarVolumeTimestep(
                     reinterpret_cast<double_precision_float_t*>(rawData),
                     volumeConfig.getVoxelCount(),
                     swap);
-                pVolumeData = std::make_unique<VolumeData<
-                    double_precision_float_t>>(
-                    new VolumeData<double_precision_float_t>(
+                pVolumeData =
+                    std::make_unique<VolumeData<double_precision_float_t>>(
                         volumeConfig,
-                        reinterpret_cast<double_precision_float_t*>(rawData)));
+                        reinterpret_cast<double_precision_float_t*>(rawData));
                 break;
 
             default:
@@ -397,10 +393,10 @@ std::unique_ptr<cr::VolumeDataBase> cr::loadScalarVolumeTimestep(
                     volumeConfig.getSubsetMin(),
                     volumeConfig.getSubsetMax(),
                     swap);
-                pVolumeData = std::make_unique<VolumeData<unsigned_byte_t>>(
-                    new VolumeData<unsigned_byte_t>(
+                pVolumeData =
+                    std::make_unique<VolumeData<unsigned_byte_t>>(
                         volumeConfig,
-                        reinterpret_cast<unsigned_byte_t*>(rawData)));
+                        reinterpret_cast<unsigned_byte_t*>(rawData));
                 break;
 
             case Datatype::signed_byte:
@@ -413,10 +409,10 @@ std::unique_ptr<cr::VolumeDataBase> cr::loadScalarVolumeTimestep(
                     volumeConfig.getSubsetMin(),
                     volumeConfig.getSubsetMax(),
                     swap);
-                pVolumeData = std::make_unique<VolumeData<signed_byte_t>>(
-                    new VolumeData<signed_byte_t>(
+                pVolumeData =
+                    std::make_unique<VolumeData<signed_byte_t>>(
                         volumeConfig,
-                        reinterpret_cast<signed_byte_t*>(rawData)));
+                        reinterpret_cast<signed_byte_t*>(rawData));
                 break;
 
             case Datatype::unsigned_halfword:
@@ -429,11 +425,10 @@ std::unique_ptr<cr::VolumeDataBase> cr::loadScalarVolumeTimestep(
                     volumeConfig.getSubsetMin(),
                     volumeConfig.getSubsetMax(),
                     swap);
-                pVolumeData = std::make_unique<VolumeData<
-                    unsigned_halfword_t>>(
-                    new VolumeData<unsigned_halfword_t>(
+                pVolumeData =
+                    std::make_unique<VolumeData<unsigned_halfword_t>>(
                         volumeConfig,
-                        reinterpret_cast<unsigned_halfword_t*>(rawData)));
+                        reinterpret_cast<unsigned_halfword_t*>(rawData));
                 break;
 
             case Datatype::signed_halfword:
@@ -446,10 +441,10 @@ std::unique_ptr<cr::VolumeDataBase> cr::loadScalarVolumeTimestep(
                     volumeConfig.getSubsetMin(),
                     volumeConfig.getSubsetMax(),
                     swap);
-                pVolumeData = std::make_unique<VolumeData<signed_halfword_t>>(
-                    new VolumeData<signed_halfword_t>(
+                pVolumeData =
+                    std::make_unique<VolumeData<signed_halfword_t>>(
                         volumeConfig,
-                        reinterpret_cast<signed_halfword_t*>(rawData)));
+                        reinterpret_cast<signed_halfword_t*>(rawData));
                 break;
 
             case Datatype::unsigned_word:
@@ -462,10 +457,10 @@ std::unique_ptr<cr::VolumeDataBase> cr::loadScalarVolumeTimestep(
                     volumeConfig.getSubsetMin(),
                     volumeConfig.getSubsetMax(),
                     swap);
-                pVolumeData = std::make_unique<VolumeData<unsigned_word_t>>(
-                    new VolumeData<unsigned_word_t>(
+                pVolumeData =
+                    std::make_unique<VolumeData<unsigned_word_t>>(
                         volumeConfig,
-                        reinterpret_cast<unsigned_word_t*>(rawData)));
+                        reinterpret_cast<unsigned_word_t*>(rawData));
                 break;
 
             case Datatype::signed_word:
@@ -478,10 +473,10 @@ std::unique_ptr<cr::VolumeDataBase> cr::loadScalarVolumeTimestep(
                     volumeConfig.getSubsetMin(),
                     volumeConfig.getSubsetMax(),
                     swap);
-                pVolumeData = std::make_unique<VolumeData<signed_word_t>>(
-                    new VolumeData<signed_word_t>(
+                pVolumeData =
+                    std::make_unique<VolumeData<signed_word_t>>(
                         volumeConfig,
-                        reinterpret_cast<signed_word_t*>(rawData)));
+                        reinterpret_cast<signed_word_t*>(rawData));
                 break;
 
             case Datatype::unsigned_longword:
@@ -495,11 +490,10 @@ std::unique_ptr<cr::VolumeDataBase> cr::loadScalarVolumeTimestep(
                     volumeConfig.getSubsetMin(),
                     volumeConfig.getSubsetMax(),
                     swap);
-                pVolumeData = std::make_unique<VolumeData<
-                    unsigned_longword_t>>(
-                    new VolumeData<unsigned_longword_t>(
+                pVolumeData =
+                    std::make_unique<VolumeData<unsigned_longword_t>>(
                         volumeConfig,
-                        reinterpret_cast<unsigned_longword_t*>(rawData)));
+                        reinterpret_cast<unsigned_longword_t*>(rawData));
                 break;
 
             case Datatype::signed_longword:
@@ -512,10 +506,10 @@ std::unique_ptr<cr::VolumeDataBase> cr::loadScalarVolumeTimestep(
                     volumeConfig.getSubsetMin(),
                     volumeConfig.getSubsetMax(),
                     swap);
-                pVolumeData = std::make_unique<VolumeData<signed_longword_t>>(
-                    new VolumeData<signed_longword_t>(
+                pVolumeData =
+                    std::make_unique<VolumeData<signed_longword_t>>(
                         volumeConfig,
-                        reinterpret_cast<signed_longword_t*>(rawData)));
+                        reinterpret_cast<signed_longword_t*>(rawData));
                 break;
 
             case Datatype::single_precision_float:
@@ -530,11 +524,10 @@ std::unique_ptr<cr::VolumeDataBase> cr::loadScalarVolumeTimestep(
                     volumeConfig.getSubsetMin(),
                     volumeConfig.getSubsetMax(),
                     swap);
-                pVolumeData = std::make_unique<VolumeData<
-                    single_precision_float_t>>(
-                    new VolumeData<single_precision_float_t>(
+                pVolumeData =
+                    std::make_unique<VolumeData<single_precision_float_t>>(
                         volumeConfig,
-                        reinterpret_cast<single_precision_float_t*>(rawData)));
+                        reinterpret_cast<single_precision_float_t*>(rawData));
                 break;
 
             case Datatype::double_precision_float:
@@ -549,11 +542,10 @@ std::unique_ptr<cr::VolumeDataBase> cr::loadScalarVolumeTimestep(
                     volumeConfig.getSubsetMin(),
                     volumeConfig.getSubsetMax(),
                     swap);
-                pVolumeData = std::make_unique<VolumeData<
-                    double_precision_float_t>>(
-                    new VolumeData<double_precision_float_t>(
+                pVolumeData =
+                    std::make_unique<VolumeData<double_precision_float_t>>(
                         volumeConfig,
-                        reinterpret_cast<double_precision_float_t*>(rawData)));
+                        reinterpret_cast<double_precision_float_t*>(rawData));
                 break;
 
             default:
