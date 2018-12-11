@@ -642,116 +642,106 @@ util::texture::Texture3D cr::loadScalarVolumeTex(
  *
  * Note: vector of bins has to be deleted by the calling function
 */
-std::unique_ptr<std::vector<util::bin_t>> cr::bucketVolumeData(
+std::vector<util::bin_t> cr::bucketVolumeData(
     const VolumeDataBase &volumeData,
     size_t numBins,
     float min,
     float max)
 {
-    std::unique_ptr<std::vector<util::bin_t>> bins = nullptr;
+    std::vector<util::bin_t> bins(0);
     VolumeConfig volumeConfig = volumeData.getVolumeConfig();
     void *values = reinterpret_cast<void*>(volumeData.getRawData());
 
     switch(volumeConfig.getVoxelType())
     {
         case Datatype::unsigned_byte:
-            bins = std::make_unique<std::vector<util::bin_t>>(
-                util::binData<unsigned_byte_t>(
+            bins = util::binData<unsigned_byte_t>(
                 numBins,
                 static_cast<unsigned_byte_t>(min),
                 static_cast<unsigned_byte_t>(max),
                 reinterpret_cast<unsigned_byte_t*>(values),
-                volumeConfig.getVoxelCount()));
+                volumeConfig.getVoxelCount());
             break;
 
         case Datatype::signed_byte:
-            bins = std::make_unique<std::vector<util::bin_t>>(
-                util::binData<signed_byte_t>(
+            bins = util::binData<signed_byte_t>(
                 numBins,
                 static_cast<signed_byte_t>(min),
                 static_cast<signed_byte_t>(max),
                 reinterpret_cast<signed_byte_t*>(values),
-                volumeConfig.getVoxelCount()));
+                volumeConfig.getVoxelCount());
             break;
 
         case Datatype::unsigned_halfword:
-            bins = std::make_unique<std::vector<util::bin_t>>(
-                util::binData<unsigned_halfword_t>(
+            bins = util::binData<unsigned_halfword_t>(
                 numBins,
                 static_cast<unsigned_halfword_t>(min),
                 static_cast<unsigned_halfword_t>(max),
                 reinterpret_cast<unsigned_halfword_t*>(values),
-                volumeConfig.getVoxelCount()));
+                volumeConfig.getVoxelCount());
             break;
 
         case Datatype::signed_halfword:
-            bins = std::make_unique<std::vector<util::bin_t>>(
-                util::binData<signed_halfword_t>(
+            bins = util::binData<signed_halfword_t>(
                 numBins,
                 static_cast<signed_halfword_t>(min),
                 static_cast<signed_halfword_t>(max),
                 reinterpret_cast<signed_halfword_t*>(values),
-                volumeConfig.getVoxelCount()));
+                volumeConfig.getVoxelCount());
             break;
 
         case Datatype::unsigned_word:
-            bins = std::make_unique<std::vector<util::bin_t>>(
-                util::binData<unsigned_word_t>(
+            bins = util::binData<unsigned_word_t>(
                 numBins,
                 static_cast<unsigned_word_t>(min),
                 static_cast<unsigned_word_t>(max),
                 reinterpret_cast<unsigned_word_t*>(values),
-                volumeConfig.getVoxelCount()));
+                volumeConfig.getVoxelCount());
             break;
 
         case Datatype::signed_word:
-            bins = std::make_unique<std::vector<util::bin_t>>(
-                util::binData<signed_word_t>(
+            bins = util::binData<signed_word_t>(
                 numBins,
                 static_cast<signed_word_t>(min),
                 static_cast<signed_word_t>(max),
                 reinterpret_cast<signed_word_t*>(values),
-                volumeConfig.getVoxelCount()));
+                volumeConfig.getVoxelCount());
             break;
 
         case Datatype::unsigned_longword:
-            bins = std::make_unique<std::vector<util::bin_t>>(
-                util::binData<unsigned_longword_t>(
+            bins = util::binData<unsigned_longword_t>(
                 numBins,
                 static_cast<unsigned_longword_t>(min),
                 static_cast<unsigned_longword_t>(max),
                 reinterpret_cast<unsigned_longword_t*>(values),
-                volumeConfig.getVoxelCount()));
+                volumeConfig.getVoxelCount());
             break;
 
         case Datatype::signed_longword:
-            bins = std::make_unique<std::vector<util::bin_t>>(
-                util::binData<signed_longword_t>(
+            bins = util::binData<signed_longword_t>(
                 numBins,
                 static_cast<signed_longword_t>(min),
                 static_cast<signed_longword_t>(max),
                 reinterpret_cast<signed_longword_t*>(values),
-                volumeConfig.getVoxelCount()));
+                volumeConfig.getVoxelCount());
             break;
 
         case Datatype::single_precision_float:
-            bins = std::make_unique<std::vector<util::bin_t>>(
-                util::binData<single_precision_float_t>(
+            bins = util::binData<single_precision_float_t>(
                 numBins,
                 static_cast<single_precision_float_t>(min),
                 static_cast<single_precision_float_t>(max),
                 reinterpret_cast<single_precision_float_t*>(values),
-                volumeConfig.getVoxelCount()));
+                volumeConfig.getVoxelCount());
             break;
 
         case Datatype::double_precision_float:
-            bins = std::make_unique<std::vector<util::bin_t>>(
-                util::binData<double_precision_float_t>(
+            bins = util::binData<double_precision_float_t>(
                 numBins,
                 static_cast<double_precision_float_t>(min),
                 static_cast<double_precision_float_t>(max),
                 reinterpret_cast<double_precision_float_t*>(values),
-                volumeConfig.getVoxelCount()));
+                volumeConfig.getVoxelCount());
             break;
 
         default:

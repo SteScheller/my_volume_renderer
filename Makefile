@@ -7,7 +7,7 @@ BUILD_DIR = build
 
 SOURCES = src/main.cpp src/mvr.cpp
 SOURCES += src/util/util.cpp src/util/texture.cpp src/util/geometry.cpp
-SOURCES += src/configraw.cpp src/transferfunc.cpp
+SOURCES += src/configraw.cpp src/util/transferfunc.cpp
 SOURCES += libs/imgui/imgui_impl_glfw.cpp libs/imgui/imgui_impl_opengl3.cpp
 SOURCES += libs/imgui/imgui.cpp libs/imgui/imgui_demo.cpp 
 SOURCES += libs/imgui/imgui_draw.cpp libs/imgui/imgui_widgets.cpp

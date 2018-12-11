@@ -26,8 +26,8 @@ namespace util
 
             GLuint getID() const {return m_ID;}
 
-            virtual void unbind() const;
-            virtual void bind() const;
+            virtual void unbind() const = 0;
+            virtual void bind() const = 0;
 
             protected:
             GLuint m_ID;

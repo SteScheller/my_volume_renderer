@@ -18,7 +18,7 @@ namespace util
             Shape& operator=(Shape&& other);
             ~Shape();
 
-            virtual void draw() const;
+            virtual void draw() const = 0;
 
             protected:
             GLuint m_vertexArrayObject;

@@ -32,6 +32,13 @@
 #include "configraw.hpp"
 
 //-----------------------------------------------------------------------------
+// definition of static member variables
+//-----------------------------------------------------------------------------
+const std::string mvr::Renderer::DEFAULT_VOLUME_FILE("example/bucky.json");
+const glm::vec3 mvr::Renderer::DEFAULT_CAMERA_POSITION(1.2f, 0.75f, 1.f);
+const glm::vec3 mvr::Renderer::DEFAULT_CAMERA_LOOKAT(0.f);
+
+//-----------------------------------------------------------------------------
 // public member implementations
 //-----------------------------------------------------------------------------
 mvr::Renderer::Renderer() :
@@ -118,7 +125,7 @@ mvr::Renderer::Renderer() :
     m_volumeViewMx(1.f),
     m_volumeProjMx(1.f),
     m_quadProjMx(glm::ortho(-0.5f, 0.5f, -0.5f, 0.5f)),
-    m_histogramBins(nullptr),
+    m_histogramBins(0),
     m_transferFunction(),
     m_volumeData(nullptr),
     m_volumeTex(),
@@ -828,14 +835,14 @@ void mvr::Renderer::drawSettingsWindow()
 
 void mvr::Renderer::drawHistogramWindow()
 {
-    float values[m_histogramBins->size()];
+    float values[m_histogramBins.size()];
 
-    for(size_t i = 0; i < m_histogramBins->size(); i++)
+    for(size_t i = 0; i < m_histogramBins.size(); i++)
     {
         if (m_semilogHistogram)
-            values[i] = log10(std::get<2>((*m_histogramBins)[i]));
+            values[i] = log10(std::get<2>(m_histogramBins[i]));
         else
-            values[i] = static_cast<float>(std::get<2>((*m_histogramBins)[i]));
+            values[i] = static_cast<float>(std::get<2>(m_histogramBins[i]));
     }
 
     ImGui::Begin("Histogram", &m_showHistogramWindow);
@@ -843,7 +850,7 @@ void mvr::Renderer::drawHistogramWindow()
     ImGui::PlotHistogram(
         "",
         values,
-        m_histogramBins->size(),
+        m_histogramBins.size(),
         0,
         nullptr,
         0.f,

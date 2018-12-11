@@ -76,10 +76,10 @@ namespace mvr
         //---------------------------------------------------------------------
         // class-wide constants and default values
         //---------------------------------------------------------------------
-        static const int REQUIRED_OGL_VERSION_MAJOR = 3;
-        static const int REQUIRED_OGL_VERSION_MINOR = 3;
+        static constexpr int REQUIRED_OGL_VERSION_MAJOR = 3;
+        static constexpr int REQUIRED_OGL_VERSION_MINOR = 3;
 
-        static const size_t MAX_FILEPATH_LENGTH = 200;
+        static constexpr size_t MAX_FILEPATH_LENGTH = 200;
 
         static const std::string DEFAULT_VOLUME_FILE;
 
@@ -195,7 +195,7 @@ namespace mvr
         glm::mat4 m_quadProjMx;
 
         // volume data
-        std::unique_ptr<std::vector<util::bin_t>> m_histogramBins;
+        std::vector<util::bin_t> m_histogramBins;
         util::tf::TransferFuncRGBA1D m_transferFunction;
         std::unique_ptr<cr::VolumeDataBase> m_volumeData;
         util::texture::Texture3D m_volumeTex;
@@ -280,15 +280,6 @@ namespace mvr
                 const char* description);
 
     };
-
-    const std::string Renderer::DEFAULT_VOLUME_FILE =
-        std::string("example/bucky.json");
-
-    const glm::vec3 Renderer::DEFAULT_CAMERA_POSITION =
-        glm::vec3(1.2f, 0.75f, 1.f);
-
-    const glm::vec3 Renderer::DEFAULT_CAMERA_LOOKAT =
-        glm::vec3(0.f);
 
 }
 

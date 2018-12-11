@@ -57,7 +57,7 @@ namespace cr
         VolumeConfig volumeConfig, unsigned int n, bool swap);
     util::texture::Texture3D loadScalarVolumeTex(
         const VolumeDataBase &volumeData);
-    std::unique_ptr<std::vector<util::bin_t>> bucketVolumeData(
+    std::vector<util::bin_t> bucketVolumeData(
         const VolumeDataBase &volumeData,
         size_t numBins,
         float min,
@@ -142,7 +142,7 @@ namespace cr
             m_config(volumeConfig)
         {
         }
-        virtual void* getRawData() const;
+        virtual void* getRawData() const = 0;
         VolumeConfig getVolumeConfig() const { return m_config; }
 
         private:
