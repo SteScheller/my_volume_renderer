@@ -220,11 +220,11 @@ std::string cr::VolumeConfig::getTimestepFile(unsigned int n)
  * Note: Calling function has to delete the returned volume data.
  *
 */
-std::shared_ptr<cr::VolumeDataBase> cr::loadScalarVolumeTimestep(
+std::unique_ptr<cr::VolumeDataBase> cr::loadScalarVolumeTimestep(
     VolumeConfig volumeConfig, unsigned int n, bool swap)
 {
     void *rawData = nullptr;
-    std::shared_ptr<VolumeDataBase> pVolumeData = nullptr;
+    std::unique_ptr<VolumeDataBase> pVolumeData = nullptr;
 
     if (!volumeConfig.getSubset())
     {
@@ -239,7 +239,7 @@ std::shared_ptr<cr::VolumeDataBase> cr::loadScalarVolumeTimestep(
                     reinterpret_cast<unsigned_byte_t*>(rawData),
                     volumeConfig.getVoxelCount(),
                     swap);
-                pVolumeData = std::make_shared<VolumeDataBase>(
+                pVolumeData = std::make_unique<VolumeData<unsigned_byte_t>>(
                     new VolumeData<unsigned_byte_t>(
                         volumeConfig,
                         reinterpret_cast<unsigned_byte_t*>(rawData)));
@@ -253,7 +253,7 @@ std::shared_ptr<cr::VolumeDataBase> cr::loadScalarVolumeTimestep(
                     reinterpret_cast<signed_byte_t*>(rawData),
                     volumeConfig.getVoxelCount(),
                     swap);
-                pVolumeData = std::make_shared<VolumeDataBase>(
+                pVolumeData = std::make_unique<VolumeData<signed_byte_t>>(
                     new VolumeData<signed_byte_t>(
                         volumeConfig,
                         reinterpret_cast<signed_byte_t*>(rawData)));
@@ -267,7 +267,8 @@ std::shared_ptr<cr::VolumeDataBase> cr::loadScalarVolumeTimestep(
                     reinterpret_cast<unsigned_halfword_t*>(rawData),
                     volumeConfig.getVoxelCount(),
                     swap);
-                pVolumeData = std::make_shared<VolumeDataBase>(
+                pVolumeData = std::make_unique<VolumeData<
+                    unsigned_halfword_t>>(
                     new VolumeData<unsigned_halfword_t>(
                         volumeConfig,
                         reinterpret_cast<unsigned_halfword_t*>(rawData)));
@@ -281,7 +282,7 @@ std::shared_ptr<cr::VolumeDataBase> cr::loadScalarVolumeTimestep(
                     reinterpret_cast<signed_halfword_t*>(rawData),
                     volumeConfig.getVoxelCount(),
                     swap);
-                pVolumeData = std::make_shared<VolumeDataBase>(
+                pVolumeData = std::make_unique<VolumeData<signed_halfword_t>>(
                     new VolumeData<signed_halfword_t>(
                         volumeConfig,
                         reinterpret_cast<signed_halfword_t*>(rawData)));
@@ -295,7 +296,7 @@ std::shared_ptr<cr::VolumeDataBase> cr::loadScalarVolumeTimestep(
                     reinterpret_cast<unsigned_word_t*>(rawData),
                     volumeConfig.getVoxelCount(),
                     swap);
-                pVolumeData = std::make_shared<VolumeDataBase>(
+                pVolumeData = std::make_unique<VolumeData<unsigned_word_t>>(
                     new VolumeData<unsigned_word_t>(
                         volumeConfig,
                         reinterpret_cast<unsigned_word_t*>(rawData)));
@@ -309,7 +310,7 @@ std::shared_ptr<cr::VolumeDataBase> cr::loadScalarVolumeTimestep(
                     reinterpret_cast<signed_word_t*>(rawData),
                     volumeConfig.getVoxelCount(),
                     swap);
-                pVolumeData = std::make_shared<VolumeDataBase>(
+                pVolumeData = std::make_unique<VolumeData<signed_word_t>>(
                     new VolumeData<signed_word_t>(
                         volumeConfig,
                         reinterpret_cast<signed_word_t*>(rawData)));
@@ -323,7 +324,8 @@ std::shared_ptr<cr::VolumeDataBase> cr::loadScalarVolumeTimestep(
                     reinterpret_cast<unsigned_longword_t*>(rawData),
                     volumeConfig.getVoxelCount(),
                     swap);
-                pVolumeData = std::make_shared<VolumeDataBase>(
+                pVolumeData = std::make_unique<VolumeData<
+                    unsigned_longword_t>>(
                     new VolumeData<unsigned_longword_t>(
                         volumeConfig,
                         reinterpret_cast<unsigned_longword_t*>(rawData)));
@@ -337,7 +339,7 @@ std::shared_ptr<cr::VolumeDataBase> cr::loadScalarVolumeTimestep(
                     reinterpret_cast<signed_longword_t*>(rawData),
                     volumeConfig.getVoxelCount(),
                     swap);
-                pVolumeData = std::make_shared<VolumeDataBase>(
+                pVolumeData = std::make_unique<VolumeData<signed_longword_t>>(
                     new VolumeData<signed_longword_t>(
                         volumeConfig,
                         reinterpret_cast<signed_longword_t*>(rawData)));
@@ -353,7 +355,8 @@ std::shared_ptr<cr::VolumeDataBase> cr::loadScalarVolumeTimestep(
                         rawData),
                     volumeConfig.getVoxelCount(),
                     swap);
-                pVolumeData = std::make_shared<VolumeDataBase>(
+                pVolumeData = std::make_unique<VolumeData<
+                    single_precision_float_t>>(
                     new VolumeData<single_precision_float_t>(
                         volumeConfig,
                         reinterpret_cast<single_precision_float_t*>(rawData)));
@@ -368,7 +371,8 @@ std::shared_ptr<cr::VolumeDataBase> cr::loadScalarVolumeTimestep(
                     reinterpret_cast<double_precision_float_t*>(rawData),
                     volumeConfig.getVoxelCount(),
                     swap);
-                pVolumeData = std::make_shared<VolumeDataBase>(
+                pVolumeData = std::make_unique<VolumeData<
+                    double_precision_float_t>>(
                     new VolumeData<double_precision_float_t>(
                         volumeConfig,
                         reinterpret_cast<double_precision_float_t*>(rawData)));
@@ -393,7 +397,7 @@ std::shared_ptr<cr::VolumeDataBase> cr::loadScalarVolumeTimestep(
                     volumeConfig.getSubsetMin(),
                     volumeConfig.getSubsetMax(),
                     swap);
-                pVolumeData = std::make_shared<VolumeDataBase>(
+                pVolumeData = std::make_unique<VolumeData<unsigned_byte_t>>(
                     new VolumeData<unsigned_byte_t>(
                         volumeConfig,
                         reinterpret_cast<unsigned_byte_t*>(rawData)));
@@ -409,7 +413,7 @@ std::shared_ptr<cr::VolumeDataBase> cr::loadScalarVolumeTimestep(
                     volumeConfig.getSubsetMin(),
                     volumeConfig.getSubsetMax(),
                     swap);
-                pVolumeData = std::make_shared<VolumeDataBase>(
+                pVolumeData = std::make_unique<VolumeData<signed_byte_t>>(
                     new VolumeData<signed_byte_t>(
                         volumeConfig,
                         reinterpret_cast<signed_byte_t*>(rawData)));
@@ -425,7 +429,8 @@ std::shared_ptr<cr::VolumeDataBase> cr::loadScalarVolumeTimestep(
                     volumeConfig.getSubsetMin(),
                     volumeConfig.getSubsetMax(),
                     swap);
-                pVolumeData = std::make_shared<VolumeDataBase>(
+                pVolumeData = std::make_unique<VolumeData<
+                    unsigned_halfword_t>>(
                     new VolumeData<unsigned_halfword_t>(
                         volumeConfig,
                         reinterpret_cast<unsigned_halfword_t*>(rawData)));
@@ -441,7 +446,7 @@ std::shared_ptr<cr::VolumeDataBase> cr::loadScalarVolumeTimestep(
                     volumeConfig.getSubsetMin(),
                     volumeConfig.getSubsetMax(),
                     swap);
-                pVolumeData = std::make_shared<VolumeDataBase>(
+                pVolumeData = std::make_unique<VolumeData<signed_halfword_t>>(
                     new VolumeData<signed_halfword_t>(
                         volumeConfig,
                         reinterpret_cast<signed_halfword_t*>(rawData)));
@@ -457,7 +462,7 @@ std::shared_ptr<cr::VolumeDataBase> cr::loadScalarVolumeTimestep(
                     volumeConfig.getSubsetMin(),
                     volumeConfig.getSubsetMax(),
                     swap);
-                pVolumeData = std::make_shared<VolumeDataBase>(
+                pVolumeData = std::make_unique<VolumeData<unsigned_word_t>>(
                     new VolumeData<unsigned_word_t>(
                         volumeConfig,
                         reinterpret_cast<unsigned_word_t*>(rawData)));
@@ -473,7 +478,7 @@ std::shared_ptr<cr::VolumeDataBase> cr::loadScalarVolumeTimestep(
                     volumeConfig.getSubsetMin(),
                     volumeConfig.getSubsetMax(),
                     swap);
-                pVolumeData = std::make_shared<VolumeDataBase>(
+                pVolumeData = std::make_unique<VolumeData<signed_word_t>>(
                     new VolumeData<signed_word_t>(
                         volumeConfig,
                         reinterpret_cast<signed_word_t*>(rawData)));
@@ -490,7 +495,8 @@ std::shared_ptr<cr::VolumeDataBase> cr::loadScalarVolumeTimestep(
                     volumeConfig.getSubsetMin(),
                     volumeConfig.getSubsetMax(),
                     swap);
-                pVolumeData = std::make_shared<VolumeDataBase>(
+                pVolumeData = std::make_unique<VolumeData<
+                    unsigned_longword_t>>(
                     new VolumeData<unsigned_longword_t>(
                         volumeConfig,
                         reinterpret_cast<unsigned_longword_t*>(rawData)));
@@ -506,7 +512,7 @@ std::shared_ptr<cr::VolumeDataBase> cr::loadScalarVolumeTimestep(
                     volumeConfig.getSubsetMin(),
                     volumeConfig.getSubsetMax(),
                     swap);
-                pVolumeData = std::make_shared<VolumeDataBase>(
+                pVolumeData = std::make_unique<VolumeData<signed_longword_t>>(
                     new VolumeData<signed_longword_t>(
                         volumeConfig,
                         reinterpret_cast<signed_longword_t*>(rawData)));
@@ -524,7 +530,8 @@ std::shared_ptr<cr::VolumeDataBase> cr::loadScalarVolumeTimestep(
                     volumeConfig.getSubsetMin(),
                     volumeConfig.getSubsetMax(),
                     swap);
-                pVolumeData = std::make_shared<VolumeDataBase>(
+                pVolumeData = std::make_unique<VolumeData<
+                    single_precision_float_t>>(
                     new VolumeData<single_precision_float_t>(
                         volumeConfig,
                         reinterpret_cast<single_precision_float_t*>(rawData)));
@@ -542,7 +549,8 @@ std::shared_ptr<cr::VolumeDataBase> cr::loadScalarVolumeTimestep(
                     volumeConfig.getSubsetMin(),
                     volumeConfig.getSubsetMax(),
                     swap);
-                pVolumeData = std::make_shared<VolumeDataBase>(
+                pVolumeData = std::make_unique<VolumeData<
+                    double_precision_float_t>>(
                     new VolumeData<double_precision_float_t>(
                         volumeConfig,
                         reinterpret_cast<double_precision_float_t*>(rawData)));
@@ -642,20 +650,20 @@ util::texture::Texture3D cr::loadScalarVolumeTex(
  *
  * Note: vector of bins has to be deleted by the calling function
 */
-std::shared_ptr<std::vector<util::bin_t>> cr::bucketVolumeData(
+std::unique_ptr<std::vector<util::bin_t>> cr::bucketVolumeData(
     const VolumeDataBase &volumeData,
     size_t numBins,
     float min,
     float max)
 {
-    std::shared_ptr<std::vector<util::bin_t>> bins = nullptr;
+    std::unique_ptr<std::vector<util::bin_t>> bins = nullptr;
     VolumeConfig volumeConfig = volumeData.getVolumeConfig();
     void *values = reinterpret_cast<void*>(volumeData.getRawData());
 
     switch(volumeConfig.getVoxelType())
     {
         case Datatype::unsigned_byte:
-            bins = std::make_shared<std::vector<util::bin_t>>(
+            bins = std::make_unique<std::vector<util::bin_t>>(
                 util::binData<unsigned_byte_t>(
                 numBins,
                 static_cast<unsigned_byte_t>(min),
@@ -665,7 +673,7 @@ std::shared_ptr<std::vector<util::bin_t>> cr::bucketVolumeData(
             break;
 
         case Datatype::signed_byte:
-            bins = std::make_shared<std::vector<util::bin_t>>(
+            bins = std::make_unique<std::vector<util::bin_t>>(
                 util::binData<signed_byte_t>(
                 numBins,
                 static_cast<signed_byte_t>(min),
@@ -675,7 +683,7 @@ std::shared_ptr<std::vector<util::bin_t>> cr::bucketVolumeData(
             break;
 
         case Datatype::unsigned_halfword:
-            bins = std::make_shared<std::vector<util::bin_t>>(
+            bins = std::make_unique<std::vector<util::bin_t>>(
                 util::binData<unsigned_halfword_t>(
                 numBins,
                 static_cast<unsigned_halfword_t>(min),
@@ -685,7 +693,7 @@ std::shared_ptr<std::vector<util::bin_t>> cr::bucketVolumeData(
             break;
 
         case Datatype::signed_halfword:
-            bins = std::make_shared<std::vector<util::bin_t>>(
+            bins = std::make_unique<std::vector<util::bin_t>>(
                 util::binData<signed_halfword_t>(
                 numBins,
                 static_cast<signed_halfword_t>(min),
@@ -695,7 +703,7 @@ std::shared_ptr<std::vector<util::bin_t>> cr::bucketVolumeData(
             break;
 
         case Datatype::unsigned_word:
-            bins = std::make_shared<std::vector<util::bin_t>>(
+            bins = std::make_unique<std::vector<util::bin_t>>(
                 util::binData<unsigned_word_t>(
                 numBins,
                 static_cast<unsigned_word_t>(min),
@@ -705,7 +713,7 @@ std::shared_ptr<std::vector<util::bin_t>> cr::bucketVolumeData(
             break;
 
         case Datatype::signed_word:
-            bins = std::make_shared<std::vector<util::bin_t>>(
+            bins = std::make_unique<std::vector<util::bin_t>>(
                 util::binData<signed_word_t>(
                 numBins,
                 static_cast<signed_word_t>(min),
@@ -715,7 +723,7 @@ std::shared_ptr<std::vector<util::bin_t>> cr::bucketVolumeData(
             break;
 
         case Datatype::unsigned_longword:
-            bins = std::make_shared<std::vector<util::bin_t>>(
+            bins = std::make_unique<std::vector<util::bin_t>>(
                 util::binData<unsigned_longword_t>(
                 numBins,
                 static_cast<unsigned_longword_t>(min),
@@ -725,7 +733,7 @@ std::shared_ptr<std::vector<util::bin_t>> cr::bucketVolumeData(
             break;
 
         case Datatype::signed_longword:
-            bins = std::make_shared<std::vector<util::bin_t>>(
+            bins = std::make_unique<std::vector<util::bin_t>>(
                 util::binData<signed_longword_t>(
                 numBins,
                 static_cast<signed_longword_t>(min),
@@ -735,7 +743,7 @@ std::shared_ptr<std::vector<util::bin_t>> cr::bucketVolumeData(
             break;
 
         case Datatype::single_precision_float:
-            bins = std::make_shared<std::vector<util::bin_t>>(
+            bins = std::make_unique<std::vector<util::bin_t>>(
                 util::binData<single_precision_float_t>(
                 numBins,
                 static_cast<single_precision_float_t>(min),
@@ -745,7 +753,7 @@ std::shared_ptr<std::vector<util::bin_t>> cr::bucketVolumeData(
             break;
 
         case Datatype::double_precision_float:
-            bins = std::make_shared<std::vector<util::bin_t>>(
+            bins = std::make_unique<std::vector<util::bin_t>>(
                 util::binData<double_precision_float_t>(
                 numBins,
                 static_cast<double_precision_float_t>(min),

@@ -195,9 +195,9 @@ namespace mvr
         glm::mat4 m_quadProjMx;
 
         // volume data
-        std::shared_ptr<std::vector<util::bin_t>> m_histogramBins;
+        std::unique_ptr<std::vector<util::bin_t>> m_histogramBins;
         util::tf::TransferFuncRGBA1D m_transferFunction;
-        std::shared_ptr<cr::VolumeDataBase> m_volumeData;
+        std::unique_ptr<cr::VolumeDataBase> m_volumeData;
         util::texture::Texture3D m_volumeTex;
 
         // miscellaneous

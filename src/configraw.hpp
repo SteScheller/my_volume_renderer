@@ -53,11 +53,11 @@ namespace cr
     class VolumeDataBase;
     unsigned int datatypeSize(cr::Datatype type);
     Datatype dotconfigValToDatatype(std::string value);
-    std::shared_ptr<VolumeDataBase> loadScalarVolumeTimestep(
+    std::unique_ptr<VolumeDataBase> loadScalarVolumeTimestep(
         VolumeConfig volumeConfig, unsigned int n, bool swap);
     util::texture::Texture3D loadScalarVolumeTex(
         const VolumeDataBase &volumeData);
-    std::shared_ptr<std::vector<util::bin_t>> bucketVolumeData(
+    std::unique_ptr<std::vector<util::bin_t>> bucketVolumeData(
         const VolumeDataBase &volumeData,
         size_t numBins,
         float min,
