@@ -576,7 +576,7 @@ void mvr::Renderer::drawSettingsWindow()
             "transfer function",
             &renderMode,
             static_cast<int>(Mode::transfer_function));
-        m_renderMode = static_cast<mvr::Mode>(m_renderMode);
+        m_renderMode = static_cast<mvr::Mode>(renderMode);
 
         ImGui::Spacing();
 
@@ -1334,6 +1334,21 @@ void mvr::Renderer::updatePingPongFramebufferObjects()
         std::move(fboTexturesPong), attachments);
 }
 
+void::mvr::Renderer::reloadShaders()
+{
+    std::cout << "Reloading shaders..." << std::endl;
+    m_shaderQuad = Shader("src/shader/quad.vert", "src/shader/quad.frag");
+    m_shaderFrame = Shader("src/shader/frame.vert", "src/shader/frame.frag");
+    m_shaderVolume =
+        Shader("src/shader/volume.vert", "src/shader/volume.frag");
+    m_shaderTfColor =
+        Shader("src/shader/tfColor.vert", "src/shader/tfColor.frag");
+    m_shaderTfFunc =
+        Shader("src/shader/tfFunc.vert", "src/shader/tfFunc.frag");
+    m_shaderTfPoint =
+        Shader("src/shader/tfPoint.vert", "src/shader/tfPoint.frag");
+}
+
 void mvr::Renderer::resizeRendering(
     int width,
     int height)
@@ -1489,9 +1504,7 @@ void mvr::Renderer::key_cb(
         glfwSetWindowShouldClose(window, true);
 
     if((key == GLFW_KEY_F5) && (action == GLFW_PRESS))
-    {
-        // TODO: write reload shader function and call it here
-    }
+        pThis->reloadShaders();
 
     if((key == GLFW_KEY_F10) && (action == GLFW_PRESS))
         pThis->m_showMenues = !(pThis->m_showMenues);

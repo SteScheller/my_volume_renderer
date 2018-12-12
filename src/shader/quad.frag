@@ -1,5 +1,5 @@
 #version 330 core
-layout(location = 0) out vec4 frag_color;
+layout(location = 0) out vec4 fragColor;
 
 in vec2 vTexCoord;
 
@@ -20,20 +20,19 @@ void main()
     {
         case 1: // random number generator texture
             state = texture(rngTex, vTexCoord);
-            frag_color.r = float(state.x % 256U) / 255.f;
-            frag_color.g = float(state.y % 256U) / 255.f;
-            frag_color.b = float(state.z % 256U) / 255.f;
-            frag_color.a = float(state.w % 256U) / 255.f;
+            fragColor.r = float(state.x % 256U) / 255.f;
+            fragColor.g = float(state.y % 256U) / 255.f;
+            fragColor.b = float(state.z % 256U) / 255.f;
+            fragColor.a = float(state.w % 256U) / 255.f;
             break;
 
         case 2: // volume texture
             value = texture(volumeTex, vec3(vTexCoord, volumeZ)).r;
-            frag_color = vec4(vec3(value), 1.f);
             break;
 
         case 0:
         default:
-            frag_color = texture(renderTex, vTexCoord);
+            fragColor = texture(renderTex, vTexCoord);
             break;
     }
 }

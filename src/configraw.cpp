@@ -621,9 +621,9 @@ util::texture::Texture3D cr::loadScalarVolumeTex(
             type,
             GL_LINEAR,
             GL_CLAMP_TO_BORDER,
-            volumeConfig.getVoxelDim()[0],
-            volumeConfig.getVoxelDim()[1],
-            volumeConfig.getVoxelDim()[2],
+            volumeConfig.getVolumeDim()[0],
+            volumeConfig.getVolumeDim()[1],
+            volumeConfig.getVolumeDim()[2],
             volumeData.getRawData());
 
     else

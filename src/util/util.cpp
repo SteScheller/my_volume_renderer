@@ -14,7 +14,8 @@
 //-----------------------------------------------------------------------------
 util::FramebufferObject::FramebufferObject() :
     m_ID(0),
-    m_textures(std::vector<util::texture::Texture2D>(0))
+    m_textures(std::vector<util::texture::Texture2D>(0)),
+    m_attachments(0)
 {
 }
 
@@ -25,19 +26,18 @@ util::FramebufferObject::FramebufferObject(
     m_textures(std::move(textures)),
     m_attachments(attachments)
 {
-    if ((m_textures.size() != attachments.size()))
+    if ((m_textures.size() != m_attachments.size()))
         return;
 
     glGenFramebuffers(1, &m_ID);
-    m_textures = std::move(textures);
 
     this->bind();
 
-    for (size_t i = 0; i < textures.size(); ++i)
+    for (size_t i = 0; i < m_textures.size(); ++i)
     {
         glFramebufferTexture2D(
             GL_FRAMEBUFFER,
-            attachments[i],
+            m_attachments[i],
             GL_TEXTURE_2D,
             m_textures[i].getID(),
             0);
@@ -54,7 +54,8 @@ util::FramebufferObject::FramebufferObject(
 
 util::FramebufferObject::FramebufferObject(util::FramebufferObject&& other) :
     m_ID(other.m_ID),
-    m_textures(std::move(other.m_textures))
+    m_textures(std::move(other.m_textures)),
+    m_attachments(std::move(other.m_attachments))
 {
     other.m_ID = 0;
 }
@@ -67,6 +68,7 @@ util::FramebufferObject& util::FramebufferObject::operator=(
 
     m_ID = other.m_ID;
     m_textures = std::move(other.m_textures);
+    m_attachments = std::move(other.m_attachments);
     other.m_ID = 0;
 
     return *this;

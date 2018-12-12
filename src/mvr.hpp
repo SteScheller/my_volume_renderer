@@ -236,6 +236,8 @@ namespace mvr
 
         void updatePingPongFramebufferObjects();
 
+        void reloadShaders();
+
         void resizeRendering(int width, int height);
 
         void createHelpMarker(const char* desc);
