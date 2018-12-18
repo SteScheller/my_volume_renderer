@@ -185,6 +185,7 @@ namespace mvr
         util::geometry::CubeFrame m_volumeFrame;
         util::geometry::Cube m_volumeCube;
         util::geometry::Quad m_windowQuad;
+        util::geometry::Point2D m_tfPoint;
         glm::vec4 m_boundingBoxMin;
         glm::vec4 m_boundingBoxMax;
 

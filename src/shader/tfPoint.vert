@@ -17,5 +17,5 @@ void main()
     // y is flipped for use of texture in ImGui Image
     pos_y = 1.f - color.a;
 
-    gl_Position = projMX * vec4(pos_x, pos_y, 0.f, 1.f);
+    gl_Position = projMX * vec4(pos_x - 0.5f, pos_y - 0.5f, 0.f, 1.f);
 }

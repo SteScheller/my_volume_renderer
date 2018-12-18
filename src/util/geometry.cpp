@@ -298,6 +298,7 @@ void util::geometry::Cube::draw() const
     glDrawElements(GL_TRIANGLES, 3 * 2 * 6, GL_UNSIGNED_INT, 0);
     this->unbind();
 }
+
 //-----------------------------------------------------------------------------
 // Quad
 //-----------------------------------------------------------------------------
@@ -396,5 +397,69 @@ void util::geometry::Quad::draw() const
 {
     this->bind();
     glDrawElements(GL_TRIANGLE_FAN, 4, GL_UNSIGNED_INT, 0);
+    this->unbind();
+}
+
+//-----------------------------------------------------------------------------
+// Point2D
+//-----------------------------------------------------------------------------
+util::geometry::Point2D::Point2D(bool oglAvailable)
+{
+    if (false == oglAvailable)
+    {
+        m_vertexArrayObject = 0;
+        return;
+    }
+
+    std::array<float, 2> vertices = {0.f,  0.f};
+
+    GLuint ebo = 0;
+    GLuint vbo = 0;
+
+    // create buffers
+    glGenVertexArrays(1, &m_vertexArrayObject);
+    glGenBuffers(1, &vbo);
+    glGenBuffers(1, &ebo);
+
+    this->bind();
+
+    // vertex coordinates
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBufferData(
+        GL_ARRAY_BUFFER,
+        vertices.size() * sizeof(float),
+        vertices.data(),
+        GL_STATIC_DRAW);
+    glVertexAttribPointer(
+        0,
+        2,
+        GL_FLOAT,
+        GL_FALSE,
+        2 * sizeof(float),
+        (void*) 0);
+    glEnableVertexAttribArray(0);
+
+    this->unbind();
+
+    glDeleteBuffers(1, &vbo);
+    glDeleteBuffers(1, &ebo);
+}
+
+util::geometry::Point2D& util::geometry::Point2D::operator=(
+        util::geometry::Point2D&& other)
+{
+    Shape::operator=(std::move(other));
+
+    return *this;
+}
+
+util::geometry::Point2D::~Point2D()
+{
+}
+
+void util::geometry::Point2D::draw() const
+{
+    this->bind();
+    glDrawArrays(GL_POINTS, 0, 1);
     this->unbind();
 }

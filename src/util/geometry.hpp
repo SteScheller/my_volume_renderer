@@ -65,5 +65,18 @@ namespace util
 
             void draw() const;
         };
+
+        class Point2D : Shape
+        {
+            public:
+            Point2D(bool oglAvailable);
+            Point2D(const Point2D& other) = delete;
+            Point2D& operator=(const Point2D& other) = delete;
+            Point2D(Point2D&& other) : Shape(std::move(other)) {};
+            Point2D& operator=(Point2D&& other);
+            ~Point2D();
+
+            void draw() const;
+        };
     }
 }

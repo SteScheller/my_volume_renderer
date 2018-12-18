@@ -119,6 +119,7 @@ mvr::Renderer::Renderer() :
     m_volumeFrame(false),
     m_volumeCube(false),
     m_windowQuad(false),
+    m_tfPoint(false),
     m_boundingBoxMin(glm::vec3(-0.5f), 1.f),
     m_boundingBoxMax(glm::vec3(0.5f), 1.f),
     m_volumeModelMx(1.f),
@@ -193,6 +194,7 @@ int mvr::Renderer::Initialize()
     m_volumeFrame = util::geometry::CubeFrame(true);
     m_volumeCube = util::geometry::Cube(true);
     m_windowQuad = util::geometry::Quad(true);
+    m_tfPoint = util::geometry::Point2D(true);
 
     //-------------------------------------------------------------------------
     // utility textures
@@ -1177,8 +1179,7 @@ void mvr::Renderer::drawTfFunc(util::FramebufferObject &tfFuncWidgetFBO)
     {
         m_shaderTfPoint.setFloat("pos", i->pos);
         m_shaderTfPoint.setVec4("color", i->color);
-
-        glDrawArrays(GL_POINTS, 0, 1);
+        m_tfPoint.draw();
     }
 
     glBindVertexArray(0);
@@ -1437,8 +1438,7 @@ void mvr::Renderer::mouseButton_cb(
 
     if ((button == GLFW_MOUSE_BUTTON_LEFT) && (action == GLFW_RELEASE))
     {
-        if (    (pThis->m_renderMode == Mode::transfer_function) &&
-                pThis->m_showTfWindow   )
+        if ( pThis->m_showTfWindow )
         {
             // the user might try to select a control point in the transfer
             // function editor
@@ -1449,7 +1449,7 @@ void mvr::Renderer::mouseButton_cb(
 
             // bind FBO-object and the color-attachment which contains
             // the unique picking ID
-            pThis->m_tfColorWidgetFBO.bindRead(1);
+            pThis->m_tfFuncWidgetFBO.bindRead(1);
 
             // send all commands to the GPU and wait until everything is drawn
             glFlush();
