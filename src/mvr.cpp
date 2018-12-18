@@ -1418,7 +1418,7 @@ void mvr::Renderer::cursorPosition_cb(
                 dx * pThis->m_cameraTranslationSpeed) * horizontal +
             static_cast<float>(
                 dy * pThis->m_cameraTranslationSpeed) * vertical;
-        pThis->m_cameraPosition +=
+        pThis->m_cameraLookAt +=
             static_cast<float>(
                 dx * pThis->m_cameraTranslationSpeed) * horizontal +
             static_cast<float>(
