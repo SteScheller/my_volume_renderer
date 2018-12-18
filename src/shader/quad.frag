@@ -11,6 +11,7 @@ uniform sampler3D volumeTex;    //!< 3D texture that contains the volume data
 uniform int texSelect;          //!< selection which texture shall be shown
 
 uniform float volumeZ;          //!< z coordinate for volume sampling
+
 void main()
 {
     uvec4 state = uvec4(0U);
@@ -28,6 +29,7 @@ void main()
 
         case 2: // volume texture
             value = texture(volumeTex, vec3(vTexCoord, volumeZ)).r;
+            fragColor = vec4(vec3(value), 1.f);
             break;
 
         case 0:
