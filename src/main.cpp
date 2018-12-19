@@ -8,7 +8,7 @@ namespace po = boost::program_options;
 //-----------------------------------------------------------------------------
 // function prototypes
 //-----------------------------------------------------------------------------
-void applyProgramOptions(int argc, char *argv[]);
+void applyProgramOptions(int argc, char *argv[], mvr::Renderer&);
 
 //-----------------------------------------------------------------------------
 // main program
@@ -16,11 +16,10 @@ void applyProgramOptions(int argc, char *argv[]);
 int main(int argc, char *argv[])
 {
     int return_code = 0;
-
-    applyProgramOptions(argc, argv);
-
     mvr::Renderer renderer;
 
+    renderer.initialize();
+    applyProgramOptions(argc, argv, renderer);
     return_code = renderer.run();
 
     return return_code;
@@ -29,7 +28,7 @@ int main(int argc, char *argv[])
 //-----------------------------------------------------------------------------
 // subroutines
 //-----------------------------------------------------------------------------
-void applyProgramOptions(int argc, char *argv[])
+void applyProgramOptions(int argc, char *argv[], mvr::Renderer& renderer)
 {
     // Declare the supported options
     po::options_description desc("Allowed options");
@@ -50,25 +49,16 @@ void applyProgramOptions(int argc, char *argv[])
             exit(EXIT_SUCCESS);
         }
 
-        std::string desc_file = "";
         if (vm.count("volume"))
-            desc_file = vm["volume"].as<std::string>();
-        else
-            desc_file = mvr::Renderer::DEFAULT_VOLUME_FILE;
+        {
+            if (EXIT_SUCCESS !=
+                renderer.loadVolumeFromFile(vm["volume"].as<std::string>()))
+            {
+                std::cout << "Invalid volume description file!" << std::endl;
+                exit(EXIT_FAILURE);
+            }
+        }
 
-        cr::VolumeConfig tempConf = cr::VolumeConfig(desc_file);
-        // TODO: Extract the requested volume here and set it via the provided
-        // class function.
-        if(tempConf.isValid())
-        {
-            //strncpy(
-            //   gui_volume_desc_file, desc_file.c_str(), MAX_FILEPATH_LENGTH);
-        }
-        else
-        {
-            std::cout << "Invalid volume description!" << std::endl;
-            exit(EXIT_FAILURE);
-        }
     }
     catch(std::exception &e)
     {

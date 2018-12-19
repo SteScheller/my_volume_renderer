@@ -68,10 +68,13 @@ namespace mvr
         Renderer();
         ~Renderer();
 
-        int Initialize();
+        int initialize();
         int run();
         int setConfig();
         int renderImage();
+
+        // configuration function for batch rendering
+        int loadVolumeFromFile(std::string path);
 
         //---------------------------------------------------------------------
         // class-wide constants and default values

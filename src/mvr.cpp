@@ -148,7 +148,7 @@ mvr::Renderer::~Renderer()
     glfwTerminate();
 }
 
-int mvr::Renderer::Initialize()
+int mvr::Renderer::initialize()
 {
     int ret = EXIT_SUCCESS;
 
@@ -262,7 +262,9 @@ int mvr::Renderer::setConfig()
 
 int mvr::Renderer::run()
 {
-    int ret = Initialize();
+    int ret = EXIT_SUCCESS;
+
+    if (!(m_isInitialized == true)) ret = initialize();
     if (EXIT_SUCCESS != ret) return ret;
 
     // ------------------------------------------------------------------------
@@ -401,6 +403,30 @@ int mvr::Renderer::renderImage()
 {
     // TODO
 
+    return EXIT_SUCCESS;
+}
+
+//-----------------------------------------------------------------------------
+// public functions for settings the renderer configuratios
+//-----------------------------------------------------------------------------
+int mvr::Renderer::loadVolumeFromFile(std::string path)
+{
+    cr::VolumeConfig volumeConfig = cr::VolumeConfig(path);
+
+    if (false == m_isInitialized)
+    {
+        std::cerr << "Error: Renderer::Initialize() must be called "
+            "successfully before Renderer::loadVolumeFromFile() can be used!"
+            << std::endl;
+        return EXIT_FAILURE;
+    }
+
+    if(volumeConfig.isValid())
+        loadVolume(volumeConfig);
+    else
+        return EXIT_FAILURE;
+
+    m_volumeDescriptionFile = path;
     return EXIT_SUCCESS;
 }
 
