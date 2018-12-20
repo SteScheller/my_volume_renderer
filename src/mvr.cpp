@@ -27,6 +27,10 @@
 
 #include <FreeImage.h>
 
+#include <json.hpp>
+
+using json = nlohmann::json;
+
 #include "shader.hpp"
 #include "util/util.hpp"
 #include "configraw.hpp"
@@ -245,6 +249,8 @@ int mvr::Renderer::initialize()
 
 int mvr::Renderer::setConfig(std::string path)
 {
+    std::ifstream fs;
+
     if (false == m_isInitialized)
     {
         std::cerr << "Error: Renderer::initialize() must be called "
@@ -256,6 +262,93 @@ int mvr::Renderer::setConfig(std::string path)
     // TODO
     // Method that sweeps through a json config and applies the according
     // settings to the class
+
+    fs.open(path.c_str(), std::ofstream::in);
+    try
+    {
+        json jsonConfig;
+
+        fs >> jsonConfig;
+
+        // Simply set private variables:
+        // - m_renderMode
+        // - m_outputSelect
+        //
+        // - m_showVolumeFrame
+        // - m_showWireFrame
+        // - m_showDemoWindow
+        // - m_showTfWindow
+        // - m_showHistogramWindow
+        // - m_semilogHistogram
+        // - m_binNumberHistogram
+        // - m_yLimitHistogramMax
+        // - m_xLimitsMin
+        // - m_xLimitsMax
+        // - m_inverColors
+        // - m_invertAlpha
+        // - m_clearColor
+        //
+        // - m_outputZSlice
+        //
+        // - m_stepSize
+        // - m_gradientethod
+        //
+        // - m_fovY
+        // - m_zNear
+        // - m_zFar
+        // - m_cameraPosition
+        // - m_cameraLookAt
+        // - m_cameraZoomSpeed
+        // - m_cameraRotationSpeed
+        // - m_cameraTranslationSpeed
+        // - m_projection
+        //
+        // - m_isovalue
+        // - m_isovalueDenoising
+        // - m_isovalueDenoisingRadius
+        //
+        // - m_brightness
+        // - m_lightDirection
+        // - m_ambientColor
+        // - m_diffuseColor
+        // - m_specularColor
+        // - m_ambientFactor
+        // - m_diffuseFactor
+        // - m_specularfactor
+        // - m_specularExponent
+        //
+        // - m_slicingPlane
+        // - m_slicingPlaneNormal
+        // - m_slicingPlaneBase
+        //
+        // - m_ambientOcclusion
+        // - m_ambientOcclussionRadius
+        // - m_ambientOcclusionProportion
+        // - m_ambientOcclusionNumSamples
+        //
+        // More complex mechanism necessary:
+        // - transfer function
+        // - window dimensions
+        // - rendering dimensions
+        // - volume description file and timestep
+        // - timestep
+        //
+        // Open questions
+        // - Draw draw menues? No -> only render with rendering resolution
+        //
+    }
+    catch(json::exception &e)
+    {
+        std::cout << "Error loading renderer configuration from file: " <<
+            path << std::endl;
+        std::cout << "JSON exception: " << e.what() << std::endl;
+    }
+    catch(std::exception &e)
+    {
+        std::cout << "Error loading renderer configuration from file: " <<
+            path << std::endl;
+        std::cout << "General exception: " << e.what() << std::endl;
+    }
 
     return 0;
 }

@@ -7,3 +7,8 @@ new features:
 
 refactoring:
 - write own shader utility class
+
+other:
+- provide documentation on loadable data sets and volume configuration files
+- provide example json configuration file that sets all available program parameters
+- documents configuration options (available in gui and configuration file)
