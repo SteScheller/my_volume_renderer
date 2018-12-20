@@ -243,11 +243,11 @@ int mvr::Renderer::initialize()
     return ret;
 }
 
-int mvr::Renderer::setConfig()
+int mvr::Renderer::setConfig(std::string path)
 {
     if (false == m_isInitialized)
     {
-        std::cerr << "Error: Renderer::Initialize() must be called "
+        std::cerr << "Error: Renderer::initialize() must be called "
             "successfully before Renderer::setConfig() can be used!" <<
             std::endl;
         return EXIT_FAILURE;
@@ -264,7 +264,14 @@ int mvr::Renderer::run()
 {
     int ret = EXIT_SUCCESS;
 
-    if (!(m_isInitialized == true)) ret = initialize();
+    if (false == m_isInitialized)
+    {
+        std::cerr << "Error: Renderer::initialize() must be called "
+            "successfully before Renderer::run() can be used!" <<
+            std::endl;
+        return EXIT_FAILURE;
+    }
+
     if (EXIT_SUCCESS != ret) return ret;
 
     // ------------------------------------------------------------------------
@@ -399,8 +406,16 @@ int mvr::Renderer::run()
     return EXIT_SUCCESS;
 }
 
-int mvr::Renderer::renderImage()
+int mvr::Renderer::renderToFile(std::string path)
 {
+    if (false == m_isInitialized)
+    {
+        std::cerr << "Error: Renderer::initialize() must be called "
+            "successfully before Renderer::renderToFile(...) can be used!" <<
+            std::endl;
+        return EXIT_FAILURE;
+    }
+
     // TODO
 
     return EXIT_SUCCESS;
@@ -415,7 +430,7 @@ int mvr::Renderer::loadVolumeFromFile(std::string path)
 
     if (false == m_isInitialized)
     {
-        std::cerr << "Error: Renderer::Initialize() must be called "
+        std::cerr << "Error: Renderer::initialize() must be called "
             "successfully before Renderer::loadVolumeFromFile() can be used!"
             << std::endl;
         return EXIT_FAILURE;

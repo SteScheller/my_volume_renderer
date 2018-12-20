@@ -65,13 +65,18 @@ namespace mvr
     {
         public:
 
+        // creation and destruction
         Renderer();
+        Renderer(const Renderer &other) = delete;
+        Renderer(Renderer&& other) = delete;
+        Renderer& operator=(const Renderer &other) = delete;
+        Renderer& operator=(Renderer &other) = delete;
         ~Renderer();
 
         int initialize();
         int run();
-        int setConfig();
-        int renderImage();
+        int setConfig(std::string path);
+        int renderToFile(std::string path);
 
         // configuration function for batch rendering
         int loadVolumeFromFile(std::string path);

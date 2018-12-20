@@ -8,34 +8,69 @@ namespace po = boost::program_options;
 //-----------------------------------------------------------------------------
 // function prototypes
 //-----------------------------------------------------------------------------
-void applyProgramOptions(int argc, char *argv[], mvr::Renderer&);
+int applyProgramOptions(
+    int argc,
+    char *argv[],
+    mvr::Renderer &renderer,
+    std::string &output);
 
 //-----------------------------------------------------------------------------
 // main program
 //-----------------------------------------------------------------------------
 int main(int argc, char *argv[])
 {
-    int return_code = 0;
+    int ret = EXIT_SUCCESS;
     mvr::Renderer renderer;
+    std::string output = "";
 
-    renderer.initialize();
-    applyProgramOptions(argc, argv, renderer);
-    return_code = renderer.run();
+    ret = renderer.initialize();
+    if (EXIT_SUCCESS != ret)
+    {
+        std::cout << "Error: failed to initialize renderer." << std::endl;
+        return ret;
+    }
 
-    return return_code;
+    ret = applyProgramOptions(argc, argv, renderer, output);
+    if (EXIT_SUCCESS != ret)
+    {
+        std::cout <<
+            "Error: failed to apply command line arguments." << std::endl;
+        return ret;
+    }
+
+    if ("" == output)
+        ret = renderer.run();
+    else
+        ret = renderer.renderToFile(output);
+
+    if (EXIT_SUCCESS != ret)
+    {
+        printf("Error: renderer terminated with error code (%i).\n", ret);
+        return ret;
+    }
+
+    return ret;
 }
 
 //-----------------------------------------------------------------------------
 // subroutines
 //-----------------------------------------------------------------------------
-void applyProgramOptions(int argc, char *argv[], mvr::Renderer& renderer)
+int applyProgramOptions(
+        int argc,
+        char *argv[],
+        mvr::Renderer& renderer,
+        std::string& output)
 {
     // Declare the supported options
     po::options_description desc("Allowed options");
     desc.add_options()
         ("help,h", "produce help message")
         ("volume", po::value<std::string>(), "volume description file")
+        ("config", po::value<std::string>(), "renderer configuration file")
+        ("output-file", po::value<std::string>(), "batch mode output file")
     ;
+
+    int ret = EXIT_SUCCESS;
 
     try
     {
@@ -46,24 +81,41 @@ void applyProgramOptions(int argc, char *argv[], mvr::Renderer& renderer)
         if (vm.count("help"))
         {
             std::cout << desc << std::endl;
-            exit(EXIT_SUCCESS);
+            return EXIT_SUCCESS;
+        }
+
+        if (vm.count("config"))
+        {
+            ret = renderer.setConfig(vm["config"].as<std::string>());
+            if (EXIT_SUCCESS != ret)
+            {
+                std::cout <<
+                    "Error: failed to apply config file." << std::endl;
+                return ret;
+            }
         }
 
         if (vm.count("volume"))
         {
-            if (EXIT_SUCCESS !=
-                renderer.loadVolumeFromFile(vm["volume"].as<std::string>()))
+            ret = renderer.loadVolumeFromFile(vm["volume"].as<std::string>());
+            if (EXIT_SUCCESS != ret)
             {
-                std::cout << "Invalid volume description file!" << std::endl;
-                exit(EXIT_FAILURE);
+                std::cout <<
+                    "Error: failed to load volume data set." << std::endl;
+                return ret;
             }
         }
+
+        if (vm.count("output-file"))
+            output = vm["output-file"].as<std::string>();
 
     }
     catch(std::exception &e)
     {
         std::cout << "Invalid program options!" << std::endl;
-        exit(EXIT_FAILURE);
+        return EXIT_FAILURE;
     }
+
+    return ret;
 }
 

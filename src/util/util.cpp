@@ -47,7 +47,7 @@ util::FramebufferObject::FramebufferObject(
     printOpenGLError();
 
     if (!(GL_FRAMEBUFFER_COMPLETE == glCheckFramebufferStatus(GL_FRAMEBUFFER)))
-        std::cerr << "Error: frame buffer object incomplete!\n" << std::endl;
+        std::cerr << "Error: frame buffer object incomplete!" << std::endl;
 
     this->unbind();
 }
