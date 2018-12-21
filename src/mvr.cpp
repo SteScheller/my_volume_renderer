@@ -28,7 +28,6 @@
 #include <FreeImage.h>
 
 #include <json.hpp>
-
 using json = nlohmann::json;
 
 #include "shader.hpp"
@@ -275,7 +274,7 @@ int mvr::Renderer::setConfig(std::string path)
         // - m_outputSelect
         //
         // - m_showVolumeFrame
-        // - m_showWireFrame
+        // - m_showWireframe
         // - m_showDemoWindow
         // - m_showTfWindow
         // - m_showHistogramWindow
@@ -284,14 +283,14 @@ int mvr::Renderer::setConfig(std::string path)
         // - m_yLimitHistogramMax
         // - m_xLimitsMin
         // - m_xLimitsMax
-        // - m_inverColors
+        // - m_invertColors
         // - m_invertAlpha
         // - m_clearColor
         //
         // - m_outputZSlice
         //
         // - m_stepSize
-        // - m_gradientethod
+        // - m_gradientMethod
         //
         // - m_fovY
         // - m_zNear
@@ -332,9 +331,6 @@ int mvr::Renderer::setConfig(std::string path)
         // - rendering dimensions
         // - volume description file and timestep
         // - timestep
-        //
-        // Open questions
-        // - Draw draw menues? No -> only render with rendering resolution
         //
     }
     catch(json::exception &e)
