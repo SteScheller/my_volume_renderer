@@ -1,6 +1,7 @@
 #include "mvr.hpp"
 
 #include <iostream>
+#include <iomanip>
 #include <cstdlib>
 #include <cmath>
 #include <cstring>
@@ -440,6 +441,122 @@ int mvr::Renderer::renderToFile(std::string path)
     return ret;
 }
 
+int mvr::Renderer::saveConfigToFile(std::string path)
+{
+    int ret = EXIT_SUCCESS;
+
+
+    try
+    {
+        std::ofstream ofs(path, std::ofstream::out);
+        json conf;
+
+        conf["volumeDescriptionFile"] = m_volumeDescriptionFile;
+        // TODO:
+        /*
+        {
+            "volumeDescriptionFile" : "/mnt/local/data/testData/18A.json",
+            "timestep" : 0,
+
+            "renderingDimensions" : [1920, 1080],
+
+            "renderMode" : "transfer_function",
+            "outputSelect" : "volume_rendering",
+
+            "showVolumeFrame" : false,
+            "showWireframe" : false,
+            "showDemoWindow" : false,
+            "showTfWindow" : true,
+            "showHistogramWindow" : true,
+            "semilogHistogramWindow" : false,
+            "binNumberHistogram" : 255,
+            "yLimitHistogramMax" : 100000,
+            "xLimitsMin" : 0,
+            "xLimitsMax" : 255,
+            "invertColors" : false,
+            "invertAlpha" : false,
+            "clearColor" : [0, 0, 0],
+            "outputZSlice" : 0,
+
+            "stepSize" : 0.25,
+            "gradientMethod" : "sobel_operators",
+
+            "fovY" : 80,
+            "zNear" : 0,
+            "zFar" : 30,
+            "cameraPosition" : [1.2, 0.75, 1],
+            "cameraLookAt" : [0, 0, 0],
+            "cameraZoomSpeed" : 0.1,
+            "cameraRotationSpeed" : 0.2,
+            "cameraTranslationSpeed" : 0.002,
+            "projection" : "perspective",
+
+            "isovalue" : 0.1,
+            "isovalueDenoising" : true,
+            "isovalueDenoisingRadius" : 0.1,
+
+            "brightness" : 1,
+            "lightDirection" : [0.3, 1, -0.3],
+            "ambientColor" : [0.2, 0.2, 0.2],
+            "diffuseColor" : [1.0, 1.0, 1.0],
+            "specularColor" : [1.0, 1.0, 1.0],
+            "ambientFactor" : 0.2,
+            "diffuseFactor" : 0.3,
+            "specularFactor" : 0.5,
+            "specularExponent" : 10,
+
+            "slicingPlane" : false,
+            "slicingPlaneNormal" : [0, 0, 1],
+            "slicingPlaneBase" : [0, 0, 0],
+
+            "ambientOcclusion" : false,
+            "ambientOcclucsionRadius" : 0.2,
+            "ambientOcclucsionProportion" : 0.5,
+            "ambientOcclusionNumSamples" : 10,
+
+            "transferFunction" : [
+                {
+                    "position" : 0,
+                    "color" : [0, 0, 0],
+                    "alpha" : 0,
+                    "slope" : 0
+                },
+                {
+                    "position" : 127,
+                    "color" : [1, 0, 0],
+                    "alpha" : 0.5,
+                    "slope" : 1
+                },
+                {
+                    "position" : 255,
+                    "color" : [1, 1, 1],
+                    "alpha" : 1,
+                    "slope" : 0
+                }
+            ]
+        }
+        */
+
+        ofs << std::setw(4) << conf << std::endl;
+        ofs.close();
+    }
+    catch(json::exception &e)
+    {
+        std::cout << "Error saving renderer configuration to file: " <<
+            path << std::endl;
+        std::cout << "JSON exception: " << e.what() << std::endl;
+        ret = EXIT_FAILURE;
+    }
+    catch(std::exception &e)
+    {
+        std::cout << "Error saving renderer configuration to file: " <<
+            path << std::endl;
+        std::cout << "General exception: " << e.what() << std::endl;
+        ret = EXIT_FAILURE;
+    }
+
+    return ret;
+}
 //-----------------------------------------------------------------------------
 // public functions for setting the renderer configuration
 //-----------------------------------------------------------------------------
@@ -466,10 +583,6 @@ int mvr::Renderer::setConfig(std::string path)
             std::endl;
         return EXIT_FAILURE;
     }
-
-    // TODO
-    // Method that sweeps through a json config and applies the according
-    // settings to the class
 
     fs.open(path.c_str(), std::ofstream::in);
     try

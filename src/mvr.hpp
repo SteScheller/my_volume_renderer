@@ -104,6 +104,7 @@ namespace mvr
         int run();
         int setConfig(std::string path);
         int renderToFile(std::string path);
+        int saveConfigToFile(std::string path);
 
         // configuration function for batch rendering
         int loadVolumeFromFile(std::string path, unsigned int timestep = 0);
