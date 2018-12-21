@@ -213,7 +213,7 @@ int mvr::Renderer::initialize()
     // and a texture object
     cr::VolumeConfig volumeConfig = cr::VolumeConfig(m_volumeDescriptionFile);
     if(volumeConfig.isValid())
-        loadVolume(volumeConfig);
+        loadVolume(volumeConfig, m_timestep);
     else
     {
         ret = EXIT_FAILURE;
@@ -244,109 +244,6 @@ int mvr::Renderer::initialize()
         m_isInitialized = true;
 
     return ret;
-}
-
-int mvr::Renderer::setConfig(std::string path)
-{
-    std::ifstream fs;
-
-    if (false == m_isInitialized)
-    {
-        std::cerr << "Error: Renderer::initialize() must be called "
-            "successfully before Renderer::setConfig() can be used!" <<
-            std::endl;
-        return EXIT_FAILURE;
-    }
-
-    // TODO
-    // Method that sweeps through a json config and applies the according
-    // settings to the class
-
-    fs.open(path.c_str(), std::ofstream::in);
-    try
-    {
-        json jsonConfig;
-
-        fs >> jsonConfig;
-
-        // Simply set private variables:
-        // - m_renderMode
-        // - m_outputSelect
-        //
-        // - m_showVolumeFrame
-        // - m_showWireframe
-        // - m_showDemoWindow
-        // - m_showTfWindow
-        // - m_showHistogramWindow
-        // - m_semilogHistogram
-        // - m_binNumberHistogram
-        // - m_yLimitHistogramMax
-        // - m_xLimitsMin
-        // - m_xLimitsMax
-        // - m_invertColors
-        // - m_invertAlpha
-        // - m_clearColor
-        //
-        // - m_outputZSlice
-        //
-        // - m_stepSize
-        // - m_gradientMethod
-        //
-        // - m_fovY
-        // - m_zNear
-        // - m_zFar
-        // - m_cameraPosition
-        // - m_cameraLookAt
-        // - m_cameraZoomSpeed
-        // - m_cameraRotationSpeed
-        // - m_cameraTranslationSpeed
-        // - m_projection
-        //
-        // - m_isovalue
-        // - m_isovalueDenoising
-        // - m_isovalueDenoisingRadius
-        //
-        // - m_brightness
-        // - m_lightDirection
-        // - m_ambientColor
-        // - m_diffuseColor
-        // - m_specularColor
-        // - m_ambientFactor
-        // - m_diffuseFactor
-        // - m_specularfactor
-        // - m_specularExponent
-        //
-        // - m_slicingPlane
-        // - m_slicingPlaneNormal
-        // - m_slicingPlaneBase
-        //
-        // - m_ambientOcclusion
-        // - m_ambientOcclussionRadius
-        // - m_ambientOcclusionProportion
-        // - m_ambientOcclusionNumSamples
-        //
-        // More complex mechanism necessary:
-        // - transfer function
-        // - window dimensions
-        // - rendering dimensions
-        // - volume description file and timestep
-        // - timestep
-        //
-    }
-    catch(json::exception &e)
-    {
-        std::cout << "Error loading renderer configuration from file: " <<
-            path << std::endl;
-        std::cout << "JSON exception: " << e.what() << std::endl;
-    }
-    catch(std::exception &e)
-    {
-        std::cout << "Error loading renderer configuration from file: " <<
-            path << std::endl;
-        std::cout << "General exception: " << e.what() << std::endl;
-    }
-
-    return 0;
 }
 
 int mvr::Renderer::run()
@@ -511,9 +408,124 @@ int mvr::Renderer::renderToFile(std::string path)
 }
 
 //-----------------------------------------------------------------------------
-// public functions for settings the renderer configuratios
+// public functions for setting the renderer configuration
 //-----------------------------------------------------------------------------
-int mvr::Renderer::loadVolumeFromFile(std::string path)
+/**
+* \brief applies settings from a json configuration file to the renderer
+*
+* \param path file path to the json settings configuration file
+*
+* \return exit code
+*
+* This function reads a json configuration file and applies the found settings
+* to the state of the renderer. This functionality can be used for
+* programatically settings the renderer.
+*/
+int mvr::Renderer::setConfig(std::string path)
+{
+    std::ifstream fs;
+
+    if (false == m_isInitialized)
+    {
+        std::cerr << "Error: Renderer::initialize() must be called "
+            "successfully before Renderer::setConfig() can be used!" <<
+            std::endl;
+        return EXIT_FAILURE;
+    }
+
+    // TODO
+    // Method that sweeps through a json config and applies the according
+    // settings to the class
+
+    fs.open(path.c_str(), std::ofstream::in);
+    try
+    {
+        json jsonConfig;
+
+        fs >> jsonConfig;
+
+        // Simply set private variables:
+        // - m_renderMode
+        // - m_outputSelect
+        //
+        // - m_showVolumeFrame
+        // - m_showWireframe
+        // - m_showDemoWindow
+        // - m_showTfWindow
+        // - m_showHistogramWindow
+        // - m_semilogHistogram
+        // - m_binNumberHistogram
+        // - m_yLimitHistogramMax
+        // - m_xLimitsMin
+        // - m_xLimitsMax
+        // - m_invertColors
+        // - m_invertAlpha
+        // - m_clearColor
+        //
+        // - m_outputZSlice
+        //
+        // - m_stepSize
+        // - m_gradientMethod
+        //
+        // - m_fovY
+        // - m_zNear
+        // - m_zFar
+        // - m_cameraPosition
+        // - m_cameraLookAt
+        // - m_cameraZoomSpeed
+        // - m_cameraRotationSpeed
+        // - m_cameraTranslationSpeed
+        // - m_projection
+        //
+        // - m_isovalue
+        // - m_isovalueDenoising
+        // - m_isovalueDenoisingRadius
+        //
+        // - m_brightness
+        // - m_lightDirection
+        // - m_ambientColor
+        // - m_diffuseColor
+        // - m_specularColor
+        // - m_ambientFactor
+        // - m_diffuseFactor
+        // - m_specularfactor
+        // - m_specularExponent
+        //
+        // - m_slicingPlane
+        // - m_slicingPlaneNormal
+        // - m_slicingPlaneBase
+        //
+        // - m_ambientOcclusion
+        // - m_ambientOcclussionRadius
+        // - m_ambientOcclusionProportion
+        // - m_ambientOcclusionNumSamples
+        //
+        // More complex mechanism necessary:
+        // - transfer function
+        // - window dimensions
+        // - rendering dimensions
+        // - volume description file and timestep
+        // - timestep
+        //
+    }
+    catch(json::exception &e)
+    {
+        std::cout << "Error loading renderer configuration from file: " <<
+            path << std::endl;
+        std::cout << "JSON exception: " << e.what() << std::endl;
+    }
+    catch(std::exception &e)
+    {
+        std::cout << "Error loading renderer configuration from file: " <<
+            path << std::endl;
+        std::cout << "General exception: " << e.what() << std::endl;
+    }
+
+    return 0;
+}
+
+int mvr::Renderer::loadVolumeFromFile(
+        std::string path, unsigned int timestep)
 {
     cr::VolumeConfig volumeConfig = cr::VolumeConfig(path);
 
@@ -526,7 +538,7 @@ int mvr::Renderer::loadVolumeFromFile(std::string path)
     }
 
     if(volumeConfig.isValid())
-        loadVolume(volumeConfig);
+        loadVolume(volumeConfig, timestep);
     else
         return EXIT_FAILURE;
 
@@ -687,7 +699,7 @@ void mvr::Renderer::drawSettingsWindow()
         {
             tempConf = cr::VolumeConfig(m_volumeDescriptionFile);
             if(tempConf.isValid())
-                loadVolume(tempConf);
+                loadVolume(tempConf, 0);
         }
         ImGui::SameLine();
         createHelpMarker("Path to the volume description file");
@@ -729,8 +741,7 @@ void mvr::Renderer::drawSettingsWindow()
                     m_volumeData->getVolumeConfig().getNumTimesteps() - 1);
             }
 
-            m_timestep = timestep;
-            loadVolume(m_volumeData->getVolumeConfig());
+            loadVolume(m_volumeData->getVolumeConfig(), timestep);
         }
 
         ImGui::Spacing();
@@ -1322,8 +1333,10 @@ void mvr::Renderer::drawTfFunc(util::FramebufferObject &tfFuncWidgetFBO)
 
 }
 
-void mvr::Renderer::loadVolume(cr::VolumeConfig volumeConfig)
+void mvr::Renderer::loadVolume(
+        cr::VolumeConfig volumeConfig, unsigned int timestep)
 {
+    m_timestep = timestep;
     m_volumeData = cr::loadScalarVolumeTimestep(
         volumeConfig, m_timestep, false);
     m_volumeModelMx = glm::scale(

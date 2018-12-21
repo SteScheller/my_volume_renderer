@@ -97,7 +97,8 @@ int applyProgramOptions(
 
         if (vm.count("volume"))
         {
-            ret = renderer.loadVolumeFromFile(vm["volume"].as<std::string>());
+            ret = renderer.loadVolumeFromFile(
+                    vm["volume"].as<std::string>(), 0);
             if (EXIT_SUCCESS != ret)
             {
                 std::cout <<

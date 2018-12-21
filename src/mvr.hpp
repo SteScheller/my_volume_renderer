@@ -79,7 +79,7 @@ namespace mvr
         int renderToFile(std::string path);
 
         // configuration function for batch rendering
-        int loadVolumeFromFile(std::string path);
+        int loadVolumeFromFile(std::string path, unsigned int timestep = 0);
 
         //---------------------------------------------------------------------
         // class-wide constants and default values
@@ -232,7 +232,8 @@ namespace mvr
         /**
          * \brief updates the volume data, texture, histogram information...
         */
-        void loadVolume(cr::VolumeConfig volumeConfig);
+        void loadVolume(
+                cr::VolumeConfig volumeConfig, unsigned int timestep = 0);
 
         //---------------------------------------------------------------------
         // helper functions
