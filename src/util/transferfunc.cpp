@@ -27,6 +27,11 @@ util::tf::ControlPointRGBA::ControlPointRGBA(glm::vec4 color)
     this->color = color;
 }
 
+util::tf::ControlPointRGBA::ControlPointRGBA(glm::vec3 color, float alpha)
+{
+    this->color = glm::vec4(color, alpha);
+}
+
 util::tf::ControlPointRGBA::ControlPointRGBA(
         float r, float g, float b, float a)
 {
@@ -69,18 +74,45 @@ util::tf::ControlPointRGBA1D::ControlPointRGBA1D() :
     this->pos = 0.f;
     this->fderiv = 0.f;
 }
+
 util::tf::ControlPointRGBA1D::ControlPointRGBA1D(float pos) :
     ControlPointRGBA()
 {
     this->pos = pos;
     this->fderiv = 0.f;
 }
+
 util::tf::ControlPointRGBA1D::ControlPointRGBA1D(float pos, glm::vec4 color) :
     ControlPointRGBA(color)
 {
     this->pos = pos;
     this->fderiv = 0.f;
 }
+
+util::tf::ControlPointRGBA1D::ControlPointRGBA1D(
+        float pos, float slope, glm::vec4 color) :
+    ControlPointRGBA(color)
+{
+    this->pos = pos;
+    this->fderiv = slope;
+}
+
+util::tf::ControlPointRGBA1D::ControlPointRGBA1D(
+        float pos, glm::vec3 color, float alpha) :
+    ControlPointRGBA(color, alpha)
+{
+    this->pos = pos;
+    this->fderiv = 0.f;
+}
+
+util::tf::ControlPointRGBA1D::ControlPointRGBA1D(
+        float pos, float slope, glm::vec3 color, float alpha) :
+    ControlPointRGBA(color, alpha)
+{
+    this->pos = pos;
+    this->fderiv = slope;
+}
+
 util::tf::ControlPointRGBA1D::ControlPointRGBA1D(
         float pos, float r, float g, float b, float a) :
     ControlPointRGBA(r, g, b, a)
@@ -88,6 +120,15 @@ util::tf::ControlPointRGBA1D::ControlPointRGBA1D(
     this->pos = pos;
     this->fderiv = 0.f;
 }
+
+util::tf::ControlPointRGBA1D::ControlPointRGBA1D(
+        float pos, float slope, float r, float g, float b, float a) :
+    ControlPointRGBA(r, g, b, a)
+{
+    this->pos = pos;
+    this->fderiv = slope;
+}
+
 util::tf::ControlPointRGBA1D::ControlPointRGBA1D(
         const ControlPointRGBA1D &other) :
     ControlPointRGBA(other)
@@ -95,6 +136,7 @@ util::tf::ControlPointRGBA1D::ControlPointRGBA1D(
     this->pos = other.pos;
     this->fderiv = other.fderiv;
 }
+
 util::tf::ControlPointRGBA1D::~ControlPointRGBA1D(){}
 
 // definition of inherited virtual functions
@@ -228,6 +270,27 @@ std::pair<util::tf::controlPointSet1D::iterator, bool>
 
 std::pair<util::tf::controlPointSet1D::iterator, bool>
     util::tf::TransferFuncRGBA1D::insertControlPoint(
+        float pos, float slope, glm::vec4 color)
+{
+    return m_controlPoints.emplace(pos, slope, color);
+}
+
+std::pair<util::tf::controlPointSet1D::iterator, bool>
+    util::tf::TransferFuncRGBA1D::insertControlPoint(
+        float pos, glm::vec3 color, float alpha)
+{
+    return m_controlPoints.emplace(pos, color, alpha);
+}
+
+std::pair<util::tf::controlPointSet1D::iterator, bool>
+    util::tf::TransferFuncRGBA1D::insertControlPoint(
+        float pos, float slope, glm::vec3 color, float alpha)
+{
+    return m_controlPoints.emplace(pos, slope, color, alpha);
+}
+
+std::pair<util::tf::controlPointSet1D::iterator, bool>
+    util::tf::TransferFuncRGBA1D::insertControlPoint(
         ControlPointRGBA1D cp)
 {
     return m_controlPoints.insert(cp);
@@ -281,7 +344,6 @@ void util::tf::TransferFuncRGBA1D::updateTexture(
         fx[i] = (*this)(x);
     }
 
-
     m_tfTex = util::texture::Texture2D(
         GL_RGBA,
         GL_RGBA,
@@ -294,6 +356,14 @@ void util::tf::TransferFuncRGBA1D::updateTexture(
         fx);
 
     delete[] fx;
+}
+
+void util::tf::TransferFuncRGBA1D::updateTexture(unsigned int res)
+{
+    updateTexture(
+            m_controlPoints.begin()->pos,
+            m_controlPoints.rbegin()->pos,
+            res);
 }
 
 util::texture::Texture2D& util::tf::TransferFuncRGBA1D::accessTexture()

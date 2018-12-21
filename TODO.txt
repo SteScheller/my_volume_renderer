@@ -4,6 +4,7 @@ bugfixes:
 
 new features:
 - batch mode image creation
+- save current configuration to json file
 
 refactoring:
 - write own shader utility class

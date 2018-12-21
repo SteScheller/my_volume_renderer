@@ -423,6 +423,7 @@ int mvr::Renderer::renderToFile(std::string path)
 */
 int mvr::Renderer::setConfig(std::string path)
 {
+    int ret = EXIT_SUCCESS;
     std::ifstream fs;
 
     if (false == m_isInitialized)
@@ -440,88 +441,210 @@ int mvr::Renderer::setConfig(std::string path)
     fs.open(path.c_str(), std::ofstream::in);
     try
     {
-        json jsonConfig;
+        bool rebucket = false;
+        json conf;
 
-        fs >> jsonConfig;
+        fs >> conf;
 
-        // Simply set private variables:
-        // - m_renderMode
-        // - m_outputSelect
-        //
-        // - m_showVolumeFrame
-        // - m_showWireframe
-        // - m_showDemoWindow
-        // - m_showTfWindow
-        // - m_showHistogramWindow
-        // - m_semilogHistogram
-        // - m_binNumberHistogram
-        // - m_yLimitHistogramMax
-        // - m_xLimitsMin
-        // - m_xLimitsMax
-        // - m_invertColors
-        // - m_invertAlpha
-        // - m_clearColor
-        //
-        // - m_outputZSlice
-        //
-        // - m_stepSize
-        // - m_gradientMethod
-        //
-        // - m_fovY
-        // - m_zNear
-        // - m_zFar
-        // - m_cameraPosition
-        // - m_cameraLookAt
-        // - m_cameraZoomSpeed
-        // - m_cameraRotationSpeed
-        // - m_cameraTranslationSpeed
-        // - m_projection
-        //
-        // - m_isovalue
-        // - m_isovalueDenoising
-        // - m_isovalueDenoisingRadius
-        //
-        // - m_brightness
-        // - m_lightDirection
-        // - m_ambientColor
-        // - m_diffuseColor
-        // - m_specularColor
-        // - m_ambientFactor
-        // - m_diffuseFactor
-        // - m_specularfactor
-        // - m_specularExponent
-        //
-        // - m_slicingPlane
-        // - m_slicingPlaneNormal
-        // - m_slicingPlaneBase
-        //
-        // - m_ambientOcclusion
-        // - m_ambientOcclussionRadius
-        // - m_ambientOcclusionProportion
-        // - m_ambientOcclusionNumSamples
-        //
-        // More complex mechanism necessary:
-        // - transfer function
-        // - window dimensions
-        // - rendering dimensions
-        // - volume description file and timestep
-        // - timestep
-        //
+        if (!conf["renderMode"].is_null())
+            m_renderMode = conf["renderMode"].get<Mode>();
+        if (!conf["outputSelect"].is_null())
+        m_outputSelect = conf["outputSelect"].get<Output>();
+
+        if (!conf["showVolumeFrame"].is_null())
+            m_showVolumeFrame = conf["showVolumeFrame"].get<bool>();
+        if (!conf["m_showWireframe"].is_null())
+            m_showWireframe = conf["showWireframe"].get<bool>();
+        if (!conf["showDemoWindow"].is_null())
+            m_showDemoWindow = conf["showDemoWindow"].get<bool>();
+        if (!conf["showTfWindow"].is_null())
+            m_showTfWindow = conf["showTfWindow"].get<bool>();
+        if (!conf["showHistogramWindow"].is_null())
+            m_showHistogramWindow = conf["showHistogramWindow"].get<bool>();
+        if (!conf["semilogHistogram"].is_null())
+            m_semilogHistogram = conf["semilogHistogram"].get<bool>();
+        if (!conf["binNumberHistogram"].is_null())
+        {
+            m_binNumberHistogram = conf["binNumberHistogram"].get<int>();
+            rebucket = true;
+        }
+        if (!conf["yLimitHistogramMax"].is_null())
+            m_yLimitHistogramMax = conf["yLimitHistogramMax"].get<int>();
+        if (!conf["xLimitsMin"].is_null())
+        {
+            m_xLimitsMin = conf["xLimitsMin"].get<float>();
+            rebucket = true;
+        }
+        if (!conf["xLimitsMax"].is_null())
+        {
+            m_xLimitsMax = conf["xLimitsMax"].get<float>();
+            rebucket = true;
+        }
+        if (!conf["invertColors"].is_null())
+            m_invertColors = conf["invertColors"].get<bool>();
+        if (!conf["invertAlpha"].is_null())
+            m_invertAlpha = conf["invertAlpha"].get<bool>();
+        if (!conf["clearColor"].is_null())
+            m_clearColor = conf["clearColor"].get<std::array<float, 3>>();
+
+        if (!conf["outputDataZSlice"].is_null())
+            m_outputDataZSlice = conf["outputDataZSlice"].get<float>();
+
+        if (!conf["stepSize"].is_null())
+            m_stepSize = conf["stepSize"].get<float>();
+        if (!conf["gradientMethod"].is_null())
+            m_gradientMethod = conf["gradientMethod"].get<Gradient>();
+
+        if (!conf["fovY"].is_null())
+            m_fovY = conf["fovY"].get<float>();
+        if (!conf["zNear"].is_null())
+            m_zNear = conf["zNear"].get<float>();
+        if (!conf["zFar"].is_null())
+            m_zFar = conf["zFar"].get<float>();
+        if (!conf["cameraPosition"].is_null())
+            m_cameraPosition = glm::vec3(
+                conf["cameraPosition"].get<std::array<float, 3>>()[0],
+                conf["cameraPosition"].get<std::array<float, 3>>()[1],
+                conf["cameraPosition"].get<std::array<float, 3>>()[2]);
+        if (!conf["cameraLookAt"].is_null())
+            m_cameraLookAt = glm::vec3(
+                conf["cameraLookAt"].get<std::array<float, 3>>()[0],
+                conf["cameraLookAt"].get<std::array<float, 3>>()[1],
+                conf["cameraLookAt"].get<std::array<float, 3>>()[2]);
+        if (!conf["cameraZoomSpeed"].is_null())
+            m_cameraZoomSpeed = conf["cameraZoomSpeed"].get<float>();
+        if (!conf["cameraRotationSpeed"].is_null())
+            m_cameraRotationSpeed = conf["cameraRotationSpeed"].get<float>();
+        if (!conf["cameraTranslationSpeed"].is_null())
+            m_cameraTranslationSpeed =
+                conf["cameraTranslationSpeed"].get<float>();
+        if (!conf["projection"].is_null())
+            m_projection = conf["projection"].get<Projection>();
+
+        if (!conf["isovalue"].is_null())
+            m_isovalue = conf["isovalue"].get<float>();
+        if (!conf["isovalueDenoising"].is_null())
+            m_isovalueDenoising = conf["isovalueDenoising"].get<bool>();
+        if (!conf["isovalueDenoisingRadius"].is_null())
+            m_isovalueDenoisingRadius =
+                conf["isovalueDenoisingRadius"].get<float>();
+
+        if (!conf["brightness"].is_null())
+            m_brightness = conf["brightness"].get<float>();
+        if (!conf["lightDirection"].is_null())
+            m_lightDirection =
+                conf["lightDirection"].get<std::array<float, 3>>();
+        if (!conf["ambientColor"].is_null())
+            m_ambientColor =
+                conf["ambientColor"].get<std::array<float, 3>>();
+        if (!conf["diffuseColor"].is_null())
+            m_diffuseColor =
+                conf["diffuseColor"].get<std::array<float, 3>>();
+        if (!conf["specularColor"].is_null())
+            m_specularColor =
+                conf["specularColor"].get<std::array<float, 3>>();
+        if (!conf["ambientFactor"].is_null())
+            m_ambientFactor = conf["ambientFactor"].get<float>();
+        if (!conf["diffuseFactor"].is_null())
+            m_diffuseFactor = conf["diffuseFactor"].get<float>();
+        if (!conf["specularFactor"].is_null())
+            m_specularFactor = conf["specularFactor"].get<float>();
+        if (!conf["specularExponent"].is_null())
+            m_specularExponent = conf["specularExponent"].get<float>();
+
+        if (!conf["slicingPlane"].is_null())
+            m_slicingPlane = conf["slicingPlane"].get<bool>();
+        if (!conf["slicingPlaneNormal"].is_null())
+            m_slicingPlaneNormal =
+                conf["slicingPlaneNormal"].get<std::array<float, 3>>();
+        if (!conf["slicingPlaneBase"].is_null())
+            m_slicingPlaneBase =
+                conf["slicingPlaneBase"].get<std::array<float, 3>>();
+
+        if (!conf["ambientOcclusion"].is_null())
+            m_ambientOcclusion = conf["ambientOcclusion"].get<bool>();
+        if (!conf["ambientOcclusionRadius"].is_null())
+            m_ambientOcclusionRadius =
+                conf["ambientOcclusionRadius"].get<float>();
+        if (!conf["ambientOcclusionProportion"].is_null())
+            m_ambientOcclusionProportion =
+                conf["ambientOcclusionProportion"].get<float>();
+        if (!conf["ambientOcclusionNumSamples"].is_null())
+            m_ambientOcclusionNumSamples =
+                conf["ambientOcclusionNumSamples"].get<int>();
+
+        // create a the transfer function
+        if (!conf["transferFunction"].is_null())
+        {
+            util::tf::TransferFuncRGBA1D tf;
+            glm::vec3 color;
+            for (
+                json::const_iterator it = conf["transferFunction"].cbegin();
+                it != conf["transferFunction"].cend();
+                it++)
+            {
+                color = glm::vec3(
+                        (*it)["color"].get<std::array<float, 3>>()[0],
+                        (*it)["color"].get<std::array<float, 3>>()[1],
+                        (*it)["color"].get<std::array<float, 3>>()[2]);
+
+                tf.insertControlPoint(
+                        (*it)["position"].get<float>(),
+                        (*it)["slope"].get<float>(),
+                        color,
+                        (*it)["alpha"].get<float>());
+            }
+            tf.updateTexture();
+            tf.updateTexture(
+                std::max(
+                    m_xLimitsMin,
+                    tf.accessControlPoints()->begin()->pos),
+                std::min(
+                    m_xLimitsMax,
+                    tf.accessControlPoints()->rbegin()->pos));
+            m_transferFunction = std::move(tf);
+        }
+
+        // set size of the render image
+        if (!conf["renderingDimensions"].is_null())
+        {
+            resizeRendering(
+                conf["renderingDimensions"].get<
+                    std::array<unsigned int, 2>>()[0],
+                conf["renderingDimensions"].get<
+                    std::array<unsigned int, 2>>()[1]);
+        }
+
+        // load volume
+        if (!conf["timestep"].is_null())
+            m_timestep = conf["timestep"].get<unsigned int>();
+        if (!conf["volumeDescriptionFile"].is_null())
+        {
+            loadVolumeFromFile(
+                conf["volumeDescriptionFile"].get<std::string>());
+        }
+
+        // bucket volume data if one of the limits was changed
+        if (rebucket)
+            m_histogramBins = bucketVolumeData(
+             *m_volumeData, m_binNumberHistogram, m_xLimitsMin, m_xLimitsMax);
     }
     catch(json::exception &e)
     {
         std::cout << "Error loading renderer configuration from file: " <<
             path << std::endl;
         std::cout << "JSON exception: " << e.what() << std::endl;
+        ret = EXIT_FAILURE;
     }
     catch(std::exception &e)
     {
         std::cout << "Error loading renderer configuration from file: " <<
             path << std::endl;
         std::cout << "General exception: " << e.what() << std::endl;
+        ret = EXIT_FAILURE;
     }
 
-    return 0;
+    return ret;
 }
 
 int mvr::Renderer::loadVolumeFromFile(
@@ -1108,9 +1231,7 @@ void mvr::Renderer::drawTransferFunctionWindow()
         ret = m_transferFunction.updateControlPoint(cpIterator, cp);
         if (ret.second == true)
         {
-            m_transferFunction.updateTexture(
-                    m_transferFunction.accessControlPoints()->begin()->pos,
-                    m_transferFunction.accessControlPoints()->rbegin()->pos);
+            m_transferFunction.updateTexture();
             cpSelected = ret.first;
             m_selectedTfControlPointPos = cpSelected->pos;
         }
@@ -1201,10 +1322,7 @@ void mvr::Renderer::drawTransferFunctionWindow()
             if (cp != *i)
             {
                 m_transferFunction.updateControlPoint(i, cp);
-                m_transferFunction.updateTexture(
-                    m_transferFunction.accessControlPoints()->begin()->pos,
-                    m_transferFunction.accessControlPoints()->rbegin()->pos);
-
+                m_transferFunction.updateTexture();
             }
 
             ++idx;

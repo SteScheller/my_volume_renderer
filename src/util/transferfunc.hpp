@@ -20,6 +20,7 @@ namespace util
             public:
             ControlPointRGBA();                 //!< default constructor
             ControlPointRGBA(glm::vec4 color);  //!< construction from vector
+            ControlPointRGBA(glm::vec3 color, float alpha);
             ControlPointRGBA(       //!< constrution from individual values
                     float r, float g, float b, float a);
             ControlPointRGBA(const tf::ControlPointRGBA &other);
@@ -51,11 +52,19 @@ namespace util
             public:
             ControlPointRGBA1D();           //!< default constructor
             ControlPointRGBA1D(float pos);  //!< construction with position
-            ControlPointRGBA1D(float pos, glm::vec4 color);  //!< construction with
-                                                             //!< color and
-                                                             //!< position
-            ControlPointRGBA1D(             //!< constrution from individual values
-                    float pos, float r, float g, float b, float a);
+            ControlPointRGBA1D(float pos, glm::vec4 color);
+            ControlPointRGBA1D(float pos, float slope, glm::vec4 color);
+            ControlPointRGBA1D(float pos,  glm::vec3 color, float alpha);
+            ControlPointRGBA1D(
+                    float pos, float slope, glm::vec3 color, float alpha);
+            ControlPointRGBA1D(float pos, float r, float g, float b, float a);
+            ControlPointRGBA1D(
+                    float pos,
+                    float slope,
+                    float r,
+                    float g,
+                    float b,
+                    float a);
             ControlPointRGBA1D(const tf::ControlPointRGBA1D &other);
 
             ~ControlPointRGBA1D();          //!< destructor
@@ -145,6 +154,13 @@ namespace util
              */
             std::pair<controlPointSet1D::iterator, bool> insertControlPoint(
                    float pos, glm::vec4 color);
+            std::pair<controlPointSet1D::iterator, bool> insertControlPoint(
+                   float pos, float slope, glm::vec4 color);
+            std::pair<controlPointSet1D::iterator, bool> insertControlPoint(
+                   float pos, glm::vec3 color, float alpha);
+            std::pair<controlPointSet1D::iterator, bool> insertControlPoint(
+                   float pos, float slope, glm::vec3 color, float alpha);
+
 
             /**
              * \brief adds the given control point to the transfer function
@@ -207,6 +223,7 @@ namespace util
              * - res must be >= 2 otherwise it is set to 2 internally
              */
             void updateTexture(float min, float max, unsigned int res = 256);
+            void updateTexture(unsigned int res = 256);
 
             /**
              * \brief returns the ID of a texture sampled from the transfer func.

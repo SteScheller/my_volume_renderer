@@ -10,6 +10,9 @@
 
 #include <GL/gl3w.h>
 
+#include <json.hpp>
+using json = nlohmann::json;
+
 #include "util/util.hpp"
 
 typedef uint8_t unsigned_byte_t;
@@ -46,13 +49,18 @@ namespace cr
         double_precision_float
     };
 
+    NLOHMANN_JSON_SERIALIZE_ENUM(
+        Datatype, {
+            {Datatype::none, "NONE"},
+            {Datatype::unsigned_byte, "UCHAR"},
+            {Datatype::single_precision_float, "FLOAT"}});
+
     // ------------------------------------------------------------------------
     // forward declarations
     // ------------------------------------------------------------------------
     class VolumeConfig;
     class VolumeDataBase;
     unsigned int datatypeSize(cr::Datatype type);
-    Datatype dotconfigValToDatatype(std::string value);
     std::unique_ptr<VolumeDataBase> loadScalarVolumeTimestep(
         VolumeConfig volumeConfig, unsigned int n, bool swap);
     util::texture::Texture3D loadScalarVolumeTex(

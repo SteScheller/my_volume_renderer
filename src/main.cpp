@@ -81,7 +81,7 @@ int applyProgramOptions(
         if (vm.count("help"))
         {
             std::cout << desc << std::endl;
-            return EXIT_SUCCESS;
+            exit(EXIT_SUCCESS);
         }
 
         if (vm.count("config"))

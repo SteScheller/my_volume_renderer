@@ -6,16 +6,17 @@
 #include <algorithm>
 
 #include <boost/filesystem.hpp>
+namespace bfs = boost::filesystem;
+
 #include <boost/regex.hpp>
 
 #include <json.hpp>
+using json = nlohmann::json;
 
 #include "configraw.hpp"
 #include "util/util.hpp"
 
-namespace bfs = boost::filesystem;
 
-using json = nlohmann::json;
 
 namespace cr
 {
@@ -77,29 +78,6 @@ namespace cr
 
         return ret_value;
     }
-
-
-    /**
-     * \brief Converts VOLUME_DATA_TYPE into a cr::Datatype
-     *
-     * \param value string value of VOLUME_DATA_TYPE in the .config file
-     * \return according datatype as cr::Datatype
-     *
-     * Converts the VOLUME_DATA_TYPE string value used in freysn .config files
-     * into a cr::Datatype.
-    */
-    Datatype dotconfigValToDatatype(std::string value)
-    {
-        Datatype ret_value = Datatype::none;
-
-        if (0 == value.compare("UCHAR"))
-            ret_value = Datatype::unsigned_byte;
-
-        if (0 == value.compare("FLOAT"))
-            ret_value = Datatype::single_precision_float;
-
-        return ret_value;
-    }
 }
 
 // ------------------------------------------------------------------------
@@ -134,15 +112,19 @@ cr::VolumeConfig::VolumeConfig(std::string const &path) :
 
         fs >> json_config;
 
-        _num_timesteps = json_config["VOLUME_NUM_TIMESTEPS"];
+        _num_timesteps =
+            json_config["VOLUME_NUM_TIMESTEPS"].get<unsigned int>();
         if (
                 json_config["SUBSET_MIN"].is_array() &&
                 json_config["SUBSET_MAX"].is_array())
         {
             _subset = true;
-            _orig_volume_dim = json_config["VOLUME_DIM"];
-            _subset_min = json_config["SUBSET_MIN"];
-            _subset_max = json_config["SUBSET_MAX"];
+            _orig_volume_dim =
+                json_config["VOLUME_DIM"].get<std::array<size_t, 3>>();
+            _subset_min =
+                json_config["SUBSET_MIN"].get<std::array<size_t, 3>>();
+            _subset_max =
+                json_config["SUBSET_MAX"].get<std::array<size_t, 3>>();
             _volume_dim[0] = (_subset_max[0] - _subset_min[0] + 1);
             _volume_dim[1] = (_subset_max[1] - _subset_min[1] + 1);
             _volume_dim[2] = (_subset_max[2] - _subset_min[2] + 1);
@@ -150,7 +132,8 @@ cr::VolumeConfig::VolumeConfig(std::string const &path) :
         else
         {
             _subset = false;
-            _volume_dim = json_config["VOLUME_DIM"];
+            _volume_dim =
+                json_config["VOLUME_DIM"].get<std::array<size_t, 3>>();
             _orig_volume_dim = _volume_dim;
             _subset_min[0] = 0; _subset_min[1] = 0; _subset_min[2] = 0;
             _subset_max[0] = _volume_dim[0] - 1;
@@ -158,13 +141,12 @@ cr::VolumeConfig::VolumeConfig(std::string const &path) :
             _subset_max[2] = _volume_dim[2] - 1;
         }
         _voxel_count = _volume_dim[0] * _volume_dim[1] * _volume_dim[2];
-        _voxel_type = dotconfigValToDatatype(
-            json_config["VOLUME_DATA_TYPE"]);
-        _voxel_dim = json_config["VOXEL_SIZE"];
+        _voxel_type = json_config["VOLUME_DATA_TYPE"].get<Datatype>();
+        _voxel_dim = json_config["VOXEL_SIZE"].get<std::array<size_t, 3>>();
         _voxel_sizeof = datatypeSize(_voxel_type);
 
-        _raw_file_dir = json_config["VOLUME_FILE_DIR"];
-        _raw_file_exp = json_config["VOLUME_FILE_REGEX"];
+        _raw_file_dir = json_config["VOLUME_FILE_DIR"].get<std::string>();
+        _raw_file_exp = json_config["VOLUME_FILE_REGEX"].get<std::string>();
 
         bfs::path p;
         if (bfs::path(_raw_file_dir).is_absolute())

@@ -9,6 +9,9 @@
 #define GLM_FORCE_SWIZZLE
 #include <glm/glm.hpp>
 
+#include <json.hpp>
+using json = nlohmann::json;
+
 #include "util/util.hpp"
 #include "shader.hpp"
 #include "configraw.hpp"
@@ -26,6 +29,14 @@ namespace mvr
         transfer_function
     };
 
+    NLOHMANN_JSON_SERIALIZE_ENUM(
+        Mode, {
+            {Mode::line_of_sight, "light_of_sight"},
+            {Mode::maximum_intensity_projection,
+                "maximum_intensity_projection"},
+            {Mode::isosurface, "isosurface"},
+            {Mode::transfer_function, "transfer_function"}});
+
     /**
      * Gradient calculation method selection for all gradient based operations
      */
@@ -34,6 +45,11 @@ namespace mvr
         central_differences = 0,
         sobel_operators
     };
+
+    NLOHMANN_JSON_SERIALIZE_ENUM(
+        Gradient, {
+            {Gradient::central_differences, "central_differences"},
+            {Gradient::sobel_operators, "sobel_operators"}});
 
     /**
      * Selection setting for which output shall be shown. Can be used for
@@ -46,6 +62,12 @@ namespace mvr
         volume_data_slice
     };
 
+    NLOHMANN_JSON_SERIALIZE_ENUM(
+        Output, {
+            {Output::volume_rendering, "volume_rendering"},
+            {Output::random_number_generator, "random_number_generator"},
+            {Output::volume_data_slice, "volume_data_slice"}});
+
     /**
      * Selection how mapped volume shall be projected onto the screen.
      */
@@ -54,6 +76,11 @@ namespace mvr
         perspective = 0,
         orthographic
     };
+
+    NLOHMANN_JSON_SERIALIZE_ENUM(
+        Projection, {
+            {Projection::perspective, "perspective"},
+            {Projection::orthographic, "orthographic"}});
 
     /**
      * \brief volume renderer for dynamic 3D scalar data
