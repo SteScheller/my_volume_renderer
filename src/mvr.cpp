@@ -258,12 +258,10 @@ int mvr::Renderer::run()
         return EXIT_FAILURE;
     }
 
-    if (EXIT_SUCCESS != ret) return ret;
-
     // ------------------------------------------------------------------------
     // local variables
     // ------------------------------------------------------------------------
-    unsigned int ping = 0, pong = 1;
+    static unsigned int ping = 0, pong = 1;
 
     // ------------------------------------------------------------------------
     // gui widget framebuffer objects
@@ -382,6 +380,9 @@ int mvr::Renderer::run()
         }
 
         glfwSwapBuffers(m_window);
+
+        if (printOpenGLError())
+            ret = EXIT_FAILURE;
     }
 
     // Cleanup
@@ -389,11 +390,13 @@ int mvr::Renderer::run()
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
 
-    return EXIT_SUCCESS;
+    return ret;
 }
 
 int mvr::Renderer::renderToFile(std::string path)
 {
+    int ret = EXIT_SUCCESS;
+
     if (false == m_isInitialized)
     {
         std::cerr << "Error: Renderer::initialize() must be called "
@@ -402,9 +405,39 @@ int mvr::Renderer::renderToFile(std::string path)
         return EXIT_FAILURE;
     }
 
-    // TODO
+    // ------------------------------------------------------------------------
+    // local variables
+    // ------------------------------------------------------------------------
+    static unsigned int ping = 0, pong = 1;
 
-    return EXIT_SUCCESS;
+    // swap fbo objects in each render pass
+    std::swap(ping, pong);
+    glfwPollEvents();
+
+    // --------------------------------------------------------------------
+    // draw the volume, frame etc. into a frame buffer object
+    // --------------------------------------------------------------------
+    // activate one of the framebuffer objects as rendering target
+    glViewport(0, 0, m_renderingDimensions[0], m_renderingDimensions[1]);
+    m_framebuffers[ping].bind();
+
+    // clear old buffer content
+    glClearColor(m_clearColor[0], m_clearColor[1], m_clearColor[2], 0.f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    drawVolume(m_framebuffers[pong].accessTextures()[1]);
+
+    if (printOpenGLError())
+        ret = EXIT_FAILURE;
+
+    util::makeScreenshot(
+        m_framebuffers[ping],
+        m_renderingDimensions[0],
+        m_renderingDimensions[1],
+        path,
+        FIF_TIFF);
+
+    return ret;
 }
 
 //-----------------------------------------------------------------------------

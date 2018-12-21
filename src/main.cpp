@@ -41,7 +41,14 @@ int main(int argc, char *argv[])
     if ("" == output)
         ret = renderer.run();
     else
+    {
         ret = renderer.renderToFile(output);
+        if (EXIT_SUCCESS == ret)
+            std::cout << "Successfully rendered to " << output << std::endl;
+        else
+            std::cout << "Error: failed rendering to " << output << std::endl;
+    }
+
 
     if (EXIT_SUCCESS != ret)
     {
