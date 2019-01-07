@@ -31,7 +31,7 @@ namespace mvr
 
     NLOHMANN_JSON_SERIALIZE_ENUM(
         Mode, {
-            {Mode::line_of_sight, "light_of_sight"},
+            {Mode::line_of_sight, "line_of_sight"},
             {Mode::maximum_intensity_projection,
                 "maximum_intensity_projection"},
             {Mode::isosurface, "isosurface"},

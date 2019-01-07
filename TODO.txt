@@ -2,14 +2,9 @@ bugfixes:
 - flickering when watching the volume from below
 - check scaling and application of transferfunction when it is extrapolated below or above the limit control points
 
-new features:
-- batch mode image creation
-- save current configuration to json file
-
 refactoring:
 - write own shader utility class
 
 other:
 - provide documentation on loadable data sets and volume configuration files
-- provide example json configuration file that sets all available program parameters
-- documents configuration options (available in gui and configuration file)
+- provide documentation on configuration options (available in gui and configuration file)

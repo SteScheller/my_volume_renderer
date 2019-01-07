@@ -20,7 +20,7 @@
     "invertColors" : false,
     "invertAlpha" : false,
     "clearColor" : [0, 0, 0],
-    "outputZSlice" : 0,
+    "outputDataZSlice" : 0,
 
     "stepSize" : 0.25,
     "gradientMethod" : "sobel_operators",

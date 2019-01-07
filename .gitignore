@@ -41,4 +41,5 @@ my_session.vim
 .gdb_history
 ignored/*
 screenshots/*.tiff
+configurations/*.json
 testConfig.json

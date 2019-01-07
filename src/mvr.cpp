@@ -38,7 +38,7 @@ using json = nlohmann::json;
 //-----------------------------------------------------------------------------
 // definition of static member variables
 //-----------------------------------------------------------------------------
-const std::string mvr::Renderer::DEFAULT_VOLUME_FILE("example/bucky.json");
+const std::string mvr::Renderer::DEFAULT_VOLUME_FILE("exampleData/bucky.json");
 const glm::vec3 mvr::Renderer::DEFAULT_CAMERA_POSITION(1.2f, 0.75f, 1.f);
 const glm::vec3 mvr::Renderer::DEFAULT_CAMERA_LOOKAT(0.f);
 
@@ -141,7 +141,7 @@ mvr::Renderer::Renderer() :
     m_tfScreenPosition{ {0, 0} },
     m_selectedTfControlPointPos(0.f)
 {
-    m_volumeDescriptionFile.resize(mvr::Renderer::MAX_FILEPATH_LENGTH, '\0');
+    // nothing to see here
 }
 
 mvr::Renderer::~Renderer()
@@ -445,97 +445,88 @@ int mvr::Renderer::saveConfigToFile(std::string path)
 {
     int ret = EXIT_SUCCESS;
 
-
     try
     {
         std::ofstream ofs(path, std::ofstream::out);
         json conf;
 
         conf["volumeDescriptionFile"] = m_volumeDescriptionFile;
-        // TODO:
-        /*
+        conf["timestep"] = m_timestep;
+
+        conf["renderingDimensions"] = m_renderingDimensions;
+
+        conf["renderMode"] = m_renderMode;
+        conf["outputSelect"] = m_outputSelect;
+
+        conf["showVolumeFrame"] = m_showVolumeFrame;
+        conf["showWireframe"] = m_showWireframe;
+        conf["showDemoWindow"] = m_showDemoWindow;
+        conf["showTfWindow"] = m_showTfWindow;
+        conf["showHistogramWindow"] = m_showHistogramWindow;
+        conf["semilogHistogram"] = m_semilogHistogram;
+        conf["binNumberHistogram"] = m_binNumberHistogram;
+        conf["yLimitHistogramMax"] = m_yLimitHistogramMax;
+        conf["xLimitsMin"] = m_xLimitsMin;
+        conf["xLimitsMax"] = m_xLimitsMax;
+        conf["invertColors"] = m_invertColors;
+        conf["invertAlpha"] = m_invertAlpha;
+        conf["clearColor"] = m_clearColor;
+        conf["outputDataZSlice"] = m_outputDataZSlice;
+
+        conf["stepSize"] = m_stepSize;
+        conf["gradientMethod"] = m_gradientMethod;
+
+        conf["fovY"] = m_fovY;
+        conf["zNear"] = m_zNear;
+        conf["zFar"] = m_zFar;
+        conf["cameraPosition"] = std::array<float, 3>{
+                m_cameraPosition.x, m_cameraPosition.y, m_cameraPosition.z};
+        conf["cameraLookAt"] = std::array<float, 3>{
+                m_cameraLookAt.x, m_cameraLookAt.y, m_cameraLookAt.z};
+        conf["cameraZoomSpeed"] = m_cameraZoomSpeed;
+        conf["cameraRotationSpeed"] = m_cameraRotationSpeed;
+        conf["cameraTranslationSpeed"] = m_cameraTranslationSpeed;
+        conf["projection"] = m_projection;
+
+        conf["isovalue"] = m_isovalue;
+        conf["isovalueDenoising"] = m_isovalueDenoising;
+        conf["isovalueDenoisingRadius"] = m_isovalueDenoisingRadius;
+
+        conf["brightness"] = m_brightness;
+        conf["lightDirection"] = m_lightDirection;
+        conf["ambientColor"] = m_ambientColor;
+        conf["diffuseColor"] = m_diffuseColor;
+        conf["specularColor"] = m_specularColor;
+        conf["ambientFactor"] = m_ambientFactor;
+        conf["diffuseFactor"] = m_diffuseFactor;
+        conf["specularFactor"] = m_specularFactor;
+        conf["specularExponent"] = m_specularExponent;
+
+        conf["slicingPlane"] = m_slicingPlane;
+        conf["slicingPlaneNormal"] = m_slicingPlaneNormal;
+        conf["slicingPlaneBase"] = m_slicingPlaneBase;
+
+        conf["ambientOcclusion"] = m_ambientOcclusion;
+        conf["ambientOcclusionRadius"] = m_ambientOcclusionRadius;
+        conf["ambientOcclusionProportion"] = m_ambientOcclusionProportion;
+        conf["ambientOcclusionNumSamples"] = m_ambientOcclusionNumSamples;
+
+        std::vector<json> transferFunction;
+        json tfPoint;
+        for (
+            auto it = m_transferFunction.accessControlPoints()->cbegin();
+            it != m_transferFunction.accessControlPoints()->cend();
+            it++)
         {
-            "volumeDescriptionFile" : "/mnt/local/data/testData/18A.json",
-            "timestep" : 0,
+            tfPoint["position"] = it->pos;
+            tfPoint["color"] =
+                std::array<float, 3>{ it->color.r, it->color.g, it->color.b };
+            tfPoint["alpha"] = it->color.a;
+            tfPoint["slope"] = it->fderiv;
 
-            "renderingDimensions" : [1920, 1080],
-
-            "renderMode" : "transfer_function",
-            "outputSelect" : "volume_rendering",
-
-            "showVolumeFrame" : false,
-            "showWireframe" : false,
-            "showDemoWindow" : false,
-            "showTfWindow" : true,
-            "showHistogramWindow" : true,
-            "semilogHistogramWindow" : false,
-            "binNumberHistogram" : 255,
-            "yLimitHistogramMax" : 100000,
-            "xLimitsMin" : 0,
-            "xLimitsMax" : 255,
-            "invertColors" : false,
-            "invertAlpha" : false,
-            "clearColor" : [0, 0, 0],
-            "outputZSlice" : 0,
-
-            "stepSize" : 0.25,
-            "gradientMethod" : "sobel_operators",
-
-            "fovY" : 80,
-            "zNear" : 0,
-            "zFar" : 30,
-            "cameraPosition" : [1.2, 0.75, 1],
-            "cameraLookAt" : [0, 0, 0],
-            "cameraZoomSpeed" : 0.1,
-            "cameraRotationSpeed" : 0.2,
-            "cameraTranslationSpeed" : 0.002,
-            "projection" : "perspective",
-
-            "isovalue" : 0.1,
-            "isovalueDenoising" : true,
-            "isovalueDenoisingRadius" : 0.1,
-
-            "brightness" : 1,
-            "lightDirection" : [0.3, 1, -0.3],
-            "ambientColor" : [0.2, 0.2, 0.2],
-            "diffuseColor" : [1.0, 1.0, 1.0],
-            "specularColor" : [1.0, 1.0, 1.0],
-            "ambientFactor" : 0.2,
-            "diffuseFactor" : 0.3,
-            "specularFactor" : 0.5,
-            "specularExponent" : 10,
-
-            "slicingPlane" : false,
-            "slicingPlaneNormal" : [0, 0, 1],
-            "slicingPlaneBase" : [0, 0, 0],
-
-            "ambientOcclusion" : false,
-            "ambientOcclucsionRadius" : 0.2,
-            "ambientOcclucsionProportion" : 0.5,
-            "ambientOcclusionNumSamples" : 10,
-
-            "transferFunction" : [
-                {
-                    "position" : 0,
-                    "color" : [0, 0, 0],
-                    "alpha" : 0,
-                    "slope" : 0
-                },
-                {
-                    "position" : 127,
-                    "color" : [1, 0, 0],
-                    "alpha" : 0.5,
-                    "slope" : 1
-                },
-                {
-                    "position" : 255,
-                    "color" : [1, 1, 1],
-                    "alpha" : 1,
-                    "slope" : 0
-                }
-            ]
+            transferFunction.push_back(tfPoint);
         }
-        */
+        conf["transferFunction"] = transferFunction;
 
         ofs << std::setw(4) << conf << std::endl;
         ofs.close();
@@ -948,6 +939,7 @@ void mvr::Renderer::drawVolume(const util::texture::Texture2D& stateInTexture)
 
 void mvr::Renderer::drawSettingsWindow()
 {
+    std::string volumeDescription(m_volumeDescriptionFile);
     cr::VolumeConfig tempConf;
     static int renderMode = static_cast<int>(m_renderMode);
     static int gradientMethod = static_cast<int>(m_gradientMethod);
@@ -957,18 +949,23 @@ void mvr::Renderer::drawSettingsWindow()
         static_cast<int>(m_renderingDimensions[0]),
         static_cast<int>(m_renderingDimensions[1])};
     static int outputSelect = static_cast<int>(m_outputSelect);
+    static time_t timer = std::time(nullptr);
+    static char filename[200] = {};
 
     ImGui::Begin("Settings");
     {
         if(ImGui::InputText(
                 "volume",
-                &m_volumeDescriptionFile,
+                &volumeDescription,
                 ImGuiInputTextFlags_CharsNoBlank |
                     ImGuiInputTextFlags_EnterReturnsTrue))
         {
-            tempConf = cr::VolumeConfig(m_volumeDescriptionFile);
+            tempConf = cr::VolumeConfig(volumeDescription);
             if(tempConf.isValid())
+            {
+                m_volumeDescriptionFile = volumeDescription;
                 loadVolume(tempConf, 0);
+            }
         }
         ImGui::SameLine();
         createHelpMarker("Path to the volume description file");
@@ -1233,6 +1230,50 @@ void mvr::Renderer::drawSettingsWindow()
             m_outputSelect = static_cast<mvr::Output>(outputSelect);
             ImGui::SliderFloat(
                 "volume z coordinate", &m_outputDataZSlice, 0.f, 1.f);
+        }
+
+        ImGui::Separator();
+
+        if(ImGui::Button("save screenshot"))
+        {
+            timer = std::time(nullptr);
+            std::time_t t = std::time(nullptr);
+            std::tm* tm = std::localtime(&t);
+
+            strftime(
+                filename,
+                sizeof(filename),
+                "./screenshots/%F_%H%M%S.tiff",
+                tm);
+
+            util::makeScreenshot(
+                m_framebuffers[0],
+                m_renderingDimensions[0],
+                m_renderingDimensions[1],
+                filename,
+                FIF_TIFF);
+        }
+        ImGui::SameLine();
+        if(ImGui::Button("save configuration"))
+        {
+            timer = std::time(nullptr);
+            std::time_t t = std::time(nullptr);
+            std::tm* tm = std::localtime(&t);
+
+            strftime(
+                filename,
+                sizeof(filename),
+                "./configurations/%F_%H%M%S.json",
+                tm);
+            saveConfigToFile(std::string(filename));
+        }
+
+
+        if ((std::difftime(std::time(nullptr), timer) < 3.f) &&
+            (filename[0] != '\0'))
+        {
+            ImGui::Separator();
+            ImGui::Text("Saved to %s", filename);
         }
 
         ImGui::Separator();
@@ -1920,21 +1961,21 @@ void mvr::Renderer::key_cb(
     {
         std::time_t t = std::time(nullptr);
         std::tm* tm = std::localtime(&t);
-        char filename_buffer[80];
+        char filename[200];
 
         strftime(
-                filename_buffer,
-                sizeof(filename_buffer),
-                "./screenshots/%F_%T.tiff",
+                filename,
+                sizeof(filename),
+                "./screenshots/%F_%H%M%S.tiff",
                 tm);
 
         util::makeScreenshot(
             pThis->m_framebuffers[0],
             pThis->m_renderingDimensions[0],
             pThis->m_renderingDimensions[1],
-            filename_buffer,
+            filename,
             FIF_TIFF);
-        std::cout << "Saved screenshot " << filename_buffer << std::endl;
+        std::cout << "Saved screenshot " << filename << std::endl;
     }
     // chain ImGui callback
     ImGui_ImplGlfw_KeyCallback(window, key, scancode, action, mods);
