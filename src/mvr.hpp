@@ -323,3 +323,23 @@ namespace mvr
 
 }
 
+//-----------------------------------------------------------------------------
+// C-Interface wrapper
+//-----------------------------------------------------------------------------
+/*extern "C"
+{
+    Renderer();
+    Renderer(const Renderer &other) = delete;
+    Renderer(Renderer&& other) = delete;
+    Renderer& operator=(const Renderer &other) = delete;
+    Renderer& operator=(Renderer &other) = delete;
+    ~Renderer();
+
+    int initialize();
+    int run();
+    int setConfig(std::string path);
+    int renderToFile(std::string path);
+    int saveConfigToFile(std::string path);
+
+    int loadVolumeFromFile(std::string path, unsigned int timestep = 0);
+}*/

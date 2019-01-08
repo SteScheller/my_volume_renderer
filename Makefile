@@ -2,7 +2,7 @@
 #
 # Target Platform: Linux
 
-EXE = mvr
+TARGET = mvr
 BUILD_DIR = build
 
 SOURCES = src/main.cpp src/mvr.cpp
@@ -20,39 +20,85 @@ INCLUDE = -I./src -I./include -I./libs/gl3w -I./libs/imgui -I./libs/nlohmann
 
 CC = cc
 CXX = g++
+LINKER = ld
+
 CXXFLAGS = $(INCLUDE) -std=c++14 `pkg-config --cflags glfw3`
 CXXFLAGS += -Wall -Wextra
+DEBUG_CXXFLAGS = -DDEBUG -g
+RELEASE_CXXFLAGS = -DRELEASE -O3
+
 CFLAGS = $(INCLUDE) -std=c11 `pkg-config --cflags glfw3`
 CFLAGS += -Wall -Wextra
+DEBUG_CFLAGS = -DDEBUG -g
+RELEASE_CFLAGS = -DRELEASE -O3
 
-LIBS = -lGL `pkg-config --static --libs glfw3` 
-LIBS += -lboost_system -lboost_filesystem -lboost_regex -lboost_program_options
-LIBS += -lfreeimage
-
-%.o:%.cpp
-	$(CXX) $(CXXFLAGS) -c -o $(BUILD_DIR)/$(@F) $<
-
-%.o:%.c
-	$(CC) $(CFLAGS) -c -o $(BUILD_DIR)/$(@F) $<
-
-debug: CXXFLAGS += -DDEBUG -g
-debug: CCFLAGS += -DDEBUG -g
-debug: all
-
-release: CXXFLAGS += -DRELEASE -O3
-release: CCFLAGS += -DRELEASE -O3
-release: all
-
-all: directory $(EXE)
-	@echo Build complete!
-
-directory:
-	mkdir -p $(BUILD_DIR)
-
-$(EXE): $(OBJS)
-	$(CXX) $(CXXFLAGS) $(LIBS) -o $(BUILD_DIR)/$@ $(addprefix $(BUILD_DIR)/, $(notdir $^))
+LDFLAGS = -lGL `pkg-config --static --libs glfw3` 
+LDFLAGS += -lboost_system -lboost_filesystem -lboost_regex 
+LDFLAGS += -lboost_program_options
+LDFLAGS += -lfreeimage
 
 .PHONY: clean
+
+all: debug
+
+debug: CADDITIONALFLAGS = $(DEBUG_CFLAGS)
+debug: CXXADDITIONALFLAGS = $(DEBUG_CXXFLAGS)
+debug: TARGET_DIR = $(BUILD_DIR)/debug
+debug: $(BUILD_DIR) $(TARGET_DIR) start $(TARGET)
+	@echo Build of standalone executable complete!
+
+release: CADDITIONALFLAGS = $(RELEASE_CFLAGS)
+release: CXXADDITIONALFLAGS = $(RELEASE_CXXFLAGS)
+release: TARGET_DIR = $(BUILD_DIR)/release
+release: $(BUILD_DIR) $(TARGET_DIR) start $(TARGET)
+	@echo Build of standalone executable complete!
+
+#shared: CADDITIONALFLAGS = $(RELEASE_CFLAGS) -fpic
+#shared: CXXADDITIONALFLAGS = $(RELEASE_CXXFLAGS) -fpic
+#shared: LDADDITIONALFLAGS = -shared -Wl,-
+#shared: TARGET_DIR = $(BUILD_DIR)/lib
+#shared: $(BUILD_DIR) $(TARGET_DIR) start lib$(TARGET).so
+#	@echo Build of shared library complete!
+
+start:
+	@echo Compiling...
+	@echo
+	@echo CXXFLAGS: $(CXXFLAGS) $(CXXADDITIONALFLAGS)
+	@echo CFLAGS: $(CFLAGS) $(CADDITIONALFLAGS)
+	@echo TARGET_DIR $(TARGET_DIR)
+	@echo TARGET $(TARGET)
+	@echo
+
+%.o: %.cpp
+	@echo $<
+	@$(CXX) $(CXXFLAGS) $(CXXADDITIONALFLAGS) -c -o $(TARGET_DIR)/$(@F) $<
+
+%.o: %.c
+	@echo $<
+	@$(CC) $(CFLAGS)  $(CADDITIONALFLAGS) -c -o $(TARGET_DIR)/$(@F) $<
+
+$(BUILD_DIR):
+	@echo Creating build directories...
+	@mkdir -p $(BUILD_DIR)
+
+$(BUILD_DIR)/debug:
+	@mkdir -p $(BUILD_DIR)/debug
+
+$(BUILD_DIR)/release:
+	@mkdir -p $(BUILD_DIR)/release
+
+$(TARGET): $(OBJS)
+	@echo -------------------------------------------------------------------------------
+	@echo Linking...
+	@echo
+	@echo LDFLAGS: $(LDFLAGS) $(LDADDITIONALFLAGS)
+	@echo
+	@$(CXX) $(addprefix $(TARGET_DIR)/, $(notdir $^)) $(LDFLAGS) -o $(TARGET_DIR)/$(TARGET) 
+
 clean:
-	rm $(BUILD_DIR)/*.o $(BUILD_DIR)/$(EXE)
+	@echo Cleaning up...
+	@rm -rf ./$(BUILD_DIR)/debug 
+	@rm -rf ./$(BUILD_DIR)/release 
+	@rm -rf ./$(BUILD_DIR)/lib
+	@echo Done!
 
