@@ -562,7 +562,7 @@ int mvr::Renderer::saveConfigToFile(std::string path)
 * to the state of the renderer. This functionality can be used for
 * programatically settings the renderer.
 */
-int mvr::Renderer::setConfig(std::string path)
+int mvr::Renderer::loadConfigFromFile(std::string path)
 {
     int ret = EXIT_SUCCESS;
     std::ifstream fs;
@@ -570,7 +570,8 @@ int mvr::Renderer::setConfig(std::string path)
     if (false == m_isInitialized)
     {
         std::cerr << "Error: Renderer::initialize() must be called "
-            "successfully before Renderer::setConfig() can be used!" <<
+            "successfully before Renderer::loadConfigFromFile() can be "
+            "used!" <<
             std::endl;
         return EXIT_FAILURE;
     }
@@ -2004,4 +2005,24 @@ void mvr::Renderer::error_cb(int error, const char* description)
     std::cerr << "Glfw error " << error << ": " << description << std::endl;
 }
 
+//-----------------------------------------------------------------------------
+// C-Interface wrapper
+//-----------------------------------------------------------------------------
+extern "C"
+{
+    mvr::Renderer* Renderer_new() { return new mvr::Renderer(); }
+    void Renderer_delete(mvr::Renderer* obj) { delete obj; }
+
+    int Renderer_initialize(mvr::Renderer* obj) { return obj->initialize(); }
+    int Renderer_run(mvr::Renderer* obj) { return obj->run(); }
+    int Renderer_loadConfigFromFile(mvr::Renderer* obj, char* path)
+        { return obj->loadConfigFromFile(std::string(path)); }
+    int Renderer_renderToFile(mvr::Renderer* obj, char* path)
+        { return obj->renderToFile(std::string(path)); }
+    int Renderer_saveConfigToFile(mvr::Renderer* obj, char* path)
+        { return obj->saveConfigToFile(std::string(path)); }
+    int Renderer_loadVolumeFromFile(
+            mvr::Renderer* obj, char* path, unsigned int timestep)
+        { return obj->loadVolumeFromFile(std::string(path), timestep); }
+}
 

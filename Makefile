@@ -69,7 +69,6 @@ start:
 	@echo CXXFLAGS: $(CXXFLAGS) $(CXXADDITIONALFLAGS)
 	@echo CFLAGS: $(CFLAGS) $(CADDITIONALFLAGS)
 	@echo TARGET_DIR $(TARGET_DIR)
-	@echo TARGET_LIB $(TARGET_LIB)
 	@echo
 
 %.o: %.cpp

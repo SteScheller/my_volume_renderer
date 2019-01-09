@@ -93,7 +93,7 @@ int applyProgramOptions(
 
         if (vm.count("config"))
         {
-            ret = renderer.setConfig(vm["config"].as<std::string>());
+            ret = renderer.loadConfigFromFile(vm["config"].as<std::string>());
             if (EXIT_SUCCESS != ret)
             {
                 std::cout <<
