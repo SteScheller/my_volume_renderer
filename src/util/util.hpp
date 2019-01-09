@@ -40,6 +40,8 @@ namespace util
     // util.cpp
     bool printOglError(const char *file, int line);
 
+    bool checkFile(const std::string& path);
+
     void makeScreenshot(
         const FramebufferObject &fbo,
         unsigned int width,

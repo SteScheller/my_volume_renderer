@@ -2,9 +2,9 @@
 #include <string>
 #include <vector>
 #include <algorithm>
+#include <fstream>
 
 #include <GL/gl3w.h>
-
 #include <FreeImage.h>
 
 #include "util.hpp"
@@ -147,6 +147,18 @@ bool util::printOglError(const char *file, int line)
     }
 
     return ret;
+}
+/**
+ *  \brief check for existence of file
+ */
+bool util::checkFile(const std::string& path)
+{
+    bool result = false;
+    std::ifstream f(path.c_str());
+
+    result = f.good();
+
+    return result;
 }
 
 /**
