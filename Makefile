@@ -41,7 +41,7 @@ LDFLAGS += -lfreeimage
 
 .PHONY: clean
 
-all: debug
+defaul: debug
 
 debug: CADDITIONALFLAGS = $(DEBUG_CFLAGS)
 debug: CXXADDITIONALFLAGS = $(DEBUG_CXXFLAGS)
