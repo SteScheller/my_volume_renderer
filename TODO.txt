@@ -1,6 +1,7 @@
 bugfixes:
 - flickering when watching the volume from below
 - check scaling and application of transferfunction when it is extrapolated below or above the limit control points
+- memory leak when loading new volumes/ timesteps
 
 refactoring:
 - write own shader utility class
