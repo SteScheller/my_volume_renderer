@@ -22,7 +22,7 @@ namespace util
             Texture& operator=(const Texture& other) = delete;
             Texture& operator=(Texture&& other);
 
-            ~Texture();
+            virtual ~Texture();
 
             GLuint getID() const {return m_ID;}
 
