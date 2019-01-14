@@ -25,7 +25,7 @@ namespace util
                     float r, float g, float b, float a);
             ControlPointRGBA(const tf::ControlPointRGBA &other);
 
-            ~ControlPointRGBA();    //!< destructor
+            virtual ~ControlPointRGBA();    //!< destructor
 
             glm::vec4 color;        //!< RGBA color value assigned to that point
 

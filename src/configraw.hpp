@@ -150,6 +150,8 @@ namespace cr
             m_config(volumeConfig)
         {
         }
+        virtual ~VolumeDataBase() {};
+
         virtual void* getRawData() const = 0;
         VolumeConfig getVolumeConfig() const { return m_config; }
 
@@ -188,7 +190,7 @@ namespace cr
 
             return this;
         }
-        ~VolumeData(){if (nullptr != m_rawData) delete[] m_rawData;}
+        ~VolumeData() { if (nullptr != m_rawData) delete[] m_rawData; }
 
         void* getRawData() const override
         {

@@ -265,6 +265,12 @@ std::pair<util::tf::controlPointSet1D::iterator, bool>
     util::tf::TransferFuncRGBA1D::insertControlPoint(
         float pos, glm::vec4 color)
 {
+    util::tf::ControlPointRGBA1D cp(pos);
+    util::tf::controlPointSet1D::iterator cpIterator =
+        m_controlPoints.find(cp);
+    if (m_controlPoints.cend() != cpIterator)
+        m_controlPoints.erase(cpIterator);
+
     return m_controlPoints.emplace(pos, color);
 }
 
@@ -272,6 +278,12 @@ std::pair<util::tf::controlPointSet1D::iterator, bool>
     util::tf::TransferFuncRGBA1D::insertControlPoint(
         float pos, float slope, glm::vec4 color)
 {
+    util::tf::ControlPointRGBA1D cp(pos);
+    util::tf::controlPointSet1D::iterator cpIterator =
+        m_controlPoints.find(cp);
+    if (m_controlPoints.cend() != cpIterator)
+        m_controlPoints.erase(cpIterator);
+
     return m_controlPoints.emplace(pos, slope, color);
 }
 
@@ -279,6 +291,12 @@ std::pair<util::tf::controlPointSet1D::iterator, bool>
     util::tf::TransferFuncRGBA1D::insertControlPoint(
         float pos, glm::vec3 color, float alpha)
 {
+    util::tf::ControlPointRGBA1D cp(pos);
+    util::tf::controlPointSet1D::iterator cpIterator =
+        m_controlPoints.find(cp);
+    if (m_controlPoints.cend() != cpIterator)
+        m_controlPoints.erase(cpIterator);
+
     return m_controlPoints.emplace(pos, color, alpha);
 }
 
@@ -286,6 +304,12 @@ std::pair<util::tf::controlPointSet1D::iterator, bool>
     util::tf::TransferFuncRGBA1D::insertControlPoint(
         float pos, float slope, glm::vec3 color, float alpha)
 {
+    util::tf::ControlPointRGBA1D cp(pos);
+    util::tf::controlPointSet1D::iterator cpIterator =
+        m_controlPoints.find(cp);
+    if (m_controlPoints.cend() != cpIterator)
+        m_controlPoints.erase(cpIterator);
+
     return m_controlPoints.emplace(pos, slope, color, alpha);
 }
 
@@ -293,6 +317,11 @@ std::pair<util::tf::controlPointSet1D::iterator, bool>
     util::tf::TransferFuncRGBA1D::insertControlPoint(
         ControlPointRGBA1D cp)
 {
+    util::tf::controlPointSet1D::iterator cpIterator =
+        m_controlPoints.find(cp);
+    if (m_controlPoints.cend() != cpIterator)
+        m_controlPoints.erase(cpIterator);
+
     return m_controlPoints.insert(cp);
 }
 

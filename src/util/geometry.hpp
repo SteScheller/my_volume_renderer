@@ -16,7 +16,7 @@ namespace util
             Shape& operator=(const Shape& other) = delete;
             Shape(Shape&& other);
             Shape& operator=(Shape&& other);
-            ~Shape();
+            virtual ~Shape();
 
             virtual void draw() const = 0;
 

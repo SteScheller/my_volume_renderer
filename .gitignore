@@ -34,6 +34,7 @@ build/*
 *.out
 *.app
 mvr
+dmvr
 
 # misc
 imgui.ini
