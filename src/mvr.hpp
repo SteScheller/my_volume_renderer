@@ -97,7 +97,7 @@ namespace mvr
         Renderer(const Renderer &other) = delete;
         Renderer(Renderer&& other) = delete;
         Renderer& operator=(const Renderer &other) = delete;
-        Renderer& operator=(Renderer &other) = delete;
+        Renderer& operator=(Renderer&& other) = delete;
         ~Renderer();
 
         int initialize();
