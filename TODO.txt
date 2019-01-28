@@ -5,6 +5,7 @@ bugfixes:
 refactoring:
 - write own shader utility class
 
-other:
+features:
 - provide documentation on loadable data sets and volume configuration files
 - provide documentation on configuration options (available in gui and configuration file)
+- abbreviated command line options
