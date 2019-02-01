@@ -1,0 +1,122 @@
+{
+    "ambientColor": [
+        0.20000000298023224,
+        0.20000000298023224,
+        0.20000000298023224
+    ],
+    "ambientFactor": 0.20000000298023224,
+    "ambientOcclusion": false,
+    "ambientOcclusionNumSamples": 10,
+    "ambientOcclusionProportion": 0.5,
+    "ambientOcclusionRadius": 0.20000000298023224,
+    "binNumberHistogram": 255,
+    "brightness": 1.0,
+    "cameraLookAt": [
+        0.25879085063934326,
+        0.1320001780986786,
+        -0.24684260785579681
+    ],
+    "cameraPosition": [
+        -1.0,
+        -1.0,
+        -1.0
+    ],
+    "cameraRotationSpeed": 0.20000000298023224,
+    "cameraTranslationSpeed": 0.0020000000949949026,
+    "cameraZoomSpeed": 0.10000000149011612,
+    "clearColor": [
+        0.0,
+        0.0,
+        0.0
+    ],
+    "diffuseColor": [
+        1.0,
+        1.0,
+        1.0
+    ],
+    "diffuseFactor": 0.30000001192092896,
+    "fovY": 80.0,
+    "gradientMethod": "sobel_operators",
+    "invertAlpha": false,
+    "invertColors": false,
+    "isovalue": 0.10000000149011612,
+    "isovalueDenoising": true,
+    "isovalueDenoisingRadius": 0.10000000149011612,
+    "lightDirection": [
+        0.30000001192092896,
+        1.0,
+        -0.30000001192092896
+    ],
+    "outputDataZSlice": 0.0,
+    "outputSelect": "volume_rendering",
+    "projection": "perspective",
+    "renderMode": "transfer_function",
+    "renderingDimensions": [
+        1920,
+        1080
+    ],
+    "semilogHistogram": false,
+    "showDemoWindow": false,
+    "showHistogramWindow": true,
+    "showTfWindow": true,
+    "showVolumeFrame": true,
+    "showWireframe": false,
+    "slicingPlane": false,
+    "slicingPlaneBase": [
+        0.0,
+        0.0,
+        0.0
+    ],
+    "slicingPlaneNormal": [
+        0.0,
+        0.0,
+        1.0
+    ],
+    "specularColor": [
+        1.0,
+        1.0,
+        1.0
+    ],
+    "specularExponent": 10.0,
+    "specularFactor": 0.5,
+    "stepSize": 0.25,
+    "timestep": 0,
+    "transferFunction": [
+        {
+            "alpha": 1.0,
+            "color": [
+                0.5,
+                0.0,
+                0.5
+            ],
+            "position": 0.0,
+            "slope": 0.0
+        },
+        {
+            "alpha": 0.0,
+            "color": [
+                9.999999974752427e-07,
+                9.999977237384883e-07,
+                9.999899930335232e-07
+            ],
+            "position": 5.169000148773193,
+            "slope": 0.0
+        },
+        {
+            "alpha": 1.0,
+            "color": [
+                1.0,
+                0.9999899864196777,
+                0.9999899864196777
+            ],
+            "position": 255.0,
+            "slope": 0.0
+        }
+    ],
+    "volumeDescriptionFile": "exampleData/bucky.json",
+    "xLimitsMax": 255.0,
+    "xLimitsMin": 0.0,
+    "yLimitHistogramMax": 10000,
+    "zFar": 30.0,
+    "zNear": 9.999999974752427e-07
+}

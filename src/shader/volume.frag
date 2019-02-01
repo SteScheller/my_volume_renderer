@@ -606,6 +606,25 @@ void main()
     {
         pos = rayOrig + x * rayDir;
         volCoord = (pos - bbMin) / (bbMax - bbMin);
+
+        // Check if we are in the volume (precision issue)
+        int continueCount = 0;
+        const int continueTolerance = 1;
+        if ((volCoord.x < 0.f) ||
+            (volCoord.y < 0.f) ||
+            (volCoord.z < 0.f) ||
+            (volCoord.x > 1.f) ||
+            (volCoord.y > 1.f) ||
+            (volCoord.z > 1.f))
+
+        {
+            if (cCnt < cTolerance)
+                continue;
+            ++cCnt;
+            fragColor = vec4(1.f, 0.f, 1.f, 1.f);
+            return;
+        }
+
         value = texture(volumeTex, volCoord).r;
 
         switch (mode)
