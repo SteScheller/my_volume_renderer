@@ -606,6 +606,62 @@ void main()
     {
         pos = rayOrig + x * rayDir;
         volCoord = (pos - bbMin) / (bbMax - bbMin);
+
+        //----------------------------------------
+        // For debugging of intersection
+        int cCnt = 0;
+        const int cTolerance = 1;
+        if (volCoord.x < 0.f)
+        {
+            if (cCnt < cTolerance)
+                continue;
+            ++cCnt;
+            fragColor = vec4(1.f, 0.f, 0.f, 1.f);
+            return;
+        }
+        else if (volCoord.y < 0.f)
+        {
+            if (cCnt < cTolerance)
+                continue;
+            ++cCnt;
+            fragColor = vec4(0.f, 1.f, 0.f, 1.f);
+            return;
+        }
+        else if (volCoord.z < 0.f)
+        {
+            if (cCnt < cTolerance)
+                continue;
+            ++cCnt;
+            fragColor = vec4(0.f, 0.f, 1.f, 1.f);
+            return;
+        }
+        else if (volCoord.x > 1.f)
+        {
+            if (cCnt < cTolerance)
+                continue;
+            ++cCnt;
+            fragColor = vec4(1.f, 1.f, 0.f, 1.f);
+            return;
+        }
+        else if (volCoord.y > 1.f)
+        {
+            if (cCnt < cTolerance)
+                continue;
+            ++cCnt;
+            fragColor = vec4(0.f, 1.f, 1.f, 1.f);
+            return;
+        }
+        else if (volCoord.z > 1.f)
+        {
+            if (cCnt < cTolerance)
+                continue;
+            ++cCnt;
+            fragColor = vec4(1.f, 0.f, 1.f, 1.f);
+            return;
+        }
+
+
+        //----------------------------------------
         value = texture(volumeTex, volCoord).r;
 
         switch (mode)
