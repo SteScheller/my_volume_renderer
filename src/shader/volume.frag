@@ -618,9 +618,9 @@ void main()
             (volCoord.z > 1.f))
 
         {
-            if (cCnt < cTolerance)
+            if (continueCount < continueTolerance)
                 continue;
-            ++cCnt;
+            ++continueCount;
             fragColor = vec4(1.f, 0.f, 1.f, 1.f);
             return;
         }
