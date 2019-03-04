@@ -1355,6 +1355,8 @@ void mvr::Renderer::drawTransferFunctionWindow()
     ImVec2 tfScreenPosition = ImVec2();
     static float tfControlPointPos = 0.f, tfControlPointAlpha = 0.f;
     static float tfControlPointColor[3] = {0.f, 0.f, 0.f};
+    static time_t timer = std::time(nullptr);
+    static char filename[200] = {};
 
     // render the transfer function
     drawTfColor(m_tfColorWidgetFBO);
@@ -1515,6 +1517,32 @@ void mvr::Renderer::drawTransferFunctionWindow()
 
             ++idx;
         }
+    }
+
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    if(ImGui::Button("save as csv"))
+    {
+        timer = std::time(nullptr);
+        std::time_t t = std::time(nullptr);
+        std::tm* tm = std::localtime(&t);
+
+        strftime(
+            filename,
+            sizeof(filename),
+            "./configurations/%F_%H%M%S_transfer-function.csv",
+            tm);
+
+        // TODO
+        // store the transfer function as csv
+    }
+    if ((std::difftime(std::time(nullptr), timer) < 3.f) &&
+            (filename[0] != '\0'))
+    {
+        ImGui::Separator();
+        ImGui::Text("Saved to %s", filename);
     }
 
     ImGui::End();
