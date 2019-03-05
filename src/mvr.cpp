@@ -558,10 +558,10 @@ int mvr::Renderer::saveTransferFunctionToFile(std::string path)
     out << "index, red, green, blue, alpha" << std::endl;
     for (auto it = discreteTf.cbegin(); it != discreteTf.cend(); ++it)
     {
-        out << it - discreteTf.cbegin() << ", " <<
-               (*it)[0] << ", " <<
-               (*it)[1] << ", " <<
-               (*it)[2] << ", " <<
+        out << it - discreteTf.cbegin() << "," <<
+               (*it)[0] << "," <<
+               (*it)[1] << "," <<
+               (*it)[2] << "," <<
                (*it)[3] << std::endl;
     }
 
