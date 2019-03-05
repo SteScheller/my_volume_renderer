@@ -105,6 +105,7 @@ namespace mvr
         int loadConfigFromFile(std::string path);
         int renderToFile(std::string path);
         int saveConfigToFile(std::string path);
+        int saveTransferFunctionToFile(std::string path);
         int loadVolumeFromFile(std::string path, unsigned int timestep = 0);
 
         //---------------------------------------------------------------------

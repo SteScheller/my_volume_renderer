@@ -90,15 +90,17 @@ namespace util
             bool operator!=(const ControlPointRGBA1D &other);
         };
 
-        typedef std::set<
+
+        // Typedefinitions for 1D transfer
+        using controlPointSet1D_t = std::set<
                 ControlPointRGBA1D,
-                bool (*) (ControlPointRGBA1D, ControlPointRGBA1D)>
-                    controlPointSet1D;
+                bool (*) (ControlPointRGBA1D, ControlPointRGBA1D)>;
+        using discreteTf1D_t = std::vector<std::array<float, 4>>;
 
         class TransferFuncRGBA1D
         {
             private:
-            controlPointSet1D m_controlPoints;
+            controlPointSet1D_t m_controlPoints;
             util::texture::Texture2D m_tfTex;
 
             public:
@@ -140,7 +142,7 @@ namespace util
             /**
              * \brief returns a pointer to the set of control points
              */
-            controlPointSet1D* accessControlPoints();
+            controlPointSet1D_t* accessControlPoints();
 
             /**
              * \brief inserts a new control point at the given position
@@ -152,13 +154,13 @@ namespace util
              * (or to the element that prevented the insertion) and a bool value
              * set to true if the insertion took place.
              */
-            std::pair<controlPointSet1D::iterator, bool> insertControlPoint(
+            std::pair<controlPointSet1D_t::iterator, bool> insertControlPoint(
                    float pos, glm::vec4 color);
-            std::pair<controlPointSet1D::iterator, bool> insertControlPoint(
+            std::pair<controlPointSet1D_t::iterator, bool> insertControlPoint(
                    float pos, float slope, glm::vec4 color);
-            std::pair<controlPointSet1D::iterator, bool> insertControlPoint(
+            std::pair<controlPointSet1D_t::iterator, bool> insertControlPoint(
                    float pos, glm::vec3 color, float alpha);
-            std::pair<controlPointSet1D::iterator, bool> insertControlPoint(
+            std::pair<controlPointSet1D_t::iterator, bool> insertControlPoint(
                    float pos, float slope, glm::vec3 color, float alpha);
 
 
@@ -176,7 +178,7 @@ namespace util
              * (or to the element that prevented the insertion) and a bool value
              * set to true if the insertion took place.
              */
-            std::pair<controlPointSet1D::iterator, bool> insertControlPoint(
+            std::pair<controlPointSet1D_t::iterator, bool> insertControlPoint(
                     ControlPointRGBA1D cp);
 
             /**
@@ -191,7 +193,7 @@ namespace util
              *
              * \param i iterator position in control point set
              */
-            void removeControlPoint(controlPointSet1D::iterator i);
+            void removeControlPoint(controlPointSet1D_t::iterator i);
 
             /**
              * \brief Updates the color and alpha value of the control point
@@ -204,8 +206,9 @@ namespace util
              * (or to the element that prevented the insertion) and a bool value
              * set to true if the insertion took place.
              */
-            std::pair<tf::controlPointSet1D::iterator, bool> updateControlPoint(
-                    controlPointSet1D::iterator i, ControlPointRGBA1D cp);
+            std::pair<tf::controlPointSet1D_t::iterator, bool>
+                updateControlPoint(
+                    controlPointSet1D_t::iterator i, ControlPointRGBA1D cp);
             /**
              * \brief Updates the transfer function texture
              *
@@ -222,11 +225,12 @@ namespace util
              * Note:
              * - res must be >= 2 otherwise it is set to 2 internally
              */
-            void updateTexture(float min, float max, unsigned int res = 256);
-            void updateTexture(unsigned int res = 256);
+            void updateTexture(float min, float max, size_t res = 256);
+            void updateTexture(size_t res = 256);
 
             /**
-             * \brief returns the ID of a texture sampled from the transfer func.
+             * \brief returns the ID of a texture sampled from the transfer
+             *        function.
              *
              * Returns the ID of the internally stored texture object which
              * contains the RGBA values of the transfer functions in a given
@@ -238,6 +242,18 @@ namespace util
              */
             util::texture::Texture2D& accessTexture();
 
+            /**
+             * \brief returns the rgba values of the discretized transfer
+             *        function (default == 256 sample points).
+             *
+             * \param min   lower limit of the discretization interval
+             * \param max   upper limit of the discretization interval
+             * \param res   number of sample points for the discretization
+             * \return vector of four component float arrays which contain
+             *         the red, green, blue and alpha values
+             */
+            discreteTf1D_t getDiscretized(
+                    float min=0.f, float max=255.f, size_t res = 256);
         };
     }
 }

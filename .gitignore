@@ -43,4 +43,5 @@ my_session.vim
 ignored/*
 screenshots/*.tiff
 configurations/*.json
+configurations/*.csv
 testConfig.json

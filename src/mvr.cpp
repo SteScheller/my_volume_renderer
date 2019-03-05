@@ -548,6 +548,28 @@ int mvr::Renderer::saveConfigToFile(std::string path)
 
     return ret;
 }
+
+int mvr::Renderer::saveTransferFunctionToFile(std::string path)
+{
+    util::tf::discreteTf1D_t discreteTf =
+            m_transferFunction.getDiscretized(m_xLimitsMin, m_xLimitsMax, 256);
+    std::ofstream out(path);
+
+    out << "index, red, green, blue, alpha" << std::endl;
+    for (auto it = discreteTf.cbegin(); it != discreteTf.cend(); ++it)
+    {
+        out << it - discreteTf.cbegin() << ", " <<
+               (*it)[0] << ", " <<
+               (*it)[1] << ", " <<
+               (*it)[2] << ", " <<
+               (*it)[3] << std::endl;
+    }
+
+    out.close();
+
+    return EXIT_SUCCESS;
+}
+
 //-----------------------------------------------------------------------------
 // public functions for setting the renderer configuration
 //-----------------------------------------------------------------------------
@@ -1349,9 +1371,9 @@ void mvr::Renderer::drawTransferFunctionWindow()
 {
     glm::vec4 tempVec4 = glm::vec4(0.f);
     util::tf::ControlPointRGBA1D cp = util::tf::ControlPointRGBA1D();
-    static util::tf::controlPointSet1D::iterator cpSelected;
-    util::tf::controlPointSet1D::iterator cpIterator;
-    std::pair<util::tf::controlPointSet1D::iterator, bool> ret;
+    static util::tf::controlPointSet1D_t::iterator cpSelected;
+    util::tf::controlPointSet1D_t::iterator cpIterator;
+    std::pair<util::tf::controlPointSet1D_t::iterator, bool> ret;
     ImVec2 tfScreenPosition = ImVec2();
     static float tfControlPointPos = 0.f, tfControlPointAlpha = 0.f;
     static float tfControlPointColor[3] = {0.f, 0.f, 0.f};
@@ -1534,14 +1556,11 @@ void mvr::Renderer::drawTransferFunctionWindow()
             sizeof(filename),
             "./configurations/%F_%H%M%S_transfer-function.csv",
             tm);
-
-        // TODO
-        // store the transfer function as csv
+        saveTransferFunctionToFile(std::string(filename));
     }
     if ((std::difftime(std::time(nullptr), timer) < 3.f) &&
             (filename[0] != '\0'))
     {
-        ImGui::Separator();
         ImGui::Text("Saved to %s", filename);
     }
 

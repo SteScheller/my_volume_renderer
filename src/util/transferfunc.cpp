@@ -166,9 +166,10 @@ util::tf::TransferFuncRGBA1D::TransferFuncRGBA1D()
     bool (*fn_pt) (ControlPointRGBA1D, ControlPointRGBA1D) =
         tf::ControlPointRGBA1D::compare;
 
-    m_controlPoints = tf::controlPointSet1D(fn_pt);
+    m_controlPoints = tf::controlPointSet1D_t(fn_pt);
     m_tfTex = util::texture::Texture2D();
     m_controlPoints.emplace(0.f, glm::vec4(0.f));
+    m_controlPoints.emplace(255.f, glm::vec4(1.f));
 }
 
 util::tf::TransferFuncRGBA1D::TransferFuncRGBA1D(TransferFuncRGBA1D&& other) :
@@ -255,18 +256,18 @@ glm::vec4 util::tf::TransferFuncRGBA1D::operator()(float t)
     return value;
 }
 
-util::tf::controlPointSet1D*
+util::tf::controlPointSet1D_t*
     util::tf::TransferFuncRGBA1D::accessControlPoints()
 {
     return &m_controlPoints;
 }
 
-std::pair<util::tf::controlPointSet1D::iterator, bool>
+std::pair<util::tf::controlPointSet1D_t::iterator, bool>
     util::tf::TransferFuncRGBA1D::insertControlPoint(
         float pos, glm::vec4 color)
 {
     util::tf::ControlPointRGBA1D cp(pos);
-    util::tf::controlPointSet1D::iterator cpIterator =
+    util::tf::controlPointSet1D_t::iterator cpIterator =
         m_controlPoints.find(cp);
     if (m_controlPoints.cend() != cpIterator)
         m_controlPoints.erase(cpIterator);
@@ -274,12 +275,12 @@ std::pair<util::tf::controlPointSet1D::iterator, bool>
     return m_controlPoints.emplace(pos, color);
 }
 
-std::pair<util::tf::controlPointSet1D::iterator, bool>
+std::pair<util::tf::controlPointSet1D_t::iterator, bool>
     util::tf::TransferFuncRGBA1D::insertControlPoint(
         float pos, float slope, glm::vec4 color)
 {
     util::tf::ControlPointRGBA1D cp(pos);
-    util::tf::controlPointSet1D::iterator cpIterator =
+    util::tf::controlPointSet1D_t::iterator cpIterator =
         m_controlPoints.find(cp);
     if (m_controlPoints.cend() != cpIterator)
         m_controlPoints.erase(cpIterator);
@@ -287,12 +288,12 @@ std::pair<util::tf::controlPointSet1D::iterator, bool>
     return m_controlPoints.emplace(pos, slope, color);
 }
 
-std::pair<util::tf::controlPointSet1D::iterator, bool>
+std::pair<util::tf::controlPointSet1D_t::iterator, bool>
     util::tf::TransferFuncRGBA1D::insertControlPoint(
         float pos, glm::vec3 color, float alpha)
 {
     util::tf::ControlPointRGBA1D cp(pos);
-    util::tf::controlPointSet1D::iterator cpIterator =
+    util::tf::controlPointSet1D_t::iterator cpIterator =
         m_controlPoints.find(cp);
     if (m_controlPoints.cend() != cpIterator)
         m_controlPoints.erase(cpIterator);
@@ -300,12 +301,12 @@ std::pair<util::tf::controlPointSet1D::iterator, bool>
     return m_controlPoints.emplace(pos, color, alpha);
 }
 
-std::pair<util::tf::controlPointSet1D::iterator, bool>
+std::pair<util::tf::controlPointSet1D_t::iterator, bool>
     util::tf::TransferFuncRGBA1D::insertControlPoint(
         float pos, float slope, glm::vec3 color, float alpha)
 {
     util::tf::ControlPointRGBA1D cp(pos);
-    util::tf::controlPointSet1D::iterator cpIterator =
+    util::tf::controlPointSet1D_t::iterator cpIterator =
         m_controlPoints.find(cp);
     if (m_controlPoints.cend() != cpIterator)
         m_controlPoints.erase(cpIterator);
@@ -313,11 +314,11 @@ std::pair<util::tf::controlPointSet1D::iterator, bool>
     return m_controlPoints.emplace(pos, slope, color, alpha);
 }
 
-std::pair<util::tf::controlPointSet1D::iterator, bool>
+std::pair<util::tf::controlPointSet1D_t::iterator, bool>
     util::tf::TransferFuncRGBA1D::insertControlPoint(
         ControlPointRGBA1D cp)
 {
-    util::tf::controlPointSet1D::iterator cpIterator =
+    util::tf::controlPointSet1D_t::iterator cpIterator =
         m_controlPoints.find(cp);
     if (m_controlPoints.cend() != cpIterator)
         m_controlPoints.erase(cpIterator);
@@ -331,16 +332,16 @@ void util::tf::TransferFuncRGBA1D::removeControlPoint(float pos)
 }
 
 void util::tf::TransferFuncRGBA1D::removeControlPoint(
-        tf::controlPointSet1D::iterator i)
+        tf::controlPointSet1D_t::iterator i)
 {
     m_controlPoints.erase(*i);
 }
 
-std::pair<util::tf::controlPointSet1D::iterator, bool>
+std::pair<util::tf::controlPointSet1D_t::iterator, bool>
     util::tf::TransferFuncRGBA1D::updateControlPoint(
-        controlPointSet1D::iterator i, ControlPointRGBA1D cp)
+        controlPointSet1D_t::iterator i, ControlPointRGBA1D cp)
 {
-    std::pair<controlPointSet1D::iterator, bool> ret;
+    std::pair<controlPointSet1D_t::iterator, bool> ret;
     ControlPointRGBA1D backup = *i;
 
     m_controlPoints.erase(*i);
@@ -353,16 +354,15 @@ std::pair<util::tf::controlPointSet1D::iterator, bool>
 }
 
 void util::tf::TransferFuncRGBA1D::updateTexture(
-        float min, float max, unsigned int res)
+        float min, float max, size_t res)
 {
     float step = 0.f;
     float x = 0.f;
-    glm::vec4 *fx = nullptr;
 
     if (res < 2)
         res = 2;
 
-    fx = new glm::vec4[res];
+    std::vector<glm::vec4> fx(res, {0.f, 0.f, 0.f, 0.f});
 
     step = (max - min) / static_cast<float>(res - 1);
 
@@ -382,12 +382,11 @@ void util::tf::TransferFuncRGBA1D::updateTexture(
         GL_CLAMP_TO_EDGE,
         res,
         1,
-        fx);
+        fx.data());
 
-    delete[] fx;
 }
 
-void util::tf::TransferFuncRGBA1D::updateTexture(unsigned int res)
+void util::tf::TransferFuncRGBA1D::updateTexture(size_t res)
 {
     updateTexture(
             m_controlPoints.begin()->pos,
@@ -407,4 +406,31 @@ util::texture::Texture2D& util::tf::TransferFuncRGBA1D::accessTexture()
         m_controlPoints.rbegin()->pos);
 
     return m_tfTex;
+}
+
+util::tf::discreteTf1D_t util::tf::TransferFuncRGBA1D::getDiscretized(
+        float min, float max, size_t res)
+{
+    float step = 0.f;
+    float x = 0.f;
+    glm::vec4 fx(0.f);
+
+    if (res < 2) res = 2;
+
+    discreteTf1D_t discreteTf(res, { 0.f, 0.f, 0.f, 0.f });
+
+    step = (max - min) / static_cast<float>(res - 1);
+
+    x = min;
+    for (size_t i = 0; i < res; ++i)
+    {
+        x += step;
+        fx = (*this)(x);
+        discreteTf[i][0] = fx.r;
+        discreteTf[i][1] = fx.g;
+        discreteTf[i][2] = fx.b;
+        discreteTf[i][3] = fx.a;
+    }
+
+    return discreteTf;
 }
