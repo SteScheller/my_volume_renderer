@@ -205,10 +205,12 @@ glm::vec4 util::tf::TransferFuncRGBA1D::interpolateCHermite(
             t3 - t2,
             -2.f * t3 + 3 * t2);
 
+    glm::vec3 rgbderiv = b.color.rgb - a.color.rgb;
+
     glm::mat4 geometry = glm::mat4(
             a.color.r,  a.color.g,  a.color.b,  a.color.a,
-            a.fderiv,   a.fderiv,   a.fderiv,   a.fderiv,
-            b.fderiv,   b.fderiv,   b.fderiv,   b.fderiv,
+            rgbderiv.r, rgbderiv.g, rgbderiv.b, a.fderiv,
+            rgbderiv.r, rgbderiv.g, rgbderiv.b, b.fderiv,
             b.color.r,  b.color.g,  b.color.b,  b.color.a);
 
     interpolated = geometry * hermitePolynomials;

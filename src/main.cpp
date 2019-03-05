@@ -72,9 +72,9 @@ int applyProgramOptions(
     po::options_description desc("Allowed options");
     desc.add_options()
         ("help,h", "produce help message")
-        ("volume", po::value<std::string>(), "volume description file")
-        ("config", po::value<std::string>(), "renderer configuration file")
-        ("output-file", po::value<std::string>(), "batch mode output file")
+        ("volume,v", po::value<std::string>(), "volume description file")
+        ("config,c", po::value<std::string>(), "renderer configuration file")
+        ("output-file,o", po::value<std::string>(), "batch mode output file")
     ;
 
     int ret = EXIT_SUCCESS;
