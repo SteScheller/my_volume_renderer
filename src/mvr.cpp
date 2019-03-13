@@ -555,7 +555,7 @@ int mvr::Renderer::saveTransferFunctionToFile(std::string path)
             m_transferFunction.getDiscretized(m_xLimitsMin, m_xLimitsMax, 256);
     std::ofstream out(path);
 
-    out << "index, red, green, blue, alpha" << std::endl;
+    out << "index,red,green,blue,alpha" << std::endl;
     for (auto it = discreteTf.cbegin(); it != discreteTf.cend(); ++it)
     {
         out << it - discreteTf.cbegin() << "," <<
