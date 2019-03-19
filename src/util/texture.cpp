@@ -71,6 +71,7 @@ util::texture::Texture2D::Texture2D(
 
     this->bind();
 
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     glTexImage2D(
         GL_TEXTURE_2D,
         level,
@@ -156,6 +157,7 @@ util::texture::Texture3D::Texture3D(
 
     this->bind();
 
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     glTexImage3D(
         GL_TEXTURE_3D,
         level,
