@@ -113,6 +113,47 @@ class Shader
             glDeleteShader(geometry);
     }
 
+    Shader(const char* computePath)
+    {
+        std::string computeCode;
+        std::ifstream cShaderFile;
+
+        // ensure ifstream objects can throw exceptions:
+        cShaderFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+        try
+        {
+            // open files
+            cShaderFile.open(computePath);
+            std::stringstream cShaderStream;
+            // read file's buffer contents into streams
+            cShaderStream << cShaderFile.rdbuf();
+            // close file handlers
+            cShaderFile.close();
+            // convert stream into string
+            computeCode = cShaderStream.str();
+        }
+        catch (std::ifstream::failure &e)
+        {
+            std::cerr << "ERROR::SHADER::FILE_NOT_SUCCESFULLY_READ" <<
+                std::endl;
+        }
+        const char* cShaderCode = computeCode.c_str();
+
+        // compile shader
+        unsigned int compute = 0;
+        compute = glCreateShader(GL_COMPUTE_SHADER);
+        glShaderSource(compute, 1, &cShaderCode, nullptr);
+        glCompileShader(compute);
+        checkCompileErrors(compute, "COMPUTE");
+
+        // build shader program
+        m_ID = glCreateProgram();
+        glAttachShader(m_ID, compute);
+        glLinkProgram(m_ID);
+        checkCompileErrors(m_ID, "PROGRAM");
+        glDeleteShader(compute);
+    }
+
     Shader(const Shader& other) = delete;
     Shader(Shader&& other) : m_ID(other.m_ID) {other.m_ID = 0;}
     Shader& operator=(const Shader& other) = delete;
@@ -173,6 +214,14 @@ class Shader
     void setVec3(const std::string &name, float x, float y, float z) const
     {
         glUniform3f(glGetUniformLocation(m_ID, name.c_str()), x, y, z);
+    }
+    void setUVec3(const std::string &name, const glm::uvec3 &value) const
+    {
+        glUniform3uiv(glGetUniformLocation(m_ID, name.c_str()), 1, &value[0]);
+    }
+    void setUVec3(const std::string &name, GLuint x, GLuint y, GLuint z) const
+    {
+        glUniform3ui(glGetUniformLocation(m_ID, name.c_str()), x, y, z);
     }
     // ------------------------------------------------------------------------
     void setVec4(const std::string &name, const glm::vec4 &value) const

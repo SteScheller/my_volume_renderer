@@ -3,6 +3,7 @@
 #include <tuple>
 #include <vector>
 #include <cstddef>
+#include <cmath>
 
 #include "GL/gl3w.h"
 
@@ -82,7 +83,7 @@ namespace util
 
     };
 
-    using bin_t = std::tuple<float, float, unsigned int>;
+    using bin_t = std::tuple<double, double, unsigned int>;
     //-------------------------------------------------------------------------
     // Templated functions
     //-------------------------------------------------------------------------
@@ -180,16 +181,21 @@ namespace util
             return std::vector<bin_t>(0);
 
         std::vector<bin_t> bins(num_bins);
-        float bin_size =
-            static_cast<float>(max - min) / static_cast<float>(num_bins);
+        double bin_size =
+            (static_cast<double>(max - min) + 1.0) /
+            static_cast<double>(num_bins);
 
         // initialize the bins
         for (size_t i = 0; i < num_bins; i++)
         {
             std::get<0>((bins)[i]) =
-                static_cast<float>(i) * bin_size + static_cast<float>(min);
+                static_cast<double>(i) * bin_size -
+                0.5 * bin_size +
+                static_cast<double>(min);
             std::get<1>((bins)[i]) =
-                static_cast<float>(i + 1) * bin_size + static_cast<float>(min);
+                static_cast<double>(i + 1) * bin_size -
+                0.5 * bin_size +
+                static_cast<double>(min);
             std::get<2>((bins)[i]) = 0;
         }
 
@@ -201,16 +207,11 @@ namespace util
             val = values[i];
 
             // place in corresponding bin
-            if ((min <= val) && (val < max))
+            if ((min <= val) && (val <= max))
             {
                 idx = static_cast<size_t>(
-                    floor(static_cast<float>(val - min) / bin_size));
+                    std::round(static_cast<double>(val - min) / bin_size));
                 std::get<2>((bins)[idx])++;
-            }
-            else if (val == max)
-            {
-                // last bin includes upper limit
-                std::get<2>((bins)[num_bins - 1])++;
             }
         }
 

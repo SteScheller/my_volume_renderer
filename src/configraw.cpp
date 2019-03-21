@@ -602,7 +602,7 @@ util::texture::Texture3D cr::loadScalarVolumeTex(
             0,
             type,
             GL_LINEAR,
-            GL_CLAMP_TO_BORDER,
+            GL_CLAMP_TO_EDGE,
             volumeConfig.getVolumeDim()[0],
             volumeConfig.getVolumeDim()[1],
             volumeConfig.getVolumeDim()[2],
