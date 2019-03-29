@@ -537,6 +537,8 @@ void main()
                                     //!< last sample value
     vec3 posLast = rayOrig;         //!< temporary variable for storing the
                                     //!< last sampled position on the ray
+    bool first = true;              //!< indicator if we first sample a value
+                                    //!< from the volume
 
     // Blinn-Phong shading
     vec3 p = vec3(0.f);             //!< position on the isosurface in world
@@ -685,7 +687,9 @@ void main()
 
             // isosurface
             case 2:
-                if (0.f > ((value - isovalue) * (valueLast - isovalue)))
+                if (true == first)
+                    first = false;
+                else if (0.f > ((value - isovalue) * (valueLast - isovalue)))
                 {
                     if(isoDenoise)
                     {
