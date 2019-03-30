@@ -1,5 +1,5 @@
 bugfixes:
-- flickering when watching the volume from below
+- look into blending with background color (screenshots did not match shown rendering -> hotfix applied in volume frag where blending is now allways done)
 - check scaling and application of transferfunction when it is extrapolated below or above the limit control points
 
 refactoring:

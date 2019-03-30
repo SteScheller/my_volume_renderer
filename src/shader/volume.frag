@@ -54,6 +54,7 @@ uniform float kDiff;       //!< diffuse factor
 uniform float kSpec;       //!< specular factor
 uniform float kExp;        //!< specular exponent
 
+uniform vec3 bgColor;      //!< color of the background
 uniform bool invertColors; //!< switch for inverting the color output
 uniform bool invertAlpha;  //!< switch for inverting the alpha output
 
@@ -774,6 +775,8 @@ void main()
     if (invertAlpha)
         color.a = 1.f - color.a;
 
-    fragColor = vec4(brightness * color.rgb, color.a);
+    color.rgb *= brightness;
+    color.rgb += (1.f - color.a) * bgColor;
+    fragColor = vec4(color.rgb, 1.f);
 }
 

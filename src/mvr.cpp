@@ -330,7 +330,7 @@ int mvr::Renderer::run()
         m_framebuffers[ping].bind();
 
         // clear old buffer content
-        glClearColor(m_clearColor[0], m_clearColor[1], m_clearColor[2], 0.f);
+        glClearColor(m_clearColor[0], m_clearColor[1], m_clearColor[2], 1.f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         drawVolume(m_framebuffers[pong].accessTextures()[1]);
@@ -423,7 +423,7 @@ int mvr::Renderer::renderToFile(std::string path)
     m_framebuffers[ping].bind();
 
     // clear old buffer content
-    glClearColor(m_clearColor[0], m_clearColor[1], m_clearColor[2], 0.f);
+    glClearColor(m_clearColor[0], m_clearColor[1], m_clearColor[2], 1.f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     drawVolume(m_framebuffers[pong].accessTextures()[1]);
@@ -911,6 +911,8 @@ void mvr::Renderer::drawVolume(const util::texture::Texture2D& stateInTexture)
         "gradMethod", static_cast<int>(m_gradientMethod));
     m_shaderVolume.setFloat("stepSize", m_voxelDiagonal * m_stepSize);
     m_shaderVolume.setFloat("stepSizeVoxel", m_stepSize);
+    m_shaderVolume.setVec3("bgColor",
+        m_clearColor[0], m_clearColor[1], m_clearColor[2]);
     m_shaderVolume.setFloat("brightness", m_brightness);
     m_shaderVolume.setBool("ambientOcclusion", m_ambientOcclusion);
     m_shaderVolume.setInt("aoSamples", m_ambientOcclusionNumSamples);
@@ -1788,7 +1790,7 @@ void mvr::Renderer::updatePingPongFramebufferObjects()
             0,
             GL_FLOAT,
             GL_LINEAR,
-            GL_CLAMP_TO_BORDER,
+            GL_CLAMP_TO_EDGE,
             m_renderingDimensions[0],
             m_renderingDimensions[1]);
 
@@ -1808,7 +1810,7 @@ void mvr::Renderer::updatePingPongFramebufferObjects()
             0,
             GL_FLOAT,
             GL_LINEAR,
-            GL_CLAMP_TO_BORDER,
+            GL_CLAMP_TO_EDGE,
             m_renderingDimensions[0],
             m_renderingDimensions[1]);
 
