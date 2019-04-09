@@ -904,8 +904,8 @@ void mvr::Renderer::drawVolume(const util::texture::Texture2D& stateInTexture)
     m_shaderVolume.setMat4(
         "pvmMX", m_volumeProjMx * m_volumeViewMx * m_volumeModelMx);
     m_shaderVolume.setVec3("eyePos", m_cameraPosition);
-    m_shaderVolume.setVec3("bbMin", m_boundingBoxMin.xyz);
-    m_shaderVolume.setVec3("bbMax", m_boundingBoxMax.xyz);
+    m_shaderVolume.setVec3("bbMin", m_boundingBoxMin.xyz());
+    m_shaderVolume.setVec3("bbMax", m_boundingBoxMax.xyz());
     m_shaderVolume.setInt("mode", static_cast<int>(m_renderMode));
     m_shaderVolume.setInt(
         "gradMethod", static_cast<int>(m_gradientMethod));
@@ -954,7 +954,7 @@ void mvr::Renderer::drawVolume(const util::texture::Texture2D& stateInTexture)
             m_slicingPlaneBase[0] / 2.f,
             m_slicingPlaneBase[1] / 2.f,
             m_slicingPlaneBase[2] / 2.f,
-            1.f)).xyz;
+            1.f)).xyz();
     m_shaderVolume.setVec3(
         "slicePlaneBase", tempVec3[0], tempVec3[1], tempVec3[2]);
 
@@ -1706,7 +1706,7 @@ void mvr::Renderer::loadVolume(
                 1.f / static_cast<float>(volumeConfig.getVolumeDim()[0]),
                 1.f / static_cast<float>(volumeConfig.getVolumeDim()[1]),
                 1.f / static_cast<float>(volumeConfig.getVolumeDim()[2]),
-                1.f)).xyz));
+                1.f)).xyz()));
     m_histogramBins = bucketVolumeData(
         *m_volumeData, m_binNumberHistogram, m_xLimitsMin, m_xLimitsMax);
     m_volumeTex = cr::loadScalarVolumeTex(*m_volumeData);

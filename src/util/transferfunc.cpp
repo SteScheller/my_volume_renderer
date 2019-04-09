@@ -205,7 +205,7 @@ glm::vec4 util::tf::TransferFuncRGBA1D::interpolateCHermite(
             t3 - t2,
             -2.f * t3 + 3 * t2);
 
-    glm::vec3 rgbderiv = b.color.rgb - a.color.rgb;
+    glm::vec3 rgbderiv = b.color.rgb() - a.color.rgb();
 
     glm::mat4 geometry = glm::mat4(
             a.color.r,  a.color.g,  a.color.b,  a.color.a,
