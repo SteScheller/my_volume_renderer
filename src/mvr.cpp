@@ -22,7 +22,7 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include <imgui.h>
-#include <imgui_stl.h>
+#include <imgui_stdlib.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
 

@@ -13,7 +13,7 @@ SOURCES += src/configraw.cpp src/util/transferfunc.cpp
 SOURCES += libs/imgui/imgui_impl_glfw.cpp libs/imgui/imgui_impl_opengl3.cpp
 SOURCES += libs/imgui/imgui.cpp libs/imgui/imgui_demo.cpp
 SOURCES += libs/imgui/imgui_draw.cpp libs/imgui/imgui_widgets.cpp
-SOURCES += libs/imgui/imgui_stl.cpp
+SOURCES += libs/imgui/imgui_stdlib.cpp
 SOURCES += libs/gl3w/GL/gl3w.c
 
 OBJS = $(addsuffix .o, $(basename $(SOURCES)))
