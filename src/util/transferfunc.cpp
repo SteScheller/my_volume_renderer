@@ -1,5 +1,3 @@
-#include "transferfunc.hpp"
-
 #include <iostream>
 #include <utility>
 #include <iterator>
@@ -11,7 +9,7 @@
 #define GLM_FORCE_SWIZZLE
 #include <glm/glm.hpp>
 
-#include "util.hpp"
+#include "transferfunc.hpp"
 
 //-----------------------------------------------------------------------------
 //  Definitions for ControlPointRGBA

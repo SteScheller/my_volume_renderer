@@ -1,8 +1,8 @@
 #pragma once
 
-#include <GL/gl3w.h>
+#include <array>
 
-#include "util.hpp"
+#include <GL/gl3w.h>
 
 namespace util
 {
@@ -78,5 +78,21 @@ namespace util
 
             void draw() const;
         };
+
+        class Line2D : Shape
+        {
+            public:
+            Line2D(
+                bool oglAvailable,
+                const std::array<float, 4> vertices = {0.f, 0.f, 1.f, 1.f});
+            Line2D(const Line2D& other) = delete;
+            Line2D& operator=(const Line2D& other) = delete;
+            Line2D(Line2D&& other) : Shape(std::move(other)) {};
+            Line2D& operator=(Line2D&& other);
+            ~Line2D();
+
+            void draw() const;
+        };
+
     }
 }
