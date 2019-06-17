@@ -39,9 +39,29 @@ LDFLAGS += -lboost_system -lboost_filesystem -lboost_regex
 LDFLAGS += -lboost_program_options
 LDFLAGS += -lfreeimage
 
-.PHONY: clean
+.PHONY: clean start all
 
 default: debug
+
+all:
+	@echo Building debug version...
+	@echo
+	@make debug
+	@echo
+	@echo
+	@echo
+	@echo --------------------------------------------------------------------------------
+	@echo Building release version...
+	@echo
+	@make release
+	@echo
+	@echo
+	@echo
+	@echo --------------------------------------------------------------------------------
+	@echo Building shared library...
+	@echo
+	@make shared
+
 
 debug: CADDITIONALFLAGS = $(DEBUG_CFLAGS)
 debug: CXXADDITIONALFLAGS = $(DEBUG_CXXFLAGS)
