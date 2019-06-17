@@ -4,8 +4,6 @@
 
 #include <GL/gl3w.h>
 
-#include "util.hpp"
-
 namespace util
 {
     namespace texture

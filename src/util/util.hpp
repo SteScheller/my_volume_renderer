@@ -5,6 +5,8 @@
 #include <cstddef>
 #include <cmath>
 
+#include <boost/multi_array.hpp>
+
 #include "GL/gl3w.h"
 
 #define GLM_FORCE_SWIZZLE
@@ -87,6 +89,45 @@ namespace util
     //-------------------------------------------------------------------------
     // Templated functions
     //-------------------------------------------------------------------------
+    /**
+     * @brief linearly interpolates between a and b with (t from [0,1])
+     * @param a
+     * @param b
+     * @param t
+     */
+    template<typename T1, typename T2 = float>
+    T2 linearInterpolation(T1 a, T1 b, T2 t)
+    {
+        return static_cast<T2>(
+                static_cast<T2>(a) * (static_cast<T2>(1.0) - t) +
+                static_cast<T2>(b) * t);
+    }
+    /**
+     * @brief bilinearly interpolates between a, b, c, d with (x,y from [0,1])
+     * @param a
+     * @param b
+     * @param t
+     */
+    template<typename T1, typename T2 = float>
+    T2 bilinearInterpolation(T1 a, T1 b, T1 c, T1 d, T2 x, T2 y)
+    {
+        // (0,0) a-----------b (1,0)
+        //       |           |
+        //       |   o (x,y) |
+        //       |           |
+        //       |           |
+        // (0,1) c-----------d (1,1)
+
+        T2 result = 0.f;
+
+        result = static_cast<T2>(a) * (static_cast<T2>(1.0) - x) *
+                    (static_cast<T2>(1.0) - y) +
+                 static_cast<T2>(b) * x * (static_cast<T2>(1.0) - y) +
+                 static_cast<T2>(c) * (static_cast<T2>(1.0) - x) * y +
+                 static_cast<T2>(d) * x * y;
+
+        return result;
+    }
     /*! \brief Transforms cartesian into polar coordinates.
      *  \return A vector where with components (r, phi, theta)
      *
@@ -216,6 +257,184 @@ namespace util
         }
 
         return bins;
+    }
+
+    /**
+     * /brief creates isoline geometry for a given 2D field
+     *
+     * /param domain    field data on rectangular 2D domain
+     * /param isovalue  threshold for which to extract the isolines
+     *
+     * /return A vector of lines that form the respective isolines
+     *
+     * Note: The position of the lines is derivated from the shape of the
+     *       field and results in position from
+     *       [0, width - 1] x [0, height - 1].
+     */
+    template<typename T>
+    std::vector<util::geometry::Line2D> extractIsolines(
+        boost::multi_array<T, 2> domain, T isovalue)
+    {
+        std::vector<util::geometry::Line2D> lines;
+        std::array<float, 4> vertices = {0.f, 0.f, 0.f, 0.f};
+        T ul, ur, ll, lr;   // node values (upper-left, upper-right, ...)
+        float p1, p2, p3, p4;   // local coordinates of asymptotes
+        T m;                // value at the middle of a cell
+        unsigned int node_sig = 0;
+
+        for (size_t j = 0; j < (domain.shape()[1] - 1); j++)
+        {
+            for (size_t i = 0; i < (domain.shape()[0] - 1); i++)
+            {
+                // compare nodes of the square to the iso value
+                ul = domain[j][i];
+                ur = domain[j][i + 1];
+                ll = domain[j + 1][i];
+                lr = domain[j + 1][i + 1];
+
+                node_sig = 0;
+                if (ul >= isovalue) node_sig |= 1u;
+                if (ur >= isovalue) node_sig |= (1u << 1);
+                if (ll >= isovalue) node_sig |= (1u << 2);
+                if (lr >= isovalue) node_sig |= (1u << 3);
+
+                if ((node_sig == 0b1111u) || (node_sig == 0b0000u))
+                {
+                    // all nodes above or below isovalue -> no isoline
+                    continue;
+                }
+                else if ((node_sig == 0b1110u) || (node_sig == 0b0001u))
+                {
+                    // upper left corner
+
+                    // calculate local coordinates of asymptotes
+                    p1 = static_cast<float>((isovalue - ul) / (ur - ul));
+                    p2 = static_cast<float>((isovalue - ul) / (ll - ul));
+
+                    vertices[0] = static_cast<float>(i) + p1; // x1
+                    vertices[1] = static_cast<float>(j); // y1
+                    vertices[2] = static_cast<float>(i); // x2
+                    vertices[3] = static_cast<float>(j) + p2; // y2
+                    lines.emplace_back(true, vertices);
+                }
+                else if ((node_sig == 0b1101u) || (node_sig == 0b0010u))
+                {
+                    // upper right corner
+
+                    // calculate local coordinates of asymptotes
+                    p1 = static_cast<float>((isovalue - ul) / (ur - ul));
+                    p2 = static_cast<float>((isovalue - ur) / (lr - ur));
+
+                    vertices[0] = static_cast<float>(i) + p1; // x1
+                    vertices[1] = static_cast<float>(j); // y1
+                    vertices[2] = static_cast<float>(i) + 1.f; // x2
+                    vertices[3] = static_cast<float>(j) + p2; // y2
+                    lines.emplace_back(true, vertices);
+                }
+                else if ((node_sig == 0b1011u) || (node_sig == 0b0100u))
+                {
+                    // lower left corner
+
+                    // calculate local coordinates of asymptotes
+                    p1 = static_cast<float>((isovalue - ll) / (lr - ll));
+                    p2 = static_cast<float>((isovalue - ul) / (ll - ul));
+
+                    vertices[0] = static_cast<float>(i); // x1
+                    vertices[1] = static_cast<float>(j) + p2; // y1
+                    vertices[2] = static_cast<float>(i) + p1; // x2
+                    vertices[3] = static_cast<float>(j) + 1.f; // y2
+                    lines.emplace_back(true, vertices);
+                }
+                else if ((node_sig == 0b0111u) || (node_sig == 0b1000u))
+                {
+                    // lower right corner
+
+                    // calculate local coordinates of asymptotes
+                    p1 = static_cast<float>((isovalue - ll) / (lr - ll));
+                    p2 = static_cast<float>((isovalue - ur) / (lr - ur));
+
+                    vertices[0] = static_cast<float>(i) + 1.f; // x1
+                    vertices[1] = static_cast<float>(j) + p2; // y1
+                    vertices[2] = static_cast<float>(i) + p1; // x2
+                    vertices[3] = static_cast<float>(j) + 1.f; // y2
+                    lines.emplace_back(true, vertices);
+                }
+                else if ((node_sig == 0b0011u) || (node_sig == 0b1100u))
+                {
+                    // horizontal
+                    // calculate local coordinates of asymptotes
+                    p1 = static_cast<float>((isovalue - ul) / (ll - ul));
+                    p2 = static_cast<float>((isovalue - ur) / (lr - ur));
+
+                    vertices[0] = static_cast<float>(i); // x1
+                    vertices[1] = static_cast<float>(j) + p1; // y1
+                    vertices[2] = static_cast<float>(i) + 1.f; // x2
+                    vertices[3] = static_cast<float>(j) + p2; // y2
+                    lines.emplace_back(true, vertices);
+                }
+                else if ((node_sig == 0b1010u) || (node_sig == 0b0101u))
+                {
+                    // vertical
+
+                    // calculate local coordinates of asymptotes
+                    p1 = static_cast<float>((isovalue - ul) / (ur - ul));
+                    p2 = static_cast<float>((isovalue - ll) / (lr - ll));
+
+                    vertices[0] = static_cast<float>(i) + p1; // x1
+                    vertices[1] = static_cast<float>(j); // y1
+                    vertices[2] = static_cast<float>(i) + p2; // x2
+                    vertices[3] = static_cast<float>(j) + 1.f; // y2
+                    lines.emplace_back(true, vertices);
+                }
+                else if ((node_sig == 0b0110u) || (node_sig == 0b1001u))
+                {
+                    // ambigous diagonal case
+
+
+                    // calculate local coordinates of asymptotes
+                    p1 = static_cast<float>((isovalue - ul) / (ur - ul));
+                    p2 = static_cast<float>((isovalue - ul) / (ll - ul));
+                    p3 = static_cast<float>((isovalue - ur) / (lr - ur));
+                    p4 = static_cast<float>((isovalue - ll) / (lr - ll));
+
+                    m = bilinearInterpolation<T, float>(ul, ur, ll, lr, 0.5f, 0.5f);
+
+                    if (((m >= isovalue) && (node_sig == 0b0110u)) ||
+                        ((m < isovalue) && (node_sig == 0b1001u)))
+                    {
+                        // lines from upper right to lower left
+                        vertices[0] = static_cast<float>(i) + p1; // x1
+                        vertices[1] = static_cast<float>(j); // y1
+                        vertices[2] = static_cast<float>(i); // x2
+                        vertices[3] = static_cast<float>(j) + p2; // y2
+                        lines.emplace_back(true, vertices);
+
+                        vertices[0] = static_cast<float>(i) + 1.f; // x1
+                        vertices[1] = static_cast<float>(j) + p3; // y1
+                        vertices[2] = static_cast<float>(i) + p4; // x2
+                        vertices[3] = static_cast<float>(j) + 1.f; // y2
+                        lines.emplace_back(true, vertices);
+                    }
+                    else
+                    {
+                        // lines from upper left to lower right
+                        vertices[0] = static_cast<float>(i) + p1; // x1
+                        vertices[1] = static_cast<float>(j); // y1
+                        vertices[2] = static_cast<float>(i) + 1.f; // x2
+                        vertices[3] = static_cast<float>(j) + p3; // y2
+                        lines.emplace_back(true, vertices);
+
+                        vertices[0] = static_cast<float>(i); // x1
+                        vertices[1] = static_cast<float>(j) + p2; // y1
+                        vertices[2] = static_cast<float>(i) + p4; // x2
+                        vertices[3] = static_cast<float>(j) + 1.f; // y2
+                        lines.emplace_back(true, vertices);
+                    }
+                }
+            }
+        }
+
+        return lines;
     }
 }
 
