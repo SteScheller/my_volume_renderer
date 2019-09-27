@@ -225,8 +225,8 @@ namespace util
              * Note:
              * - res must be >= 2 otherwise it is set to 2 internally
              */
-            void updateTexture(float min, float max, size_t res = 256);
-            void updateTexture(size_t res = 256);
+            void updateTexture(float min, float max, size_t res = 10);
+            void updateTexture(size_t res = 10);
 
             /**
              * \brief returns the ID of a texture sampled from the transfer

@@ -754,14 +754,8 @@ int mvr::Renderer::loadConfigFromFile(std::string path)
                         color,
                         (*it)["alpha"].get<float>());
             }
-            tf.updateTexture();
-            tf.updateTexture(
-                std::max(
-                    m_xLimitsMin,
-                    tf.accessControlPoints()->begin()->pos),
-                std::min(
-                    m_xLimitsMax,
-                    tf.accessControlPoints()->rbegin()->pos));
+            tf.updateTexture(); // dummy update for initialization
+            tf.updateTexture(m_xLimitsMin, m_xLimitsMax);
             m_transferFunction = std::move(tf);
         }
 
@@ -1445,7 +1439,7 @@ void mvr::Renderer::drawTransferFunctionWindow()
         ret = m_transferFunction.updateControlPoint(cpIterator, cp);
         if (ret.second == true)
         {
-            m_transferFunction.updateTexture();
+            m_transferFunction.updateTexture(m_xLimitsMin, m_xLimitsMax);
             cpSelected = ret.first;
             m_selectedTfControlPointPos = cpSelected->pos;
         }
@@ -1456,13 +1450,7 @@ void mvr::Renderer::drawTransferFunctionWindow()
         {
             m_transferFunction.removeControlPoint(cpSelected);
             cpSelected = m_transferFunction.accessControlPoints()->begin();
-            m_transferFunction.updateTexture(
-                std::max(
-                    m_xLimitsMin,
-                    m_transferFunction.accessControlPoints()->begin()->pos),
-                std::min(
-                    m_xLimitsMax,
-                    m_transferFunction.accessControlPoints()->rbegin()->pos));
+            m_transferFunction.updateTexture(m_xLimitsMin, m_xLimitsMax);
         }
     }
 

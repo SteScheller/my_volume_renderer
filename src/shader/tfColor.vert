@@ -20,9 +20,9 @@ void main()
 {
     gl_Position = projMX * vec4(in_position, 0.f, 1.f);
 
-    vTexCoord.x =
-        (mix(x_min, x_max, tex_coords.x) - tf_interval_lower) /
-        (tf_interval_upper - tf_interval_lower);
+    vTexCoord.x = tex_coords.x;
+        //(mix(x_min, x_max, tex_coords.x) - tf_interval_lower) /
+        //(tf_interval_upper - tf_interval_lower);
 
     vTexCoord.y = 0.5f;
 }
