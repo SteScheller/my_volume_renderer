@@ -1339,7 +1339,7 @@ void mvr::Renderer::drawHistogramWindow()
     ImGui::Separator();
     ImGui::Spacing();
 
-    ImGui::DragFloatRange2(
+    if( ImGui::DragFloatRange2(
             "interval",
             &m_xLimitsMin,
             &m_xLimitsMax,
@@ -1347,7 +1347,9 @@ void mvr::Renderer::drawHistogramWindow()
             0.f,
             0.f,
             "Min: %.1f",
-            "Max: %.1f");
+            "Max: %.1f"))
+        m_transferFunction.updateTexture(m_xLimitsMin, m_xLimitsMax);
+
     ImGui::InputInt("number of bins", &m_binNumberHistogram);
     if(ImGui::Button("Regenerate Histogram"))
     {
@@ -1383,7 +1385,7 @@ void mvr::Renderer::drawTransferFunctionWindow()
     // draw the imgui elements
     ImGui::Begin("Transfer Function Editor", &m_showTfWindow);
 
-    ImGui::DragFloatRange2(
+    if(ImGui::DragFloatRange2(
             "interval",
             &m_xLimitsMin,
             &m_xLimitsMax,
@@ -1391,7 +1393,8 @@ void mvr::Renderer::drawTransferFunctionWindow()
             0.f,
             0.f,
             "Min: %.1f",
-            "Max: %.1f");
+            "Max: %.1f"))
+        m_transferFunction.updateTexture(m_xLimitsMin, m_xLimitsMax);
 
     ImGui::Spacing();
     ImGui::Separator();
@@ -1474,15 +1477,7 @@ void mvr::Renderer::drawTransferFunctionWindow()
         ret = m_transferFunction.insertControlPoint(
             tfControlPointPos, tempVec4);
         if(ret.second == true)
-        {
-            m_transferFunction.updateTexture(
-                std::max(
-                    m_xLimitsMin,
-                    m_transferFunction.accessControlPoints()->begin()->pos),
-                std::min(
-                    m_xLimitsMax,
-                    m_transferFunction.accessControlPoints()->rbegin()->pos));
-        }
+            m_transferFunction.updateTexture(m_xLimitsMin, m_xLimitsMax);
     }
 
     // dynamic list of control points
@@ -1524,7 +1519,7 @@ void mvr::Renderer::drawTransferFunctionWindow()
             if (cp != *i)
             {
                 m_transferFunction.updateControlPoint(i, cp);
-                m_transferFunction.updateTexture();
+                m_transferFunction.updateTexture(m_xLimitsMin, m_xLimitsMax);
             }
 
             ++idx;
@@ -1587,12 +1582,6 @@ void mvr::Renderer::drawTfColor(util::FramebufferObject &tfColorWidgetFBO)
     m_shaderTfColor.setInt("transferTex", 0);
 
     m_shaderTfColor.setMat4("projMX", m_quadProjMx);
-    m_shaderTfColor.setFloat("x_min", m_xLimitsMin);
-    m_shaderTfColor.setFloat("x_max", m_xLimitsMax);
-    m_shaderTfColor.setFloat("tf_interval_lower",
-            m_transferFunction.accessControlPoints()->begin()->pos);
-    m_shaderTfColor.setFloat("tf_interval_upper",
-            m_transferFunction.accessControlPoints()->rbegin()->pos);
 
     m_windowQuad.draw();
 
@@ -1635,14 +1624,6 @@ void mvr::Renderer::drawTfFunc(util::FramebufferObject &tfFuncWidgetFBO)
     m_shaderTfFunc.setInt("transferTex", 0);
 
     m_shaderTfFunc.setMat4("projMX", m_quadProjMx);
-    m_shaderTfFunc.setFloat("x_min", m_xLimitsMin);
-    m_shaderTfFunc.setFloat("x_max", m_xLimitsMax);
-    m_shaderTfFunc.setFloat(
-        "tf_interval_lower",
-        m_transferFunction.accessControlPoints()->begin()->pos);
-    m_shaderTfFunc.setFloat(
-        "tf_interval_upper",
-        m_transferFunction.accessControlPoints()->rbegin()->pos);
     m_shaderTfFunc.setInt("width", m_tfFuncWidgetDimensions[0]);
     m_shaderTfFunc.setInt("height", m_tfFuncWidgetDimensions[1]);
 

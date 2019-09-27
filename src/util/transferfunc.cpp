@@ -371,13 +371,7 @@ void util::tf::TransferFuncRGBA1D::updateTexture(
     {
         x += step;
         fx[i] = (*this)(x);
-        std::cout << fx[i].a << ", ";
     }
-    std::cout << std::endl;
-    std::cout << m_controlPoints.begin()->pos << ", " << std::prev(m_controlPoints.end())->pos << std::endl;
-    std::cout << min << ", " << max << std::endl;
-    std::cout << std::endl;
-
 
     m_tfTex = util::texture::Texture2D(
         GL_RGBA,
@@ -395,9 +389,7 @@ void util::tf::TransferFuncRGBA1D::updateTexture(
 void util::tf::TransferFuncRGBA1D::updateTexture(size_t res)
 {
     updateTexture(
-            m_controlPoints.begin()->pos,
-            m_controlPoints.rbegin()->pos,
-            res);
+        m_controlPoints.begin()->pos, m_controlPoints.rbegin()->pos, res);
 }
 
 util::texture::Texture2D& util::tf::TransferFuncRGBA1D::accessTexture()
