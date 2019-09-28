@@ -24,6 +24,7 @@ namespace util
             ControlPointRGBA(       //!< constrution from individual values
                     float r, float g, float b, float a);
             ControlPointRGBA(const tf::ControlPointRGBA &other);
+            ControlPointRGBA& operator=(const ControlPointRGBA& other);
 
             virtual ~ControlPointRGBA();    //!< destructor
 
@@ -66,6 +67,7 @@ namespace util
                     float b,
                     float a);
             ControlPointRGBA1D(const tf::ControlPointRGBA1D &other);
+            ControlPointRGBA1D& operator=(const ControlPointRGBA1D& other);
 
             ~ControlPointRGBA1D();          //!< destructor
 

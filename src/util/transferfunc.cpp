@@ -41,6 +41,13 @@ util::tf::ControlPointRGBA::ControlPointRGBA(const ControlPointRGBA &other)
     this->color = other.color;
 }
 
+util::tf::ControlPointRGBA& util::tf::ControlPointRGBA::operator=(
+        const ControlPointRGBA& other)
+{
+    this->color = other.color;
+    return *this;
+}
+
 util::tf::ControlPointRGBA::~ControlPointRGBA(){}
 
 bool util::tf::ControlPointRGBA::compare(
@@ -135,6 +142,16 @@ util::tf::ControlPointRGBA1D::ControlPointRGBA1D(
     this->fderiv = other.fderiv;
 }
 
+util::tf::ControlPointRGBA1D& util::tf::ControlPointRGBA1D::operator=(
+        const ControlPointRGBA1D& other)
+{
+    this->color = other.color;
+    this->pos = other.pos;
+    this->fderiv = other.fderiv;
+
+    return *this;
+}
+
 util::tf::ControlPointRGBA1D::~ControlPointRGBA1D(){}
 
 // definition of inherited virtual functions
@@ -167,7 +184,7 @@ util::tf::TransferFuncRGBA1D::TransferFuncRGBA1D()
     m_controlPoints = tf::controlPointSet1D_t(fn_pt);
     m_tfTex = util::texture::Texture2D();
     m_controlPoints.emplace(0.f, glm::vec4(0.f));
-    m_controlPoints.emplace(255.f, glm::vec4(1.f));
+    m_controlPoints.emplace(1.f, glm::vec4(1.f));
 }
 
 util::tf::TransferFuncRGBA1D::TransferFuncRGBA1D(TransferFuncRGBA1D&& other) :
