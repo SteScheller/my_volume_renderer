@@ -86,7 +86,7 @@ mvr::Renderer::Renderer() :
     m_cameraTranslationSpeed(0.002f),
     m_projection(mvr::Projection::perspective),
     // isosurface mode
-    m_isovalue(0.1f),
+    m_isovalue(127.5f),
     m_isovalueDenoising(true),
     m_isovalueDenoisingRadius(0.1f),
     // lighting
@@ -552,7 +552,7 @@ int mvr::Renderer::saveConfigToFile(std::string path)
 int mvr::Renderer::saveTransferFunctionToFile(std::string path)
 {
     util::tf::discreteTf1D_t discreteTf =
-            m_transferFunction.getDiscretized(m_xLimitsMin, m_xLimitsMax, 256);
+            m_transferFunction.getDiscretized(0.f, 1.f, 256);
     std::ofstream out(path);
 
     out << "index,red,green,blue,alpha" << std::endl;
@@ -754,8 +754,7 @@ int mvr::Renderer::loadConfigFromFile(std::string path)
                         color,
                         (*it)["alpha"].get<float>());
             }
-            tf.updateTexture(); // dummy update for initialization
-            tf.updateTexture(m_xLimitsMin, m_xLimitsMax);
+            tf.updateTexture(0.f, 1.f);
             m_transferFunction = std::move(tf);
         }
 
@@ -892,6 +891,9 @@ void mvr::Renderer::drawVolume(const util::texture::Texture2D& stateInTexture)
     stateInTexture.bind();
     m_shaderVolume.setInt("stateIn", 3);
 
+    m_shaderVolume.setFloat("valIntervalMin", m_xLimitsMin);
+    m_shaderVolume.setFloat("valIntervalMax", m_xLimitsMax);
+
     m_shaderVolume.setInt("winWidth", m_renderingDimensions[0]);
     m_shaderVolume.setInt("winHeight", m_renderingDimensions[1]);
     m_shaderVolume.setMat4("modelMX", m_volumeModelMx);
@@ -913,7 +915,10 @@ void mvr::Renderer::drawVolume(const util::texture::Texture2D& stateInTexture)
     m_shaderVolume.setFloat(
         "aoRadius", m_voxelDiagonal * m_ambientOcclusionRadius);
     m_shaderVolume.setFloat("aoProportion", m_ambientOcclusionProportion);
-    m_shaderVolume.setFloat("isovalue", m_isovalue);
+    m_shaderVolume.setFloat("isovalue",
+        glm::clamp(
+            (m_isovalue - m_xLimitsMin) / (m_xLimitsMax - m_xLimitsMin),
+            0.f, 1.f));
     m_shaderVolume.setBool("isoDenoise", m_isovalueDenoising);
     m_shaderVolume.setFloat("isoDenoiseR",
         m_voxelDiagonal * m_isovalueDenoisingRadius);
@@ -1056,7 +1061,7 @@ void mvr::Renderer::drawSettingsWindow()
         if (ImGui::CollapsingHeader("Isosurface"))
         {
             ImGui::SliderFloat(
-                "isovalue", &m_isovalue, 0.f, 1.f, "%.3f");
+                "isovalue", &m_isovalue, m_xLimitsMin, m_xLimitsMax, "%.3f");
             ImGui::Checkbox("denoise", &m_isovalueDenoising);
             ImGui::SliderFloat(
                 "denoise radius",
@@ -1348,7 +1353,7 @@ void mvr::Renderer::drawHistogramWindow()
             0.f,
             "Min: %.1f",
             "Max: %.1f"))
-        m_transferFunction.updateTexture(m_xLimitsMin, m_xLimitsMax);
+        m_transferFunction.updateTexture(0.f, 1.f);
 
     ImGui::InputInt("number of bins", &m_binNumberHistogram);
     if(ImGui::Button("Regenerate Histogram"))
@@ -1394,7 +1399,7 @@ void mvr::Renderer::drawTransferFunctionWindow()
             0.f,
             "Min: %.1f",
             "Max: %.1f"))
-        m_transferFunction.updateTexture(m_xLimitsMin, m_xLimitsMax);
+        m_transferFunction.updateTexture(0.f, 1.f);
 
     ImGui::Spacing();
     ImGui::Separator();
@@ -1432,7 +1437,7 @@ void mvr::Renderer::drawTransferFunctionWindow()
     cp = *cpSelected;
 
     ImGui::SliderFloat(
-        "position##edit", &(cp.pos), m_xLimitsMin, m_xLimitsMax);
+        "position##edit", &(cp.pos), 0.f, 1.f, "%.3f");
     ImGui::SliderFloat("slope##edit", &(cp.fderiv), -10.f, 10.f);
     ImGui::ColorEdit3("assigned color##edit", glm::value_ptr(cp.color));
     ImGui::SliderFloat("alpha##edit", &(cp.color.a), 0.f, 1.f);
@@ -1442,7 +1447,7 @@ void mvr::Renderer::drawTransferFunctionWindow()
         ret = m_transferFunction.updateControlPoint(cpIterator, cp);
         if (ret.second == true)
         {
-            m_transferFunction.updateTexture(m_xLimitsMin, m_xLimitsMax);
+            m_transferFunction.updateTexture(0.f, 1.f);
             cpSelected = ret.first;
             m_selectedTfControlPointPos = cpSelected->pos;
         }
@@ -1453,7 +1458,7 @@ void mvr::Renderer::drawTransferFunctionWindow()
         {
             m_transferFunction.removeControlPoint(cpSelected);
             cpSelected = m_transferFunction.accessControlPoints()->begin();
-            m_transferFunction.updateTexture(m_xLimitsMin, m_xLimitsMax);
+            m_transferFunction.updateTexture(0.f, 1.f);
         }
     }
 
@@ -1463,7 +1468,7 @@ void mvr::Renderer::drawTransferFunctionWindow()
 
     ImGui::Text("Add new control point:");
     ImGui::SliderFloat(
-        "position", &tfControlPointPos, m_xLimitsMin, m_xLimitsMax);
+        "position", &tfControlPointPos, 0.f, 1.f, "%.3f");
     ImGui::ColorEdit3("assigned color", tfControlPointColor);
     ImGui::SliderFloat("alpha", &tfControlPointAlpha, 0.f, 1.f);
     if(ImGui::Button("add"))
@@ -1477,7 +1482,7 @@ void mvr::Renderer::drawTransferFunctionWindow()
         ret = m_transferFunction.insertControlPoint(
             tfControlPointPos, tempVec4);
         if(ret.second == true)
-            m_transferFunction.updateTexture(m_xLimitsMin, m_xLimitsMax);
+            m_transferFunction.updateTexture(0.f, 1.f);
     }
 
     // dynamic list of control points
@@ -1499,8 +1504,9 @@ void mvr::Renderer::drawTransferFunctionWindow()
             ImGui::SliderFloat(
                 (std::string("position##") + std::to_string(idx)).c_str(),
                 &(cp.pos),
-                m_xLimitsMin,
-                m_xLimitsMax);
+                0.f,
+                1.f,
+                "%.3f");
             ImGui::SliderFloat(
                 (std::string("slope##") + std::to_string(idx)).c_str(),
                 &(cp.fderiv),
@@ -1519,7 +1525,7 @@ void mvr::Renderer::drawTransferFunctionWindow()
             if (cp != *i)
             {
                 m_transferFunction.updateControlPoint(i, cp);
-                m_transferFunction.updateTexture(m_xLimitsMin, m_xLimitsMax);
+                m_transferFunction.updateTexture(0.f, 1.f);
             }
 
             ++idx;
@@ -1634,8 +1640,6 @@ void mvr::Renderer::drawTfFunc(util::FramebufferObject &tfFuncWidgetFBO)
     m_shaderTfPoint.use();
 
     m_shaderTfPoint.setMat4("projMX", m_quadProjMx);
-    m_shaderTfPoint.setFloat("x_min", m_xLimitsMin);
-    m_shaderTfPoint.setFloat("x_max", m_xLimitsMax);
 
     for (
             auto i = m_transferFunction.accessControlPoints()->cbegin();

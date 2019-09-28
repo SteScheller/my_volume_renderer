@@ -8,6 +8,9 @@ in vec3 vWorldCoord;        //!< texture coordinates
 uniform sampler3D volumeTex;            //!< 3D texture handle
 uniform sampler2D transferfunctionTex;  //!< 3D texture handle
 
+uniform float valIntervalMin;    //!< lower limit of the shown interval
+uniform float valIntervalMax;    //!< upper limit of the shown interval
+
 uniform bool useSeed;           //!< flag if the seed texture shall be used
 uniform usampler2D seed;        //!< seed texture for random number generator
 uniform usampler2D stateIn;     //!< state of random number generator
@@ -508,8 +511,9 @@ float denoiseSphereAvg(sampler3D volume, vec3 pos, float r)
 // ----------------------------------------------------------------------------
 void main()
 {
-    vec4 color = vec4(0.f); //!< RGBA color of the fragment
-    float value = 0.f;      //!< value sampled from the volume
+    vec4 color = vec4(0.f);         //!< RGBA color of the fragment
+    float value = 0.f;              //!< value sampled from the volume
+    float valueNormalized = 0.f;    //!< normalized sampled value
     float denoisedValue = 0.f;      //!< denoised value from the volume
 
     bool intersect = false; //!< flag if we did hit the bounding box

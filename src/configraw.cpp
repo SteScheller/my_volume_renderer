@@ -553,36 +553,44 @@ util::texture::Texture3D cr::loadScalarVolumeTex(
 {
     bool supported = true;
     GLenum type = GL_UNSIGNED_BYTE;
+    GLenum internalFormat = GL_RED;
     VolumeConfig volumeConfig = volumeData.getVolumeConfig();
 
     switch(volumeConfig.getVoxelType())
     {
         case Datatype::unsigned_byte:
             type = GL_UNSIGNED_BYTE;
+            internalFormat = GL_RED;
             break;
 
         case Datatype::signed_byte:
             type = GL_BYTE;
+            internalFormat = GL_RED;
             break;
 
         case Datatype::unsigned_halfword:
             type = GL_UNSIGNED_SHORT;
+            internalFormat = GL_RED;
             break;
 
         case Datatype::signed_halfword:
             type = GL_SHORT;
+            internalFormat = GL_RED;
             break;
 
         case Datatype::unsigned_word:
             type = GL_UNSIGNED_INT;
+            internalFormat = GL_RED;
             break;
 
         case Datatype::signed_word:
             type = GL_INT;
+            internalFormat = GL_RED;
             break;
 
         case Datatype::single_precision_float:
             type = GL_FLOAT;
+            internalFormat = GL_R32F;
             break;
 
         case Datatype::double_precision_float:
@@ -597,7 +605,7 @@ util::texture::Texture3D cr::loadScalarVolumeTex(
 
     if (true == supported)
         return util::texture::Texture3D(
-            GL_RED,
+            internalFormat,
             GL_RED,
             0,
             type,

@@ -10,3 +10,4 @@ void main()
     frag_color = vec4(color.rgb, 1.f);
     picking = vec2(pos, 1.f);
 }
+
