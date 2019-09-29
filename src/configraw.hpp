@@ -70,6 +70,8 @@ namespace cr
         size_t numBins,
         float min,
         float max);
+    std::tuple<float, float> getLimitsVolumeData(
+        const VolumeDataBase &volumeData);
 
     // ------------------------------------------------------------------------
     // class declarations

@@ -6,10 +6,17 @@ in vec3 vTexCoord;          //!< texture coordinates
 in vec3 vWorldCoord;        //!< texture coordinates
 
 uniform sampler3D volumeTex;            //!< 3D texture handle
+uniform bool volumeTexNormalized;       //!< does the volume only contain
+                                        //!< values in [0,1]
 uniform sampler2D transferfunctionTex;  //!< 3D texture handle
 
-uniform float valIntervalMin;    //!< lower limit of the shown interval
-uniform float valIntervalMax;    //!< upper limit of the shown interval
+uniform float valIntervalMin;    //!< lower limit of the shown normalized
+                                 //!< value interval
+uniform float valIntervalMax;    //!< upper limit of the shown normalized
+                                 //!< value interval
+
+uniform float volumeDataMin;    //!< min. value of the unnormalized volume data
+uniform float volumeDataMax;    //!< max. value of the unnormalized volume data
 
 uniform bool useSeed;           //!< flag if the seed texture shall be used
 uniform usampler2D seed;        //!< seed texture for random number generator
@@ -42,7 +49,7 @@ uniform int aoSamples;          //!< number of samples involved in ambient
                                 //!< occlusion calculation
 uniform float aoRadius;         //!< radius of the sampled halfdome
 
-uniform float isovalue;         //!< value for isosurface
+uniform float isovalue;         //!< normalized value for isosurface
 uniform bool isoDenoise;        //!< switch for smoothing of the isosurface
 uniform float isoDenoiseR;      //!< radius for denoising
 
@@ -538,8 +545,8 @@ void main()
     float maxValue = 0.f;
 
     // isosurface
-    float valueLast = 0.f;          //!< temporary variable for storing the
-                                    //!< last sample value
+    float lastValueNormalized = 0.f;    //!< temporary variable for storing the
+                                        //!< last normalized sample value
     vec3 posLast = rayOrig;         //!< temporary variable for storing the
                                     //!< last sampled position on the ray
     bool first = true;              //!< indicator if we first sample a value
@@ -636,11 +643,22 @@ void main()
 
         value = texture(volumeTex, volCoord).r;
 
+        if (volumeTexNormalized == true)
+            valueNormalized = value;
+        else
+            valueNormalized = clamp(
+                (value - volumeDataMin) / (volumeDataMax - volumeDataMin),
+                0.f,
+                1.f);
+
+        if (valueNormalized < valIntervalMin) continue;
+        else if (valueNormalized > valIntervalMax) continue;
+
         switch (mode)
         {
             // line-of-sight integration
             case 0:
-                color.rgb += vec3(value * dx);
+                color.rgb += vec3(valueNormalized * dx);
                 color.a = 1.f;
                 if (color.r > 0.99f)
                 {
@@ -654,7 +672,7 @@ void main()
                             n,
                             aoRadius,
                             aoSamples,
-                            value);
+                            valueNormalized);
                         color.rgb = mix(
                             color.rgb, aoFactor * color.rgb, aoProportion);
                     }
@@ -667,21 +685,22 @@ void main()
                 if (value > maxValue)
                 {
                     maxValue = value;
-                    color.rgb = vec3(value);
+                    color.rgb = vec3(valueNormalized);
                     color.a = 1.f;
                     if (color.r > 0.99f)
                     {
                         if(ambientOcclusion)
                         {
                             pTexCoord = (pos - bbMin) / (bbMax - bbMin);
-                            n = -gradient(volumeTex, pTexCoord, dx, gradMethod);
+                            n = -gradient(
+                                    volumeTex, pTexCoord, dx, gradMethod);
                             aoFactor = calcAmbientOcclussionFactor(
                                 volumeTex,
                                 pTexCoord,
                                 n,
                                 aoRadius,
                                 aoSamples,
-                                value);
+                                valueNormalized);
                             color.rgb = mix(
                                 color.rgb, aoFactor * color.rgb, aoProportion);
                         }
@@ -694,7 +713,9 @@ void main()
             case 2:
                 if (true == first)
                     first = false;
-                else if (0.f > ((value - isovalue) * (valueLast - isovalue)))
+                else if (0.f >
+                        ((valueNormalized - isovalue) *
+                            (lastValueNormalized - isovalue)))
                 {
                     if(isoDenoise)
                     {
@@ -703,10 +724,10 @@ void main()
                                 volumeTex, volCoord, isoDenoiseR);
                         if (!(0.f > (
                                 (denoisedValue - isovalue) *
-                                (valueLast - isovalue))))
+                                (lastValueNormalized - isovalue))))
                         {
                             // after denoising we do not cross the isovalue
-                            valueLast = denoisedValue;
+                            lastValueNormalized = denoisedValue;
                             posLast = pos;
                             break;
                         }
@@ -715,7 +736,8 @@ void main()
                     p = mix(
                         posLast,
                         pos,
-                        (isovalue - valueLast) / (value - valueLast));
+                        (isovalue - lastValueNormalized) /
+                            (valueNormalized - lastValueNormalized));
                     pTexCoord = (p - bbMin) / (bbMax - bbMin);
                     n = -gradient(volumeTex, pTexCoord, dx, gradMethod);
 
@@ -736,7 +758,7 @@ void main()
                     }
                     terminateEarly = true;
                 }
-                valueLast = value;
+                lastValueNormalized = valueNormalized;
                 posLast = pos;
                 break;
 
@@ -744,7 +766,7 @@ void main()
             case 3:
                 tfColor = texture(
                     transferfunctionTex,
-                    vec2(value, 0.5f));
+                    vec2(valueNormalized, 0.5f));
                 color = frontToBack(
                     color,
                     tfColor.rgb, tfColor.a, stepSizeVoxel);
@@ -760,7 +782,7 @@ void main()
                             n,
                             aoRadius,
                             aoSamples,
-                            value);
+                            valueNormalized);
                         color.rgb = mix(
                             color.rgb, aoFactor * color.rgb, aoProportion);
                     }

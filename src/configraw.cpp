@@ -741,3 +741,87 @@ std::vector<util::bin_t> cr::bucketVolumeData(
     return bins;
 }
 
+/**
+ * \brief get minimum and maximum value from the volume data
+ *
+ * \param volumeData volume dataset representative class object
+ *
+ * \returns a tuple of floats with the min and max value
+ *
+*/
+std::tuple<float, float> cr::getLimitsVolumeData(
+    const VolumeDataBase &volumeData)
+{
+    std::tuple<float, float> limits({ 0, 0 });
+    VolumeConfig volumeConfig = volumeData.getVolumeConfig();
+    void *values = reinterpret_cast<void*>(volumeData.getRawData());
+
+    switch(volumeConfig.getVoxelType())
+    {
+        case Datatype::unsigned_byte:
+            limits = util::findDataMinMax(
+                static_cast<unsigned_byte_t*>(values),
+                volumeConfig.getVoxelCount());
+            break;
+
+        case Datatype::signed_byte:
+            limits = util::findDataMinMax(
+                static_cast<signed_byte_t*>(values),
+                volumeConfig.getVoxelCount());
+            break;
+
+        case Datatype::unsigned_halfword:
+            limits = util::findDataMinMax(
+                static_cast<unsigned_halfword_t*>(values),
+                volumeConfig.getVoxelCount());
+            break;
+
+        case Datatype::signed_halfword:
+            limits = util::findDataMinMax(
+                static_cast<signed_halfword_t*>(values),
+                volumeConfig.getVoxelCount());
+            break;
+
+        case Datatype::unsigned_word:
+            limits = util::findDataMinMax(
+                static_cast<unsigned_word_t*>(values),
+                volumeConfig.getVoxelCount());
+            break;
+
+        case Datatype::signed_word:
+            limits = util::findDataMinMax(
+                static_cast<signed_word_t*>(values),
+                volumeConfig.getVoxelCount());
+            break;
+
+        case Datatype::unsigned_longword:
+            limits = util::findDataMinMax(
+                static_cast<unsigned_longword_t*>(values),
+                volumeConfig.getVoxelCount());
+            break;
+
+        case Datatype::signed_longword:
+            limits = util::findDataMinMax(
+                static_cast<signed_longword_t*>(values),
+                volumeConfig.getVoxelCount());
+            break;
+
+        case Datatype::single_precision_float:
+            limits = util::findDataMinMax(
+                static_cast<single_precision_float_t*>(values),
+                volumeConfig.getVoxelCount());
+            break;
+
+        case Datatype::double_precision_float:
+            limits = util::findDataMinMax(
+                static_cast<double_precision_float_t*>(values),
+                volumeConfig.getVoxelCount());
+            break;
+
+        default:
+            break;
+    }
+
+    return limits;
+}
+

@@ -191,10 +191,10 @@ namespace util
     /**
      * /brief create an vector of bins from the given data
      *
-     * /param bins   number of bins
-     * /param min    minimum value
-     * /param max    maximum value
-     * /param values pointer to data values
+     * /param bins      number of bins
+     * /param min       minimum value
+     * /param max       maximum value
+     * /param values    pointer to data values
      * /param numValues number of values in the vector pointed to by values.
      *
      * /return An vector of tuples which contain the limits and the count of
@@ -241,23 +241,56 @@ namespace util
         }
 
         // walk through values and count them in bins
-        size_t idx = 0;
-        T val;
+        #pragma omp parallel for
         for (size_t i = 0; i < num_values; i++)
         {
-            val = values[i];
-
+            T val = values[i];
             // place in corresponding bin
             if ((min <= val) && (val <= max))
             {
-                idx = static_cast<size_t>(
+                size_t idx = static_cast<size_t>(
                     std::round(static_cast<double>(val - min) / bin_size));
-                std::get<2>((bins)[idx])++;
+                #pragma omp atomic
+                ++std::get<2>((bins)[idx]);
             }
         }
 
         return bins;
     }
+
+    /**
+     * /brief create an vector of bins from the given data
+     *
+     * /param values    pointer to data values
+     * /param numValues number of values in the vector pointed to by values.
+     *
+     * /return A tuple containing the lowest and hight found value.
+    */
+    template<class T>
+    std::tuple<T, T> findDataMinMax(
+        T* values,
+        size_t num_values)
+    {
+        if (values == nullptr || num_values == 0)
+            return std::tuple<T, T>({0, 0});
+
+        // walk through values and search min and max
+        T minimum = static_cast<T>(0.0);
+        T maximum = static_cast<T>(1.0);
+        #pragma omp parallel for \
+            reduction(min: minimum) \
+            reduction(max: maximum)
+        for (size_t i = 0; i < num_values; i++)
+        {
+            T val = values[i];
+            if (val < minimum) minimum = val;
+            if (val > maximum) maximum = val;
+        }
+
+        return std::tuple<T, T>({minimum, maximum});
+        //return std::tuple<T, T>({0, 255});
+    }
+
 
     /**
      * /brief creates isoline geometry for a given 2D field

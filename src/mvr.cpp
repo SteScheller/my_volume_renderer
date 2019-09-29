@@ -63,8 +63,10 @@ mvr::Renderer::Renderer() :
     m_semilogHistogram(false),
     m_binNumberHistogram(256),
     m_yLimitHistogramMax(100000),
-    m_xLimitsMin(0.f),
-    m_xLimitsMax(255.f),
+    m_histogramIntervalMin(0.f),
+    m_histogramIntervalMax(255.f),
+    m_mappedIntervalMin(0.f),
+    m_mappedIntervalMax(255.f),
     m_invertColors(false),
     m_invertAlpha(false),
     m_clearColor{ {0.f} },
@@ -133,6 +135,8 @@ mvr::Renderer::Renderer() :
     m_histogramBins(0),
     m_transferFunction(),
     m_volumeData(nullptr),
+    m_volumeDataMin(0.f),
+    m_volumeDataMax(1.f),
     m_volumeTex(),
     m_randomSeedTex(),
     m_voxelDiagonal(1.f),
@@ -466,8 +470,10 @@ int mvr::Renderer::saveConfigToFile(std::string path)
         conf["semilogHistogram"] = m_semilogHistogram;
         conf["binNumberHistogram"] = m_binNumberHistogram;
         conf["yLimitHistogramMax"] = m_yLimitHistogramMax;
-        conf["xLimitsMin"] = m_xLimitsMin;
-        conf["xLimitsMax"] = m_xLimitsMax;
+        conf["histogramIntervalMin"] = m_histogramIntervalMin;
+        conf["histogramIntervalMax"] = m_histogramIntervalMax;
+        conf["mappedIntervalMin"] = m_mappedIntervalMin;
+        conf["mappedIntervalMax"] = m_mappedIntervalMax;
         conf["invertColors"] = m_invertColors;
         conf["invertAlpha"] = m_invertAlpha;
         conf["clearColor"] = m_clearColor;
@@ -630,16 +636,20 @@ int mvr::Renderer::loadConfigFromFile(std::string path)
         }
         if (!conf["yLimitHistogramMax"].is_null())
             m_yLimitHistogramMax = conf["yLimitHistogramMax"].get<int>();
-        if (!conf["xLimitsMin"].is_null())
+        if (!conf["histogramIntervalMin"].is_null())
         {
-            m_xLimitsMin = conf["xLimitsMin"].get<float>();
+            m_histogramIntervalMin = conf["histogramIntervalMin"].get<float>();
             rebucket = true;
         }
-        if (!conf["xLimitsMax"].is_null())
+        if (!conf["histogramIntervalMax"].is_null())
         {
-            m_xLimitsMax = conf["xLimitsMax"].get<float>();
+            m_histogramIntervalMax = conf["histogramIntervalMax"].get<float>();
             rebucket = true;
         }
+        if (!conf["mappedIntervalMin"].is_null())
+            m_mappedIntervalMin = conf["mappedIntervalMin"].get<float>();
+        if (!conf["mappedIntervalMax"].is_null())
+            m_mappedIntervalMax = conf["mappedIntervalMax"].get<float>();
         if (!conf["invertColors"].is_null())
             m_invertColors = conf["invertColors"].get<bool>();
         if (!conf["invertAlpha"].is_null())
@@ -779,8 +789,11 @@ int mvr::Renderer::loadConfigFromFile(std::string path)
 
         // bucket volume data if one of the limits was changed
         if (rebucket)
-            m_histogramBins = bucketVolumeData(
-             *m_volumeData, m_binNumberHistogram, m_xLimitsMin, m_xLimitsMax);
+            m_histogramBins = cr::bucketVolumeData(
+             *m_volumeData,
+             m_binNumberHistogram,
+             m_histogramIntervalMin,
+             m_histogramIntervalMax);
     }
     catch(json::exception &e)
     {
@@ -819,6 +832,32 @@ int mvr::Renderer::loadVolumeFromFile(
         return EXIT_FAILURE;
 
     m_volumeDescriptionFile = path;
+    return EXIT_SUCCESS;
+}
+
+int mvr::Renderer::adjustIntervalsToLoadedVolume()
+{
+    if (false == m_isInitialized)
+    {
+        std::cerr << "Error: Renderer::initialize() must be called "
+            "successfully before Renderer::adjustIntervalsToLoadedVolume() "
+            "can be used!" << std::endl;
+        return EXIT_FAILURE;
+    }
+
+    auto limits = cr::getLimitsVolumeData(*m_volumeData);
+    m_volumeDataMin = std::get<0>(limits);
+    m_volumeDataMax = std::get<1>(limits);
+    m_mappedIntervalMin = m_volumeDataMin;
+    m_mappedIntervalMax = m_volumeDataMax;
+    m_histogramIntervalMin = m_volumeDataMin;
+    m_histogramIntervalMax = m_volumeDataMax;
+    m_histogramBins = cr::bucketVolumeData(
+        *m_volumeData,
+        m_binNumberHistogram,
+        m_histogramIntervalMin,
+        m_histogramIntervalMax);
+
     return EXIT_SUCCESS;
 }
 
@@ -877,6 +916,12 @@ void mvr::Renderer::drawVolume(const util::texture::Texture2D& stateInTexture)
     glActiveTexture(GL_TEXTURE0);
     m_volumeTex.bind();
     m_shaderVolume.setInt("volumeTex", 0);
+    GLint internalFormat = 0;
+    glGetTexLevelParameteriv(
+        GL_TEXTURE_3D, 0, GL_TEXTURE_INTERNAL_FORMAT, &internalFormat);
+    m_shaderVolume.setBool(
+        "volumeTexNormalized",
+        (internalFormat == GL_RED) ? true : false);
 
     glActiveTexture(GL_TEXTURE1);
     m_transferFunction.accessTexture().bind();
@@ -891,8 +936,21 @@ void mvr::Renderer::drawVolume(const util::texture::Texture2D& stateInTexture)
     stateInTexture.bind();
     m_shaderVolume.setInt("stateIn", 3);
 
-    m_shaderVolume.setFloat("valIntervalMin", m_xLimitsMin);
-    m_shaderVolume.setFloat("valIntervalMax", m_xLimitsMax);
+    m_shaderVolume.setFloat("valIntervalMin",
+        glm::clamp(
+            (m_mappedIntervalMin - m_volumeDataMin) /
+                (m_volumeDataMax - m_volumeDataMin),
+        0.f,
+        1.f));
+    m_shaderVolume.setFloat("valIntervalMax",
+        glm::clamp(
+            (m_mappedIntervalMax - m_volumeDataMin) /
+                (m_volumeDataMax - m_volumeDataMin),
+        0.f,
+        1.f));
+
+    m_shaderVolume.setFloat("volumeDataMin", m_volumeDataMin);
+    m_shaderVolume.setFloat("volumeDataMax", m_volumeDataMax);
 
     m_shaderVolume.setInt("winWidth", m_renderingDimensions[0]);
     m_shaderVolume.setInt("winHeight", m_renderingDimensions[1]);
@@ -917,8 +975,10 @@ void mvr::Renderer::drawVolume(const util::texture::Texture2D& stateInTexture)
     m_shaderVolume.setFloat("aoProportion", m_ambientOcclusionProportion);
     m_shaderVolume.setFloat("isovalue",
         glm::clamp(
-            (m_isovalue - m_xLimitsMin) / (m_xLimitsMax - m_xLimitsMin),
-            0.f, 1.f));
+            (m_isovalue - m_volumeDataMin) /
+                (m_volumeDataMax - m_volumeDataMin),
+            0.f,
+            1.f));
     m_shaderVolume.setBool("isoDenoise", m_isovalueDenoising);
     m_shaderVolume.setFloat("isoDenoiseR",
         m_voxelDiagonal * m_isovalueDenoisingRadius);
@@ -993,6 +1053,29 @@ void mvr::Renderer::drawSettingsWindow()
         }
         ImGui::SameLine();
         createHelpMarker("Path to the volume description file");
+        std::array<size_t, 3> volumeDim =
+                m_volumeData->getVolumeConfig().getVolumeDim();
+        ImGui::Text(
+            "Dimensions : (%zu, %zu, %zu)",
+            volumeDim[0],
+            volumeDim[1],
+            volumeDim[2]);
+        ImGui::Text("Number of timesteps: %u",
+                m_volumeData->getVolumeConfig().getNumTimesteps());
+        ImGui::Text("Min. value: %.6f", m_volumeDataMin);
+        ImGui::Text("Max. value: %.6f", m_volumeDataMax);
+        if(ImGui::DragFloatRange2(
+                "mapped value interval",
+                &m_mappedIntervalMin,
+                &m_mappedIntervalMax,
+                1.f,
+                m_volumeDataMin,
+                m_volumeDataMax,
+                "Min: %.1f",
+                "Max: %.1f"))
+            m_transferFunction.updateTexture(0.f, 1.f);
+
+        ImGui::Separator();
         ImGui::Text("Mode");
         ImGui::RadioButton(
             "line of sight",
@@ -1061,7 +1144,11 @@ void mvr::Renderer::drawSettingsWindow()
         if (ImGui::CollapsingHeader("Isosurface"))
         {
             ImGui::SliderFloat(
-                "isovalue", &m_isovalue, m_xLimitsMin, m_xLimitsMax, "%.3f");
+                "isovalue",
+                &m_isovalue,
+                m_volumeDataMin,
+                m_volumeDataMax,
+                "%.3f");
             ImGui::Checkbox("denoise", &m_isovalueDenoising);
             ImGui::SliderFloat(
                 "denoise radius",
@@ -1345,9 +1432,9 @@ void mvr::Renderer::drawHistogramWindow()
     ImGui::Spacing();
 
     if( ImGui::DragFloatRange2(
-            "interval",
-            &m_xLimitsMin,
-            &m_xLimitsMax,
+            "histogram interval",
+            &m_histogramIntervalMin,
+            &m_histogramIntervalMax,
             1.f,
             0.f,
             0.f,
@@ -1361,8 +1448,8 @@ void mvr::Renderer::drawHistogramWindow()
         m_histogramBins = cr::bucketVolumeData(
             *m_volumeData,
             m_binNumberHistogram,
-            m_xLimitsMin,
-            m_xLimitsMax);
+            m_histogramIntervalMin,
+            m_histogramIntervalMax);
     }
     ImGui::End();
 }
@@ -1389,21 +1476,6 @@ void mvr::Renderer::drawTransferFunctionWindow()
 
     // draw the imgui elements
     ImGui::Begin("Transfer Function Editor", &m_showTfWindow);
-
-    if(ImGui::DragFloatRange2(
-            "interval",
-            &m_xLimitsMin,
-            &m_xLimitsMax,
-            1.f,
-            0.f,
-            0.f,
-            "Min: %.1f",
-            "Max: %.1f"))
-        m_transferFunction.updateTexture(0.f, 1.f);
-
-    ImGui::Spacing();
-    ImGui::Separator();
-    ImGui::Spacing();
 
     tfScreenPosition = ImGui::GetCursorScreenPos();
     m_tfScreenPosition[0] = tfScreenPosition[0];
@@ -1680,8 +1752,14 @@ void mvr::Renderer::loadVolume(
                 1.f / static_cast<float>(volumeConfig.getVolumeDim()[1]),
                 1.f / static_cast<float>(volumeConfig.getVolumeDim()[2]),
                 1.f)).xyz()));
-    m_histogramBins = bucketVolumeData(
-        *m_volumeData, m_binNumberHistogram, m_xLimitsMin, m_xLimitsMax);
+    auto limits = cr::getLimitsVolumeData(*m_volumeData);
+    m_volumeDataMin = std::get<0>(limits);
+    m_volumeDataMax = std::get<1>(limits);
+    m_histogramBins = cr::bucketVolumeData(
+        *m_volumeData,
+        m_binNumberHistogram,
+        m_histogramIntervalMin,
+        m_histogramIntervalMax);
     m_volumeTex = cr::loadScalarVolumeTex(*m_volumeData);
     m_boundingBoxMin = m_volumeModelMx * glm::vec4(glm::vec3(-0.5f), 1.f);
     m_boundingBoxMax = m_volumeModelMx * glm::vec4(glm::vec3(0.5f), 1.f);
@@ -2046,5 +2124,7 @@ extern "C"
     int Renderer_loadVolumeFromFile(
             mvr::Renderer* obj, char* path, unsigned int timestep)
         { return obj->loadVolumeFromFile(std::string(path), timestep); }
+    int Renderer_adjustIntervalsToLoadedVolume(mvr::Renderer* obj)
+        { return obj->adjustIntervalsToLoadedVolume(); }
 }
 

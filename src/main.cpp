@@ -112,6 +112,14 @@ int applyProgramOptions(
                     "Error: failed to load volume data set." << std::endl;
                 return ret;
             }
+            ret = renderer.adjustIntervalsToLoadedVolume();
+            if (EXIT_SUCCESS != ret)
+            {
+                std::cout <<
+                    "Error: failed to adjust intervals to loaded volume "
+                    "data set." << std::endl;
+                return ret;
+            }
         }
 
         if (vm.count("output-file"))

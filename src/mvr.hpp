@@ -107,6 +107,7 @@ namespace mvr
         int saveConfigToFile(std::string path);
         int saveTransferFunctionToFile(std::string path);
         int loadVolumeFromFile(std::string path, unsigned int timestep = 0);
+        int adjustIntervalsToLoadedVolume();
 
         //---------------------------------------------------------------------
         // class-wide constants and default values
@@ -144,8 +145,10 @@ namespace mvr
         bool m_semilogHistogram;
         int m_binNumberHistogram;
         int m_yLimitHistogramMax;
-        float m_xLimitsMin;
-        float m_xLimitsMax;
+        float m_histogramIntervalMin;
+        float m_histogramIntervalMax;
+        float m_mappedIntervalMin;
+        float m_mappedIntervalMax;
         bool m_invertColors;
         bool m_invertAlpha;
         std::array<float, 3> m_clearColor;
@@ -234,6 +237,8 @@ namespace mvr
         std::vector<util::bin_t> m_histogramBins;
         util::tf::TransferFuncRGBA1D m_transferFunction;
         std::unique_ptr<cr::VolumeDataBase> m_volumeData;
+        float m_volumeDataMin;
+        float m_volumeDataMax;
         util::texture::Texture3D m_volumeTex;
 
         // miscellaneous
