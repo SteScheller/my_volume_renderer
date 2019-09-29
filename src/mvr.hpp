@@ -144,7 +144,6 @@ namespace mvr
         bool m_showHistogramWindow;
         bool m_semilogHistogram;
         int m_binNumberHistogram;
-        int m_yLimitHistogramMax;
         float m_histogramIntervalMin;
         float m_histogramIntervalMax;
         float m_mappedIntervalMin;

@@ -62,7 +62,6 @@ mvr::Renderer::Renderer() :
     m_showHistogramWindow(true),
     m_semilogHistogram(false),
     m_binNumberHistogram(256),
-    m_yLimitHistogramMax(100000),
     m_histogramIntervalMin(0.f),
     m_histogramIntervalMax(255.f),
     m_mappedIntervalMin(0.f),
@@ -469,7 +468,6 @@ int mvr::Renderer::saveConfigToFile(std::string path)
         conf["showHistogramWindow"] = m_showHistogramWindow;
         conf["semilogHistogram"] = m_semilogHistogram;
         conf["binNumberHistogram"] = m_binNumberHistogram;
-        conf["yLimitHistogramMax"] = m_yLimitHistogramMax;
         conf["histogramIntervalMin"] = m_histogramIntervalMin;
         conf["histogramIntervalMax"] = m_histogramIntervalMax;
         conf["mappedIntervalMin"] = m_mappedIntervalMin;
@@ -634,8 +632,6 @@ int mvr::Renderer::loadConfigFromFile(std::string path)
             m_binNumberHistogram = conf["binNumberHistogram"].get<int>();
             rebucket = true;
         }
-        if (!conf["yLimitHistogramMax"].is_null())
-            m_yLimitHistogramMax = conf["yLimitHistogramMax"].get<int>();
         if (!conf["histogramIntervalMin"].is_null())
         {
             m_histogramIntervalMin = conf["histogramIntervalMin"].get<float>();
@@ -1401,12 +1397,15 @@ void mvr::Renderer::drawHistogramWindow()
 {
     float values[m_histogramBins.size()];
 
+    size_t yMax = 0;
     for(size_t i = 0; i < m_histogramBins.size(); i++)
     {
         if (m_semilogHistogram)
             values[i] = log10(std::get<2>(m_histogramBins[i]));
         else
             values[i] = static_cast<float>(std::get<2>(m_histogramBins[i]));
+
+        if (values[i] > yMax) yMax = values[i];
     }
 
     ImGui::Begin("Histogram", &m_showHistogramWindow);
@@ -1418,13 +1417,9 @@ void mvr::Renderer::drawHistogramWindow()
         0,
         nullptr,
         0.f,
-        m_semilogHistogram ?
-            static_cast<int>(log10(m_yLimitHistogramMax)) :
-            m_yLimitHistogramMax,
+        yMax,
         ImVec2(0, 160));
     ImGui::PopItemWidth();
-    ImGui::InputInt("y limit", &m_yLimitHistogramMax, 1, 100);
-    ImGui::SameLine();
     ImGui::Checkbox("semi-logarithmic", &m_semilogHistogram);
 
     ImGui::Spacing();
