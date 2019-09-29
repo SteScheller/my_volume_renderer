@@ -1,6 +1,5 @@
 bugfixes:
 - look into blending with background color (screenshots did not match shown rendering -> hotfix applied in volume frag where blending is now allways done)
-- check scaling and application of transferfunction when it is extrapolated below or above the limit control points
 
 refactoring:
 - write own shader utility class
@@ -8,4 +7,4 @@ refactoring:
 features:
 - provide documentation on loadable data sets and volume configuration files
 - provide documentation on configuration options (available in gui and configuration file)
-- abbreviated command line options
+

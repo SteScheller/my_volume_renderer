@@ -75,6 +75,7 @@ mvr::Renderer::Renderer() :
     m_outputDataZSlice(0.f),
     // ray casting
     m_stepSize(0.25f),
+    m_emptySpaceSkipping(true),
     m_gradientMethod(mvr::Gradient::sobel_operators),
     // camera settings
     m_fovY(80.f),
@@ -478,6 +479,7 @@ int mvr::Renderer::saveConfigToFile(std::string path)
         conf["outputDataZSlice"] = m_outputDataZSlice;
 
         conf["stepSize"] = m_stepSize;
+        conf["emptySpaceSkipping"] = m_emptySpaceSkipping;
         conf["gradientMethod"] = m_gradientMethod;
 
         conf["fovY"] = m_fovY;
@@ -658,6 +660,8 @@ int mvr::Renderer::loadConfigFromFile(std::string path)
 
         if (!conf["stepSize"].is_null())
             m_stepSize = conf["stepSize"].get<float>();
+        if (!conf["emptySpaceSkipping"].is_null())
+            m_emptySpaceSkipping = conf["emptySpaceSkipping"].get<bool>();
         if (!conf["gradientMethod"].is_null())
             m_gradientMethod = conf["gradientMethod"].get<Gradient>();
 
@@ -960,6 +964,7 @@ void mvr::Renderer::drawVolume(const util::texture::Texture2D& stateInTexture)
     m_shaderVolume.setInt(
         "gradMethod", static_cast<int>(m_gradientMethod));
     m_shaderVolume.setFloat("stepSize", m_voxelDiagonal * m_stepSize);
+    m_shaderVolume.setBool("emptySpaceSkipping", m_emptySpaceSkipping);
     m_shaderVolume.setFloat("stepSizeVoxel", m_stepSize);
     m_shaderVolume.setVec3("bgColor",
         m_clearColor[0], m_clearColor[1], m_clearColor[2]);
@@ -1117,6 +1122,7 @@ void mvr::Renderer::drawSettingsWindow()
 
         ImGui::SliderFloat(
             "step size", &m_stepSize, 0.05f, 2.f, "%.3f");
+        ImGui::Checkbox("empty space skipping", &m_emptySpaceSkipping);
 
         ImGui::Spacing();
 

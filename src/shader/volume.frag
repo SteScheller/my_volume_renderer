@@ -34,12 +34,19 @@ uniform int winHeight;          //!< height of the window in pixels
 //   1: mip
 //   2: isosurface
 //   3: volume with transfer function
+#define MODE_LOS    0
+#define MODE_MIP    1
+#define MODE_ISO    2
+#define MODE_TF     3
 uniform int mode;
 
+#define GRAD_CENTRAL    0
+#define GRAD_SOBEL      1
 uniform int gradMethod;     //!< switch to select gradient calculation method
 
 uniform float stepSize;         //!< distance between sample points between
                                 //!< sample points in world coordinates
+uniform bool emptySpaceSkipping;//!< switch for acceleration method
 uniform float stepSizeVoxel;    //!< distance between sample points in voxels
 uniform float brightness;       //!< color coefficient
 
@@ -76,6 +83,10 @@ uniform vec3 slicePlaneBase;      //!< base point of slicing plane
 #define M_PI    3.141592
 #define M_2PI   6.283185
 #define EPS     0.000001
+
+#define EMPTY_SPACE_MAX_ALPHA   0.00001f
+#define EMPTY_SPACE_MAX_VAL     0.00001f
+#define EMPTY_SPACE_JUMPSIZE    10.f
 
 // ----------------------------------------------------------------------------
 // random number generator
@@ -465,7 +476,7 @@ vec3 gradient(sampler3D volume, vec3 pos, float h, int method)
 
     switch(method)
     {
-        case 1:
+        case GRAD_SOBEL:
             grad = gradientSobel(volume, pos, h);
             break;
 
@@ -513,6 +524,47 @@ float denoiseSphereAvg(sampler3D volume, vec3 pos, float r)
     return (avg / 24.f);
 }
 
+/**
+ *  \brief tests for empty space skipping criteria
+ *
+ *  \param nextValue        sampled value at next position
+ *  \param currentValue     sampled value at current position
+ *  \return true if the space skipping criteria is fullfilled
+ */
+bool testEmptySpaceSkipping(float nextValue, float currentValue)
+{
+    bool skip = false;
+
+    switch(mode)
+    {
+        case MODE_LOS:
+        case MODE_MIP:
+            if (    (currentValue <= EMPTY_SPACE_MAX_VAL) &&
+                    (nextValue <= EMPTY_SPACE_MAX_VAL)  )
+                skip = true;
+            break;
+
+        case MODE_ISO:
+            if (0.f > ((currentValue - isovalue) * (nextValue - isovalue)))
+                skip = true;
+            break;
+
+        case MODE_TF:
+            if (    (texture(
+                        transferfunctionTex, vec2(nextValue, 0.5f)).a <=
+                     EMPTY_SPACE_MAX_ALPHA) &&
+                    (texture(
+                        transferfunctionTex, vec2(currentValue, 0.5f)).a <=
+                     EMPTY_SPACE_MAX_ALPHA) )
+                skip = true;
+            break;
+
+        default:
+            break;
+    }
+
+    return skip;
+}
 // ----------------------------------------------------------------------------
 //   main
 // ----------------------------------------------------------------------------
@@ -523,18 +575,21 @@ void main()
     float valueNormalized = 0.f;    //!< normalized sampled value
     float denoisedValue = 0.f;      //!< denoised value from the volume
 
-    bool intersect = false; //!< flag if we did hit the bounding box
-    float temp = 0.f;       //!< temporary variable
-    vec3 volCoord = vec3(0.f);      //!< coordinates for texture access
+    bool intersect = false;     //!< flag if we did hit the bounding box
+    float tempIntersect = 0.f;  //!< temporary variable for intersection tests
+    vec3 volCoord = vec3(0.f);  //!< coordinates for texture access
 
     bool terminateEarly = false;    //!< early ray termination
 
     vec3 pos = vec3(0.f);   //!< current position on the ray in world
                             //!< coordinates
     float x = 0.f;          //!< distance from origin to current position
-    float dx = stepSize;    //!< distance between sample points along the ray
+    float dx = stepSize;    //!< dynamic stepsize between sample points along
+                            //!< the ray
+    float dxVoxel = stepSizeVoxel;    //!< dynamic stepsize in voxels
     float tNear, tFar;      //!< near and far distances where the shot ray
                             //!< intersects the bounding box of the volume data
+    int skippingCounter = 0;//!< helper for empty space skipping
 
     vec3 rayOrig = eyePos;                          //!< origin of the ray
     vec3 rayDir = normalize(vWorldCoord - rayOrig); //!< direction of the ray
@@ -580,7 +635,7 @@ void main()
         // we are within the volume -> nevertheless make an intersection test
         // to get the exit point
         intersect = true;
-        intersectBoundingBox(rayOrig, rayDir, temp, tFar);
+        intersectBoundingBox(rayOrig, rayDir, tempIntersect, tFar);
         tNear = 0.f;
     }
     else
@@ -605,14 +660,14 @@ void main()
                         rayDir,
                         slicePlaneBase,
                         slicePlaneNormal,
-                        temp))
+                        tempIntersect))
             {
                 // we intersect the slicing plane update the starting point
                 // to show everything behind the plane
-                tNear = temp;
+                tNear = tempIntersect;
             }
             else
-                tNear = tFar + dx;
+                tNear = tFar + stepSize;
         }
     }
 
@@ -641,8 +696,8 @@ void main()
             return;
         }
 
+        // Get data value, normalize and filter it
         value = texture(volumeTex, volCoord).r;
-
         if (volumeTexNormalized == true)
             valueNormalized = value;
         else
@@ -650,22 +705,67 @@ void main()
                 (value - volumeDataMin) / (volumeDataMax - volumeDataMin),
                 0.f,
                 1.f);
-
+        if (true == first)
+        {
+            first = false;
+            lastValueNormalized = valueNormalized;
+            posLast = pos;
+        }
         if (valueNormalized < valIntervalMin) continue;
         else if (valueNormalized > valIntervalMax) continue;
 
+        // accelerate ray marching if voxels don't contribute to the final
+        // pixel color
+        if (emptySpaceSkipping == true)
+        {
+            if (skippingCounter > 0)
+                --skippingCounter;
+            else
+            {
+                vec3 posSkip = pos + EMPTY_SPACE_JUMPSIZE * rayDir;
+                vec3 volCoordSkip = (posSkip - bbMin) / (bbMax - bbMin);
+                float valueSkip = texture(volumeTex, volCoordSkip).r;
+                float valueNormalizedSkip = valueSkip;
+                if (volumeTexNormalized == false)
+                    valueNormalizedSkip = clamp(
+                        (valueSkip - volumeDataMin) /
+                            (volumeDataMax - volumeDataMin),
+                        0.f,
+                        1.f);
+                bool doSkip = testEmptySpaceSkipping(
+                        valueNormalizedSkip, valueNormalized);
+                if (doSkip == true)
+                {
+                    dx = EMPTY_SPACE_JUMPSIZE * stepSize + stepSize;
+                    dxVoxel = EMPTY_SPACE_JUMPSIZE * stepSizeVoxel +
+                            stepSizeVoxel;
+                    posLast = posSkip;
+                    lastValueNormalized = valueNormalizedSkip;
+                    continue;
+                }
+                else
+                {
+                    skippingCounter = int(EMPTY_SPACE_JUMPSIZE) - 1;
+                    dx = stepSize;
+                    dxVoxel = stepSizeVoxel;
+                }
+            }
+        }
+
+        // compute color contribution
         switch (mode)
         {
             // line-of-sight integration
-            case 0:
-                color.rgb += vec3(valueNormalized * dx);
+            case MODE_LOS:
+                color.rgb += vec3(valueNormalized * stepSize);
                 color.a = 1.f;
                 if (color.r > 0.99f)
                 {
                     if(ambientOcclusion)
                     {
                         pTexCoord = (pos - bbMin) / (bbMax - bbMin);
-                        n = -gradient(volumeTex, pTexCoord, dx, gradMethod);
+                        n = -gradient(
+                                volumeTex, pTexCoord, stepSize, gradMethod);
                         aoFactor = calcAmbientOcclussionFactor(
                             volumeTex,
                             pTexCoord,
@@ -681,7 +781,7 @@ void main()
                 break;
 
             // maximum-intensity projection
-            case 1:
+            case MODE_MIP:
                 if (value > maxValue)
                 {
                     maxValue = value;
@@ -693,14 +793,17 @@ void main()
                         {
                             pTexCoord = (pos - bbMin) / (bbMax - bbMin);
                             n = -gradient(
-                                    volumeTex, pTexCoord, dx, gradMethod);
+                                    volumeTex,
+                                    pTexCoord,
+                                    stepSize,
+                                    gradMethod);
                             aoFactor = calcAmbientOcclussionFactor(
-                                volumeTex,
-                                pTexCoord,
-                                n,
-                                aoRadius,
-                                aoSamples,
-                                valueNormalized);
+                                    volumeTex,
+                                    pTexCoord,
+                                    n,
+                                    aoRadius,
+                                    aoSamples,
+                                    valueNormalized);
                             color.rgb = mix(
                                 color.rgb, aoFactor * color.rgb, aoProportion);
                         }
@@ -710,10 +813,8 @@ void main()
                 break;
 
             // isosurface
-            case 2:
-                if (true == first)
-                    first = false;
-                else if (0.f >
+            case MODE_ISO:
+                if (0.f >
                         ((valueNormalized - isovalue) *
                             (lastValueNormalized - isovalue)))
                 {
@@ -739,7 +840,7 @@ void main()
                         (isovalue - lastValueNormalized) /
                             (valueNormalized - lastValueNormalized));
                     pTexCoord = (p - bbMin) / (bbMax - bbMin);
-                    n = -gradient(volumeTex, pTexCoord, dx, gradMethod);
+                    n = -gradient(volumeTex, pTexCoord, stepSize, gradMethod);
 
                     color.rgb = blinnPhong(n, l, e);
                     color.a = 1.f;
@@ -763,19 +864,20 @@ void main()
                 break;
 
             // transfer function
-            case 3:
+            case MODE_TF:
                 tfColor = texture(
                     transferfunctionTex,
                     vec2(valueNormalized, 0.5f));
                 color = frontToBack(
                     color,
-                    tfColor.rgb, tfColor.a, stepSizeVoxel);
+                    tfColor.rgb, tfColor.a, dxVoxel);
                 if (color.a > 0.99f)
                 {
                     if(ambientOcclusion)
                     {
                         pTexCoord = (pos - bbMin) / (bbMax - bbMin);
-                        n = -gradient(volumeTex, pTexCoord, dx, gradMethod);
+                        n = -gradient(
+                                volumeTex, pTexCoord, stepSize, gradMethod);
                         aoFactor = calcAmbientOcclussionFactor(
                             volumeTex,
                             pTexCoord,

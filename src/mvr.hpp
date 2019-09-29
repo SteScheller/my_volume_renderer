@@ -159,6 +159,7 @@ namespace mvr
 
         // ray casting
         float m_stepSize;
+        bool m_emptySpaceSkipping;
         Gradient m_gradientMethod;
 
         // camera settings
