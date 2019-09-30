@@ -23,13 +23,6 @@ int main(int argc, char *argv[])
     mvr::Renderer renderer;
     std::string output = "";
 
-    ret = renderer.initialize();
-    if (EXIT_SUCCESS != ret)
-    {
-        std::cout << "Error: failed to initialize renderer." << std::endl;
-        return ret;
-    }
-
     ret = applyProgramOptions(argc, argv, renderer, output);
     if (EXIT_SUCCESS != ret)
     {
@@ -89,6 +82,19 @@ int applyProgramOptions(
         {
             std::cout << desc << std::endl;
             exit(EXIT_SUCCESS);
+        }
+
+        // if we the program is started in batch rendering mode, initialize
+        // the renderer with an invisible window
+        if (vm.count("output-file"))
+            ret = renderer.initialize(false);
+        else
+            ret = renderer.initialize(true);
+
+        if (EXIT_SUCCESS != ret)
+        {
+            std::cout << "Error: failed to initialize renderer." << std::endl;
+            return ret;
         }
 
         if (vm.count("config"))

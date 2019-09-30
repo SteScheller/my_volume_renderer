@@ -156,7 +156,7 @@ mvr::Renderer::~Renderer()
     glfwTerminate();
 }
 
-int mvr::Renderer::initialize()
+int mvr::Renderer::initialize(bool visible)
 {
     int ret = EXIT_SUCCESS;
 
@@ -164,7 +164,7 @@ int mvr::Renderer::initialize()
     // window and context creation
     //-------------------------------------------------------------------------
     m_window = createWindow(
-        m_windowDimensions[0], m_windowDimensions[1], "MVR");
+        m_windowDimensions[0], m_windowDimensions[1], "MVR", visible);
 
     ret = initializeGl3w();
     if (EXIT_SUCCESS != ret) return ret;
@@ -1805,13 +1805,16 @@ int mvr::Renderer::initializeImGui()
 }
 
 GLFWwindow* mvr::Renderer::createWindow(
-    unsigned int width, unsigned int height, const char* title)
+    unsigned int width, unsigned int height, const char* title, bool visible)
 {
     glfwSetErrorCallback(error_cb);
     if (!glfwInit()) exit(EXIT_FAILURE);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, REQUIRED_OGL_VERSION_MAJOR);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, REQUIRED_OGL_VERSION_MINOR);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+    if (!visible)
+        glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
 
     GLFWwindow* window = glfwCreateWindow(
         width, height, title, nullptr, nullptr);
@@ -2114,7 +2117,10 @@ extern "C"
     mvr::Renderer* Renderer_new() { return new mvr::Renderer(); }
     void Renderer_delete(mvr::Renderer* obj) { delete obj; }
 
-    int Renderer_initialize(mvr::Renderer* obj) { return obj->initialize(); }
+    int Renderer_initialize(mvr::Renderer* obj)
+        { return obj->initialize(true); }
+    int Renderer_initializeInvisible(mvr::Renderer* obj)
+        { return obj->initialize(false); }
     int Renderer_run(mvr::Renderer* obj) { return obj->run(); }
     int Renderer_loadConfigFromFile(mvr::Renderer* obj, char* path)
         { return obj->loadConfigFromFile(std::string(path)); }

@@ -100,7 +100,7 @@ namespace mvr
         Renderer& operator=(Renderer&& other) = delete;
         ~Renderer();
 
-        int initialize();
+        int initialize(bool visible=true);
         int run();
         int loadConfigFromFile(std::string path);
         int renderToFile(std::string path);
@@ -274,7 +274,10 @@ namespace mvr
         int initializeImGui();
 
         GLFWwindow* createWindow(
-            unsigned int width, unsigned int height, const char* title);
+            unsigned int width,
+            unsigned int height,
+            const char* title,
+            bool visible=true);
 
         void updatePingPongFramebufferObjects();
 
