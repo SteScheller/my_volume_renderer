@@ -545,8 +545,9 @@ bool testEmptySpaceSkipping(float nextValue, float currentValue)
             break;
 
         case MODE_ISO:
-            if (0.f > ((currentValue - isovalue) * (nextValue - isovalue)))
-                skip = true;
+            //if (0.f > ((currentValue - isovalue) * (nextValue - isovalue)))
+            //    skip = true;
+            // Empty space skipping in isosurface modes results in artifacts
             break;
 
         case MODE_TF:
