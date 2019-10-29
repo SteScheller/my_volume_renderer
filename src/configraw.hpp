@@ -53,7 +53,16 @@ namespace cr
         Datatype, {
             {Datatype::none, "NONE"},
             {Datatype::unsigned_byte, "UCHAR"},
-            {Datatype::single_precision_float, "FLOAT"}});
+            {Datatype::signed_byte, "CHAR"},
+            {Datatype::unsigned_halfword, "USHORT"},
+            {Datatype::signed_halfword, "SHORT"},
+            {Datatype::unsigned_word, "UINT"},
+            {Datatype::signed_word, "INT"},
+            {Datatype::unsigned_longword, "ULONG"},
+            {Datatype::signed_longword, "LONG"},
+            {Datatype::single_precision_float, "FLOAT"},
+            {Datatype::double_precision_float, "DOUBLE"},
+            } );
 
     // ------------------------------------------------------------------------
     // forward declarations
