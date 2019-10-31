@@ -78,7 +78,7 @@ mvr::Renderer::Renderer() :
     m_emptySpaceSkipping(true),
     m_gradientMethod(mvr::Gradient::sobel_operators),
     // camera settings
-    m_fovY(80.f),
+    m_fovY(45.f),
     m_zNear(0.000001f),
     m_zFar(30.f),
     m_cameraPosition(mvr::Renderer::DEFAULT_CAMERA_POSITION),
