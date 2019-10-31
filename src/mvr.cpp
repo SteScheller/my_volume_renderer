@@ -976,8 +976,8 @@ void mvr::Renderer::drawVolume(const util::texture::Texture2D& stateInTexture)
     m_shaderVolume.setFloat("aoProportion", m_ambientOcclusionProportion);
     m_shaderVolume.setFloat("isovalue",
         glm::clamp(
-            (m_isovalue - m_volumeDataMin) /
-                (m_volumeDataMax - m_volumeDataMin),
+            (m_isovalue - m_mappedIntervalMin) /
+                (m_mappedIntervalMax - m_mappedIntervalMin),
             0.f,
             1.f));
     m_shaderVolume.setBool("isoDenoise", m_isovalueDenoising);
@@ -1148,8 +1148,8 @@ void mvr::Renderer::drawSettingsWindow()
             ImGui::SliderFloat(
                 "isovalue",
                 &m_isovalue,
-                m_volumeDataMin,
-                m_volumeDataMax,
+                m_mappedIntervalMin,
+                m_mappedIntervalMax,
                 "%.3f");
             ImGui::Checkbox("denoise", &m_isovalueDenoising);
             ImGui::SliderFloat(

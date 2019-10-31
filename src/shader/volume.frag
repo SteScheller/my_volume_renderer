@@ -552,11 +552,17 @@ bool testEmptySpaceSkipping(float nextValue, float currentValue)
 
         case MODE_TF:
             if (    (texture(
-                        transferfunctionTex, vec2(nextValue, 0.5f)).a <=
-                     EMPTY_SPACE_MAX_ALPHA) &&
+                        transferfunctionTex,
+                        vec2(
+                            mix(valIntervalMin, valIntervalMax, nextValue),
+                            0.5f)
+                        ).a <= EMPTY_SPACE_MAX_ALPHA) &&
                     (texture(
-                        transferfunctionTex, vec2(currentValue, 0.5f)).a <=
-                     EMPTY_SPACE_MAX_ALPHA) )
+                        transferfunctionTex,
+                        vec2(
+                            mix(valIntervalMin, valIntervalMax, currentValue),
+                            0.5f)
+                        ).a <= EMPTY_SPACE_MAX_ALPHA) )
                 skip = true;
             break;
 
@@ -868,7 +874,9 @@ void main()
             case MODE_TF:
                 tfColor = texture(
                     transferfunctionTex,
-                    vec2(valueNormalized, 0.5f));
+                    vec2(
+                        mix(valIntervalMin, valIntervalMax, valueNormalized),
+                        0.5f));
                 color = frontToBack(
                     color,
                     tfColor.rgb, tfColor.a, dxVoxel);
