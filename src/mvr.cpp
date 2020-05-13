@@ -242,8 +242,8 @@ int mvr::Renderer::initialize(bool visible)
         glm::radians(m_fovY),
         static_cast<float>(m_renderingDimensions[0]) /
             static_cast<float>(m_renderingDimensions[1]),
-        0.1f,
-        50.0f);
+        m_zNear,
+        m_zFar);
 
     if (EXIT_SUCCESS == ret)
         m_isInitialized = true;
