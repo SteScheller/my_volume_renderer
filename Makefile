@@ -3,7 +3,7 @@
 # Target Platform: Linux
 
 TARGET = mvr
-TARGET_LIB = libmvr.so.1.2.1
+TARGET_LIB = libmvr.so.1.2.3
 TARGET_LIB_SONAME = libmvr.so.1
 BUILD_DIR = build
 
