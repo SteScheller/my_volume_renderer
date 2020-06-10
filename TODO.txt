@@ -1,5 +1,6 @@
 bugfixes:
 - look into blending with background color (screenshots did not match shown rendering -> hotfix applied in volume frag where blending is now allways done)
+- fix view and projection matrix when lookat is not at the origin (put creation into update functions such that code is not copied) -> see geotherm project
 
 refactoring:
 - write own shader utility class
