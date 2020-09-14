@@ -1347,24 +1347,52 @@ void mvr::Renderer::drawSettingsWindow()
 
         ImGui::Separator();
 
+        static int file_format = 0;
+        ImGui::RadioButton(
+            ".png",
+            &file_format, 0);
+        
+        ImGui::SameLine();
+
+        ImGui::RadioButton(
+            ".tiff",
+            &file_format, 1);
+
         if(ImGui::Button("save screenshot"))
         {
             timer = std::time(nullptr);
             std::time_t t = std::time(nullptr);
             std::tm* tm = std::localtime(&t);
 
+            std::string file_path = "./screenshots/%F_%H%M%S.png";
+
+            if(file_format != 0)
+            {file_path = "./screenshots/%F_%H%M%S.tiff";}
+
             strftime(
                 filename,
                 sizeof(filename),
-                "./screenshots/%F_%H%M%S.tiff",
+                file_path.c_str(),
                 tm);
 
-            util::makeScreenshot(
-                m_framebuffers[0],
-                m_renderingDimensions[0],
-                m_renderingDimensions[1],
-                filename,
-                FIF_TIFF);
+            if (file_format == 0)
+            {
+                util::makeScreenshot(
+                    m_framebuffers[0],
+                    m_renderingDimensions[0],
+                    m_renderingDimensions[1],
+                    filename,
+                    FIF_PNG);
+            }
+            else
+            {
+                util::makeScreenshot(
+                    m_framebuffers[0],
+                    m_renderingDimensions[0],
+                    m_renderingDimensions[1],
+                    filename,
+                    FIF_TIFF);
+            }
         }
         ImGui::SameLine();
         if(ImGui::Button("save configuration"))

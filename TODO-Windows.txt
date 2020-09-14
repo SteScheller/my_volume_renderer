@@ -1,0 +1,24 @@
+Resolve all library dependencies (freeImage, gl3w, imgui, nlohmann)
+
+For Windows FreeImage was kind of a problem. But I found the fix and follow the bellow steps exactly
+
+With Visual Studio C++ on Windows (from http://graphics.stanford.edu/courses/cs148-10-summer/docs/UsingFreeImage.pdf)
+
+•  Make sure you have the following three files: FreeImage.h, FreeImage.lib, and FreeImage.dll. These should all be included in the .zip file you download from the FreeImage site.
+•  You can put these files anywhere as long as you tell Visual Studio where to look for them, but I like the following setup for it’s simplicity:
+	1.    Create a folder in your Project Directory (you typically have a solution directory, inside of which you have one or more project directories) called FreeImage. Put the .h and the .lib files in here.
+	2.    Cut and paste the FreeImage.dll file directly into your Project Directory (it should be sitting alongside files such as your .vcxproj files).
+	3.    In the Visual Studio Solution Explorer 
+	       (It’s a tree-view widget that is typically docked on the far-right or far-left of the screen. 
+	       If it’s not there, you can get to it via View -> Solution Explorer from the top menu),  right click your project (it should be located under your Solution) and select Properties.
+	
+	4.    Expand “Configuration Properties”, then “C/C++”, and then select “General”. 
+	       Enter "$(ProjectDir)/FreeImage/x64 or (32)" (folder x64 or x32 based on your system architecture) into the field titled “Additional Include Directories”. 
+	       This tells Visual Studio to look in this directory for any .h (header) files that it can’t find in the standard locations.
+
+	5.    Now expand “Linker” under “Configuration Properties”. 
+	       In the General page, enter "$(ProjectDir)/FreeImage/x64 or (32)" (folder x64 or x32 based on your system architecture) " into the field titled “Additional Library Directories” (again, this tells Studio to look here for .lib files).
+
+	6.    In Linker->Input, add "FreeImage.lib" to the “Additional Dependencies” field. (This was the step that we missed and were looking for alternative library options). You’re done! Click OK and build your project.
+	
+NOTE:    You might have noticed that I didn’t say anything about FreeImage.dll beyond putting it in your Project Directory. It’s really important that you have it there, though–your project will still build without it, but you won’t be able to run the program without it.
